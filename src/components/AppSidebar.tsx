@@ -3,9 +3,6 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -14,15 +11,13 @@ import {
 import {
   Home,
   Users,
-  Building2,
-  MapPin,
-  Trees,
-  UserCheck,
   CheckSquare,
   MessageSquare,
-  Settings,
   FileText,
-  Shield
+  Settings,
+  Building,
+  MapPin,
+  UserPlus,
 } from "lucide-react";
 
 const navigationItems = [
@@ -46,45 +41,25 @@ const navigationItems = [
     url: "/communication",
     icon: MessageSquare,
   },
-];
-
-const hierarchyItems = [
   {
-    title: "Mandirs",
-    url: "/mandirs",
-    icon: Building2,
-  },
-  {
-    title: "Kshetras",
-    url: "/kshetras",
-    icon: MapPin,
-  },
-  {
-    title: "Villages",
-    url: "/villages",
-    icon: Trees,
-  },
-  {
-    title: "Mandals",
-    url: "/mandals",
-    icon: UserCheck,
+    title: "Registration",
+    url: "/registration",
+    icon: UserPlus,
   },
 ];
 
-const adminItems = [
-  {
-    title: "User Management",
-    url: "/admin/users",
-    icon: Shield,
-  },
+const managementItems = [
   {
     title: "Reports",
     url: "/reports",
     icon: FileText,
   },
+];
+
+const adminItems = [
   {
-    title: "Settings",
-    url: "/settings",
+    title: "Admin Panel",
+    url: "/admin",
     icon: Settings,
   },
 ];
@@ -96,9 +71,9 @@ export function AppSidebar() {
 
   const isActive = (path: string) => location.pathname === path;
   
-  const getNavClass = (path: string) =>
+  const getNavClass = (path: string) => 
     isActive(path) 
-      ? "bg-orange-100 text-orange-900 font-medium border-r-2 border-orange-500" 
+      ? "bg-orange-500 text-white hover:bg-orange-600" 
       : "hover:bg-orange-50 text-gray-700";
 
   return (
@@ -120,61 +95,54 @@ export function AppSidebar() {
         </div>
 
         {/* Main Navigation */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Main</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {navigationItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={getNavClass(item.url)}>
-                      <item.icon className="h-4 w-4" />
-                      {!isCollapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <div className="p-4">
+          <SidebarMenu>
+            {navigationItems.map((item) => (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton asChild>
+                  <NavLink to={item.url} className={getNavClass(item.url)}>
+                    <item.icon className="h-4 w-4" />
+                    {!isCollapsed && <span>{item.title}</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </div>
 
-        {/* Hierarchy */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Hierarchy</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {hierarchyItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={getNavClass(item.url)}>
-                      <item.icon className="h-4 w-4" />
-                      {!isCollapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {/* Management Section */}
+        <div className="px-4 pb-4">
+          {!isCollapsed && <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Management</p>}
+          <SidebarMenu>
+            {managementItems.map((item) => (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton asChild>
+                  <NavLink to={item.url} className={getNavClass(item.url)}>
+                    <item.icon className="h-4 w-4" />
+                    {!isCollapsed && <span>{item.title}</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </div>
 
-        {/* Administration */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Administration</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {adminItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={getNavClass(item.url)}>
-                      <item.icon className="h-4 w-4" />
-                      {!isCollapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {/* Admin Section */}
+        <div className="px-4 pb-4">
+          {!isCollapsed && <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Administration</p>}
+          <SidebarMenu>
+            {adminItems.map((item) => (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton asChild>
+                  <NavLink to={item.url} className={getNavClass(item.url)}>
+                    <item.icon className="h-4 w-4" />
+                    {!isCollapsed && <span>{item.title}</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </div>
       </SidebarContent>
     </Sidebar>
   );
