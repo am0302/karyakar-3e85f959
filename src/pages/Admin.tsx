@@ -13,12 +13,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Switch } from '@/components/ui/switch';
 import { Users, Building, MapPin, UserCheck, Settings, Plus, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import type { Database } from '@/integrations/supabase/types';
+
+type UserRole = Database['public']['Enums']['user_role'];
 
 type User = {
   id: string;
   full_name: string;
   mobile_number: string;
-  role: string;
+  role: UserRole;
   is_active: boolean;
   created_at: string;
   email?: string;
@@ -94,7 +97,7 @@ const Admin = () => {
     }
   };
 
-  const updateUserRole = async (userId: string, newRole: string) => {
+  const updateUserRole = async (userId: string, newRole: UserRole) => {
     try {
       const { error } = await supabase
         .from('profiles')
@@ -169,7 +172,7 @@ const Admin = () => {
     }
   };
 
-  const getRoleColor = (role: string) => {
+  const getRoleColor = (role: UserRole) => {
     switch (role) {
       case 'super_admin': return 'bg-red-100 text-red-800';
       case 'sant_nirdeshak': return 'bg-purple-100 text-purple-800';
@@ -259,7 +262,7 @@ const Admin = () => {
                           <div className="flex gap-2">
                             <Select
                               value={user.role}
-                              onValueChange={(value) => updateUserRole(user.id, value)}
+                              onValueChange={(value: UserRole) => updateUserRole(user.id, value)}
                             >
                               <SelectTrigger className="w-40">
                                 <SelectValue />
@@ -315,7 +318,6 @@ const Admin = () => {
           </Card>
         </TabsContent>
 
-        {/* Master Data */}
         <TabsContent value="master-data">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <Card>
@@ -365,7 +367,6 @@ const Admin = () => {
           </div>
         </TabsContent>
 
-        {/* Settings */}
         <TabsContent value="settings">
           <Card>
             <CardHeader>
