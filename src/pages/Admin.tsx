@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -284,6 +283,8 @@ const Admin = () => {
                     { name: 'district', label: 'District', type: 'text' },
                     { name: 'state', label: 'State', type: 'text' },
                     { name: 'pincode', label: 'Pincode', type: 'text' },
+                    { name: 'contact_person', label: 'Contact Person', type: 'text' },
+                    { name: 'contact_number', label: 'Contact Number', type: 'text' },
                   ]}
                   onSuccess={fetchStats}
                 />

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -347,17 +346,15 @@ const Tasks = () => {
               </SelectContent>
             </Select>
             
-            {newTask.task_type !== 'personal' && (
-              <div>
-                <label className="text-sm font-medium">Assign to Karyakar</label>
-                <SearchableSelect
-                  options={karyakars.map(k => ({ value: k.id, label: `${k.full_name} (${k.role})` }))}
-                  value={newTask.assigned_to}
-                  onValueChange={(value) => setNewTask({ ...newTask, assigned_to: value })}
-                  placeholder="Select Karyakar"
-                />
-              </div>
-            )}
+            <div>
+              <label className="text-sm font-medium">Assign to Karyakar</label>
+              <SearchableSelect
+                options={karyakars.map(k => ({ value: k.id, label: `${k.full_name} (${k.role})` }))}
+                value={newTask.assigned_to}
+                onValueChange={(value) => setNewTask({ ...newTask, assigned_to: value })}
+                placeholder="Select Karyakar"
+              />
+            </div>
             
             <Select value={newTask.priority} onValueChange={(value: any) => setNewTask({ ...newTask, priority: value })}>
               <SelectTrigger>
