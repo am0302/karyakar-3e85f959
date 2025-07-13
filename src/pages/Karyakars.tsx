@@ -146,30 +146,40 @@ const Karyakars = () => {
     
     try {
       const age = formData.age ? parseInt(formData.age) : null;
-      const dataToInsert = {
-        ...formData,
-        age,
+      const dataToSubmit = {
+        full_name: formData.full_name,
+        mobile_number: formData.mobile_number,
         whatsapp_number: formData.is_whatsapp_same_as_mobile ? formData.mobile_number : formData.whatsapp_number,
+        is_whatsapp_same_as_mobile: formData.is_whatsapp_same_as_mobile,
+        date_of_birth: formData.date_of_birth || null,
+        age,
         profession_id: formData.profession_id || null,
         mandir_id: formData.mandir_id || null,
         kshetra_id: formData.kshetra_id || null,
         village_id: formData.village_id || null,
         mandal_id: formData.mandal_id || null,
         seva_type_id: formData.seva_type_id || null,
+        role: formData.role,
+        profile_photo_url: formData.profile_photo_url || null,
       };
 
       let error;
       if (editingKaryakar) {
         const result = await supabase
           .from('profiles')
-          .update(dataToInsert)
+          .update(dataToSubmit)
           .eq('id', editingKaryakar.id);
         error = result.error;
       } else {
-        const result = await supabase
+        // For new karyakar, we need to create an auth user first or use a UUID
+        // Since we don't have auth integration, we'll generate a UUID
+        const { data: insertData, error: insertError } = await supabase
           .from('profiles')
-          .insert([dataToInsert]);
-        error = result.error;
+          .insert([{
+            ...dataToSubmit,
+            id: crypto.randomUUID(), // Generate a UUID for new profiles
+          }]);
+        error = insertError;
       }
 
       if (error) throw error;
