@@ -29,6 +29,7 @@ interface SearchableSelectProps {
   placeholder?: string;
   searchPlaceholder?: string;
   emptyText?: string;
+  className?: string;
 }
 
 export const SearchableSelect = ({
@@ -38,6 +39,7 @@ export const SearchableSelect = ({
   placeholder = "Select option...",
   searchPlaceholder = "Search...",
   emptyText = "No option found.",
+  className,
 }: SearchableSelectProps) => {
   const [open, setOpen] = useState(false);
 
@@ -48,7 +50,7 @@ export const SearchableSelect = ({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between"
+          className={cn("w-full justify-between", className)}
         >
           {value
             ? options.find((option) => option.value === value)?.label

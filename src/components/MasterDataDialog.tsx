@@ -17,7 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 
 interface MasterDataDialogProps {
   title: string;
-  table: string;
+  table: 'mandirs' | 'kshetras' | 'villages' | 'mandals' | 'professions' | 'seva_types';
   fields: Array<{
     name: string;
     label: string;
@@ -42,7 +42,7 @@ export const MasterDataDialog = ({ title, table, fields, onSuccess }: MasterData
     try {
       const { error } = await supabase
         .from(table)
-        .insert([formData]);
+        .insert(formData);
 
       if (error) throw error;
 

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Edit, Phone, Mail } from "lucide-react";
+import { Edit, Phone, Trash2 } from "lucide-react";
 
 interface KaryakarCardProps {
   karyakar: {
@@ -19,9 +19,11 @@ interface KaryakarCardProps {
     age?: number;
   };
   onEdit: (karyakar: any) => void;
+  onDelete?: (id: string) => void;
+  showActions?: boolean;
 }
 
-export const KaryakarCard = ({ karyakar, onEdit }: KaryakarCardProps) => {
+export const KaryakarCard = ({ karyakar, onEdit, onDelete, showActions = true }: KaryakarCardProps) => {
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
@@ -54,9 +56,18 @@ export const KaryakarCard = ({ karyakar, onEdit }: KaryakarCardProps) => {
             {karyakar.role.replace('_', ' ').toUpperCase()}
           </Badge>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => onEdit(karyakar)}>
-          <Edit className="h-4 w-4" />
-        </Button>
+        {showActions && (
+          <div className="flex space-x-1">
+            <Button variant="ghost" size="sm" onClick={() => onEdit(karyakar)}>
+              <Edit className="h-4 w-4" />
+            </Button>
+            {onDelete && (
+              <Button variant="ghost" size="sm" onClick={() => onDelete(karyakar.id)}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         <div className="space-y-2 text-sm">
