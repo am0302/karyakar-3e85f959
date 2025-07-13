@@ -20,9 +20,9 @@ import {
   Cloud,
   Shield
 } from "lucide-react";
-import type { Database } from "@/integrations/supabase/types";
+import type { Database as DatabaseType } from "@/integrations/supabase/types";
 
-type UserRole = Database['public']['Enums']['user_role'];
+type UserRole = DatabaseType['public']['Enums']['user_role'];
 
 const Admin = () => {
   const [loading, setLoading] = useState(false);
