@@ -1,230 +1,380 @@
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/components/AuthProvider';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Progress } from '@/components/ui/progress';
 import {
   Users,
   CheckSquare,
   MessageSquare,
-  Building2,
+  Calendar,
   TrendingUp,
+  AlertCircle,
   Activity,
-  Clock,
-  AlertCircle
-} from "lucide-react";
+  Building
+} from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+
+type DashboardStats = {
+  totalKaryakars: number;
+  activeKaryakars: number;
+  totalTasks: number;
+  completedTasks: number;
+  pendingTasks: number;
+  totalMandirs: number;
+  totalVillages: number;
+  recentTasks: any[];
+  tasksByPriority: any[];
+  karyakarsByRole: any[];
+};
 
 const Dashboard = () => {
-  const stats = [
-    {
-      title: "Total Karyakars",
-      value: "1,247",
-      change: "+12%",
-      icon: Users,
-      color: "text-blue-600",
-      bgColor: "bg-blue-100",
-    },
-    {
-      title: "Active Tasks",
-      value: "89",
-      change: "+3%",
-      icon: CheckSquare,
-      color: "text-green-600",
-      bgColor: "bg-green-100",
-    },
-    {
-      title: "Messages Today",
-      value: "156",
-      change: "+23%",
-      icon: MessageSquare,
-      color: "text-purple-600",
-      bgColor: "bg-purple-100",
-    },
-    {
-      title: "Mandirs",
-      value: "12",
-      change: "0%",
-      icon: Building2,
-      color: "text-orange-600",
-      bgColor: "bg-orange-100",
-    },
-  ];
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [stats, setStats] = useState<DashboardStats>({
+    totalKaryakars: 0,
+    activeKaryakars: 0,
+    totalTasks: 0,
+    completedTasks: 0,
+    pendingTasks: 0,
+    totalMandirs: 0,
+    totalVillages: 0,
+    recentTasks: [],
+    tasksByPriority: [],
+    karyakarsByRole: []
+  });
+  const [loading, setLoading] = useState(true);
 
-  const recentTasks = [
-    {
-      title: "Monthly Seva Planning",
-      assignee: "Ramesh Kumar",
-      priority: "High",
-      dueDate: "Tomorrow",
-      status: "In Progress",
-    },
-    {
-      title: "Youth Program Coordination",
-      assignee: "Priya Sharma",
-      priority: "Medium",
-      dueDate: "Next Week",
-      status: "Pending",
-    },
-    {
-      title: "Festival Preparation",
-      assignee: "Multiple Assignees",
-      priority: "High",
-      dueDate: "3 days",
-      status: "In Progress",
-    },
-  ];
+  useEffect(() => {
+    if (user) {
+      fetchDashboardStats();
+    }
+  }, [user]);
 
-  const upcomingEvents = [
-    {
-      title: "Kshetra Meeting",
-      date: "Dec 20, 2024",
-      time: "10:00 AM",
-      location: "Central Mandir",
-    },
-    {
-      title: "Seva Coordination",
-      date: "Dec 22, 2024",
-      time: "2:00 PM",
-      location: "Community Hall",
-    },
-  ];
+  const fetchDashboardStats = async () => {
+    try {
+      // Fetch basic counts
+      const [
+        karyakarsRes,
+        tasksRes,
+        mandirsRes,
+        villagesRes,
+        recentTasksRes
+      ] = await Promise.all([
+        supabase.from('profiles').select('id, is_active, role'),
+        supabase.from('tasks').select('id, status, priority'),
+        supabase.from('mandirs').select('id'),
+        supabase.from('villages').select('id'),
+        supabase.from('tasks').select(`
+          id, title, status, priority, due_date, created_at,
+          profiles!tasks_assigned_to_fkey(full_name)
+        `).order('created_at', { ascending: false }).limit(5)
+      ]);
+
+      const karyakars = karyakarsRes.data || [];
+      const tasks = tasksRes.data || [];
+      const mandirs = mandirsRes.data || [];
+      const villages = villagesRes.data || [];
+      const recentTasks = recentTasksRes.data || [];
+
+      // Calculate stats
+      const totalKaryakars = karyakars.length;
+      const activeKaryakars = karyakars.filter(k => k.is_active).length;
+      const totalTasks = tasks.length;
+      const completedTasks = tasks.filter(t => t.status === 'completed').length;
+      const pendingTasks = tasks.filter(t => t.status === 'pending').length;
+
+      // Tasks by priority
+      const tasksByPriority = [
+        { name: 'Low', value: tasks.filter(t => t.priority === 'low').length, color: '#22c55e' },
+        { name: 'Medium', value: tasks.filter(t => t.priority === 'medium').length, color: '#f59e0b' },
+        { name: 'High', value: tasks.filter(t => t.priority === 'high').length, color: '#ef4444' },
+        { name: 'Urgent', value: tasks.filter(t => t.priority === 'urgent').length, color: '#dc2626' }
+      ];
+
+      // Karyakars by role
+      const roleCount = karyakars.reduce((acc: any, k) => {
+        acc[k.role] = (acc[k.role] || 0) + 1;
+        return acc;
+      }, {});
+
+      const karyakarsByRole = Object.entries(roleCount).map(([role, count]) => ({
+        name: role.replace('_', ' ').toUpperCase(),
+        value: count
+      }));
+
+      setStats({
+        totalKaryakars,
+        activeKaryakars,
+        totalTasks,
+        completedTasks,
+        pendingTasks,
+        totalMandirs: mandirs.length,
+        totalVillages: villages.length,
+        recentTasks,
+        tasksByPriority,
+        karyakarsByRole
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch dashboard data',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'urgent': return 'bg-red-500';
+      case 'high': return 'bg-orange-500';
+      case 'medium': return 'bg-yellow-500';
+      case 'low': return 'bg-green-500';
+      default: return 'bg-gray-500';
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return 'bg-green-100 text-green-800';
+      case 'in_progress': return 'bg-blue-100 text-blue-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64">Loading dashboard...</div>;
+  }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-2">
-          Welcome back! Here's what's happening in your spiritual community.
-        </p>
+        <p className="text-gray-600">Welcome to Seva Sarthi Connect</p>
       </div>
 
-      {/* Stats Cards */}
+      {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
-          <Card key={index}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-              <div className={`w-8 h-8 rounded-lg ${stat.bgColor} flex items-center justify-center`}>
-                <stat.icon className={`w-4 h-4 ${stat.color}`} />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-muted-foreground flex items-center mt-1">
-                <TrendingUp className="w-3 h-3 mr-1" />
-                {stat.change} from last month
-              </p>
-            </CardContent>
-          </Card>
-        ))}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Karyakars</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalKaryakars}</div>
+            <p className="text-xs text-muted-foreground">
+              {stats.activeKaryakars} active members
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Tasks</CardTitle>
+            <CheckSquare className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalTasks}</div>
+            <p className="text-xs text-muted-foreground">
+              {stats.completedTasks} completed
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending Tasks</CardTitle>
+            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-600">{stats.pendingTasks}</div>
+            <p className="text-xs text-muted-foreground">
+              Requires attention
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Mandirs</CardTitle>
+            <Building className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalMandirs}</div>
+            <p className="text-xs text-muted-foreground">
+              {stats.totalVillages} villages
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
+      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Tasks */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CheckSquare className="w-5 h-5" />
-              Recent Tasks
-            </CardTitle>
-            <CardDescription>
-              Tasks that need your attention
-            </CardDescription>
+            <CardTitle>Tasks by Priority</CardTitle>
+            <CardDescription>Distribution of tasks by priority level</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {recentTasks.map((task, index) => (
-              <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                <div className="space-y-1">
-                  <h4 className="font-medium">{task.title}</h4>
-                  <p className="text-sm text-gray-600">Assigned to: {task.assignee}</p>
-                  <div className="flex items-center gap-2">
-                    <Badge 
-                      variant={task.priority === 'High' ? 'destructive' : 'secondary'}
-                      className="text-xs"
-                    >
-                      {task.priority}
-                    </Badge>
-                    <span className="text-xs text-gray-500 flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      Due {task.dueDate}
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={stats.tasksByPriority}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                  label={({ name, value }) => `${name}: ${value}`}
+                >
+                  {stats.tasksByPriority.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Karyakars by Role</CardTitle>
+            <CardDescription>Distribution of community members by role</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={stats.karyakarsByRole}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="value" fill="#f97316" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Tasks and Progress */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Tasks</CardTitle>
+            <CardDescription>Latest tasks in the system</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {stats.recentTasks.length > 0 ? stats.recentTasks.map((task) => (
+                <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)}`} />
+                    <div>
+                      <p className="font-medium text-sm">{task.title}</p>
+                      <p className="text-xs text-gray-500">
+                        Assigned to: {task.profiles?.full_name || 'Unassigned'}
+                      </p>
+                    </div>
+                  </div>
+                  <Badge className={getStatusColor(task.status)}>
+                    {task.status.replace('_', ' ').toUpperCase()}
+                  </Badge>
+                </div>
+              )) : (
+                <p className="text-gray-500 text-center py-4">No tasks available</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Task Completion Progress</CardTitle>
+            <CardDescription>Overall task completion rate</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium">Completed Tasks</span>
+                  <span className="text-sm text-gray-500">
+                    {stats.completedTasks} / {stats.totalTasks}
+                  </span>
+                </div>
+                <Progress 
+                  value={stats.totalTasks > 0 ? (stats.completedTasks / stats.totalTasks) * 100 : 0} 
+                  className="h-2"
+                />
+              </div>
+              
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium">Active Members</span>
+                  <span className="text-sm text-gray-500">
+                    {stats.activeKaryakars} / {stats.totalKaryakars}
+                  </span>
+                </div>
+                <Progress 
+                  value={stats.totalKaryakars > 0 ? (stats.activeKaryakars / stats.totalKaryakars) * 100 : 0} 
+                  className="h-2"
+                />
+              </div>
+
+              <div className="pt-4">
+                <h4 className="font-medium mb-2">Quick Stats</h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span>Completion Rate:</span>
+                    <span className="font-medium">
+                      {stats.totalTasks > 0 ? Math.round((stats.completedTasks / stats.totalTasks) * 100) : 0}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Active Rate:</span>
+                    <span className="font-medium">
+                      {stats.totalKaryakars > 0 ? Math.round((stats.activeKaryakars / stats.totalKaryakars) * 100) : 0}%
                     </span>
                   </div>
                 </div>
-                <Badge variant={task.status === 'In Progress' ? 'default' : 'secondary'}>
-                  {task.status}
-                </Badge>
               </div>
-            ))}
-            <Button variant="outline" className="w-full">
-              View All Tasks
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Upcoming Events */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="w-5 h-5" />
-              Upcoming Events
-            </CardTitle>
-            <CardDescription>
-              Important events and meetings
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {upcomingEvents.map((event, index) => (
-              <div key={index} className="p-3 border rounded-lg">
-                <h4 className="font-medium">{event.title}</h4>
-                <p className="text-sm text-gray-600 mt-1">{event.location}</p>
-                <div className="flex items-center gap-4 mt-2 text-sm">
-                  <span className="flex items-center gap-1 text-gray-500">
-                    <Clock className="w-3 h-3" />
-                    {event.date}
-                  </span>
-                  <span className="text-orange-600 font-medium">{event.time}</span>
-                </div>
-              </div>
-            ))}
-            <Button variant="outline" className="w-full">
-              View Calendar
-            </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Activity Overview */}
+      {/* Quick Actions */}
       <Card>
         <CardHeader>
-          <CardTitle>Community Activity</CardTitle>
-          <CardDescription>
-            Overview of community engagement and participation
-          </CardDescription>
+          <CardTitle>Quick Actions</CardTitle>
+          <CardDescription>Frequently used actions</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Task Completion Rate</span>
-                <span className="font-medium">78%</span>
-              </div>
-              <Progress value={78} className="h-2" />
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Active Participation</span>
-                <span className="font-medium">92%</span>
-              </div>
-              <Progress value={92} className="h-2" />
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Communication Engagement</span>
-                <span className="font-medium">65%</span>
-              </div>
-              <Progress value={65} className="h-2" />
-            </div>
+        <CardContent>
+          <div className="flex gap-4 flex-wrap">
+            <Button className="bg-orange-500 hover:bg-orange-600">
+              <Users className="w-4 h-4 mr-2" />
+              Register Karyakar
+            </Button>
+            <Button variant="outline">
+              <CheckSquare className="w-4 h-4 mr-2" />
+              Create Task
+            </Button>
+            <Button variant="outline">
+              <MessageSquare className="w-4 h-4 mr-2" />
+              Start Chat
+            </Button>
+            <Button variant="outline">
+              <Calendar className="w-4 h-4 mr-2" />
+              Schedule Meeting
+            </Button>
           </div>
         </CardContent>
       </Card>
