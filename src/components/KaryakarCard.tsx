@@ -1,166 +1,94 @@
 
-import React from 'react';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Phone, Mail, MapPin, Edit, Trash2, Calendar } from 'lucide-react';
-import type { Database } from '@/integrations/supabase/types';
-
-type Profile = Database['public']['Tables']['profiles']['Row'] & {
-  professions?: { name: string } | null;
-  seva_types?: { name: string } | null;
-  mandirs?: { name: string } | null;
-  kshetras?: { name: string } | null;
-  villages?: { name: string } | null;
-  mandals?: { name: string } | null;
-};
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Edit, Phone, Mail } from "lucide-react";
 
 interface KaryakarCardProps {
-  karyakar: Profile;
-  onEdit?: (karyakar: Profile) => void;
-  onDelete?: (id: string) => void;
-  showActions?: boolean;
+  karyakar: {
+    id: string;
+    full_name: string;
+    mobile_number: string;
+    role: string;
+    profession?: { name: string };
+    seva_type?: { name: string };
+    mandir?: { name: string };
+    village?: { name: string };
+    profile_photo_url?: string;
+    age?: number;
+  };
+  onEdit: (karyakar: any) => void;
 }
 
-export const KaryakarCard = ({ karyakar, onEdit, onDelete, showActions = true }: KaryakarCardProps) => {
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'super_admin': return 'bg-red-100 text-red-800';
-      case 'sant_nirdeshak': return 'bg-purple-100 text-purple-800';
-      case 'sah_nirdeshak': return 'bg-blue-100 text-blue-800';
-      case 'mandal_sanchalak': return 'bg-green-100 text-green-800';
-      case 'karyakar': return 'bg-yellow-100 text-yellow-800';
-      case 'sevak': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+export const KaryakarCard = ({ karyakar, onEdit }: KaryakarCardProps) => {
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
 
-  const formatAge = (age: number | null, dateOfBirth: string | null) => {
-    if (age) return `${age} years`;
-    if (dateOfBirth) {
-      const birthDate = new Date(dateOfBirth);
-      const today = new Date();
-      const calculatedAge = today.getFullYear() - birthDate.getFullYear();
-      return `${calculatedAge} years`;
+  const getRoleBadgeVariant = (role: string) => {
+    switch (role) {
+      case 'super_admin':
+        return 'destructive';
+      case 'sant_nirdeshak':
+        return 'default';
+      case 'sah_nirdeshak':
+        return 'secondary';
+      case 'mandal_sanchalak':
+        return 'outline';
+      default:
+        return 'outline';
     }
-    return 'N/A';
   };
 
   return (
-    <Card className="h-full hover:shadow-lg transition-shadow">
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center space-x-3">
-            <Avatar className="h-12 w-12">
-              <AvatarImage src={karyakar.profile_photo_url || undefined} />
-              <AvatarFallback>
-                {karyakar.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <h3 className="font-semibold text-lg">{karyakar.full_name}</h3>
-              <Badge className={getRoleColor(karyakar.role)}>
-                {karyakar.role.replace('_', ' ').toUpperCase()}
-              </Badge>
-            </div>
-          </div>
-          {showActions && (
-            <div className="flex space-x-1">
-              {onEdit && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onEdit(karyakar)}
-                >
-                  <Edit className="h-4 w-4" />
-                </Button>
-              )}
-              {onDelete && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onDelete(karyakar.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
-      </CardHeader>
-      
-      <CardContent className="space-y-3">
-        <div className="grid grid-cols-1 gap-2 text-sm">
-          <div className="flex items-center text-gray-600">
-            <Phone className="h-4 w-4 mr-2" />
-            {karyakar.mobile_number}
-          </div>
-          
-          {karyakar.whatsapp_number && (
-            <div className="flex items-center text-green-600">
-              <Phone className="h-4 w-4 mr-2" />
-              WhatsApp: {karyakar.whatsapp_number}
-            </div>
-          )}
-          
-          <div className="flex items-center text-gray-600">
-            <Calendar className="h-4 w-4 mr-2" />
-            Age: {formatAge(karyakar.age, karyakar.date_of_birth)}
-          </div>
-        </div>
-
-        {karyakar.professions && (
-          <div>
-            <span className="text-sm font-medium">Profession: </span>
-            <span className="text-sm text-gray-600">{karyakar.professions.name}</span>
-          </div>
-        )}
-
-        {karyakar.seva_types && (
-          <div>
-            <span className="text-sm font-medium">Seva Type: </span>
-            <span className="text-sm text-gray-600">{karyakar.seva_types.name}</span>
-          </div>
-        )}
-
-        <div className="space-y-1 text-sm">
-          {karyakar.mandirs && (
-            <div className="flex items-center text-gray-600">
-              <MapPin className="h-4 w-4 mr-2" />
-              Mandir: {karyakar.mandirs.name}
-            </div>
-          )}
-          
-          {karyakar.kshetras && (
-            <div className="flex items-center text-gray-600">
-              <MapPin className="h-4 w-4 mr-2" />
-              Kshetra: {karyakar.kshetras.name}
-            </div>
-          )}
-          
-          {karyakar.villages && (
-            <div className="flex items-center text-gray-600">
-              <MapPin className="h-4 w-4 mr-2" />
-              Village: {karyakar.villages.name}
-            </div>
-          )}
-          
-          {karyakar.mandals && (
-            <div className="flex items-center text-gray-600">
-              <MapPin className="h-4 w-4 mr-2" />
-              Mandal: {karyakar.mandals.name}
-            </div>
-          )}
-        </div>
-
-        <div className="flex justify-between items-center pt-2">
-          <Badge variant={karyakar.is_active ? "default" : "secondary"}>
-            {karyakar.is_active ? "Active" : "Inactive"}
+    <Card className="hover:shadow-lg transition-shadow">
+      <CardHeader className="flex flex-row items-center space-y-0 pb-2">
+        <Avatar className="h-12 w-12 mr-4">
+          <AvatarImage src={karyakar.profile_photo_url} />
+          <AvatarFallback>{getInitials(karyakar.full_name)}</AvatarFallback>
+        </Avatar>
+        <div className="flex-1">
+          <CardTitle className="text-lg">{karyakar.full_name}</CardTitle>
+          <Badge variant={getRoleBadgeVariant(karyakar.role)} className="mt-1">
+            {karyakar.role.replace('_', ' ').toUpperCase()}
           </Badge>
-          <span className="text-xs text-gray-500">
-            Joined: {new Date(karyakar.created_at).toLocaleDateString()}
-          </span>
+        </div>
+        <Button variant="ghost" size="sm" onClick={() => onEdit(karyakar)}>
+          <Edit className="h-4 w-4" />
+        </Button>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center">
+            <Phone className="h-4 w-4 mr-2 text-muted-foreground" />
+            <span>{karyakar.mobile_number}</span>
+          </div>
+          {karyakar.age && (
+            <div className="text-muted-foreground">
+              Age: {karyakar.age}
+            </div>
+          )}
+          {karyakar.profession && (
+            <div className="text-muted-foreground">
+              Profession: {karyakar.profession.name}
+            </div>
+          )}
+          {karyakar.seva_type && (
+            <div className="text-muted-foreground">
+              Seva: {karyakar.seva_type.name}
+            </div>
+          )}
+          {karyakar.mandir && (
+            <div className="text-muted-foreground">
+              Mandir: {karyakar.mandir.name}
+            </div>
+          )}
+          {karyakar.village && (
+            <div className="text-muted-foreground">
+              Village: {karyakar.village.name}
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

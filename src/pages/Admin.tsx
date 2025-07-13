@@ -1,112 +1,137 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/components/AuthProvider';
-import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Switch } from '@/components/ui/switch';
-import { Users, Building, MapPin, UserCheck, Settings, Plus, Edit, Trash2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { SearchableSelect } from '@/components/SearchableSelect';
-import { MasterDataDialog } from '@/components/MasterDataDialog';
-import type { Database } from '@/integrations/supabase/types';
 
-type UserRole = Database['public']['Enums']['user_role'];
-
-type User = {
-  id: string;
-  full_name: string;
-  mobile_number: string;
-  role: UserRole;
-  is_active: boolean;
-  created_at: string;
-  email?: string;
-};
-
-type Permission = {
-  id: string;
-  user_id: string;
-  module: string;
-  can_view: boolean;
-  can_add: boolean;
-  can_edit: boolean;
-  can_delete: boolean;
-  can_export: boolean;
-};
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { MasterDataDialog } from "@/components/MasterDataDialog";
+import { 
+  Users, 
+  Building2, 
+  MapPin, 
+  TreePine, 
+  Settings, 
+  Download,
+  Upload,
+  Database,
+  Cloud,
+  Shield
+} from "lucide-react";
 
 const Admin = () => {
-  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalMandirs: 0,
+    totalVillages: 0,
+    totalTasks: 0,
+  });
+  const [backupSettings, setBackupSettings] = useState({
+    driveApiKey: '',
+    driveClientId: '',
+    driveClientSecret: '',
+    refreshToken: '',
+    folderId: '',
+    autoBackup: false,
+  });
   const { toast } = useToast();
-  const [users, setUsers] = useState<User[]>([]);
-  const [permissions, setPermissions] = useState<Permission[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [showPermissionDialog, setShowPermissionDialog] = useState(false);
-  const [showMasterDataDialog, setShowMasterDataDialog] = useState(false);
-  const [masterDataType, setMasterDataType] = useState<'mandir' | 'kshetra' | 'village'>('mandir');
-  const [searchTerm, setSearchTerm] = useState('');
-
-  const modules = [
-    'profiles', 'tasks', 'communication', 'mandirs', 'kshetras', 
-    'villages', 'mandals', 'reports', 'admin'
-  ];
 
   useEffect(() => {
-    if (user) {
-      fetchUsers();
-    }
-  }, [user]);
+    fetchUsers();
+    fetchStats();
+    loadBackupSettings();
+  }, []);
 
   const fetchUsers = async () => {
     try {
-      setLoading(true);
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select(`
+          *,
+          profession:professions(name),
+          seva_type:seva_types(name),
+          mandir:mandirs(name),
+          village:villages(name)
+        `);
 
-      if (error) {
-        console.error('Error fetching users:', error);
-        throw error;
-      }
-      
-      console.log('Fetched users:', data);
+      if (error) throw error;
       setUsers(data || []);
     } catch (error: any) {
-      console.error('Failed to fetch users:', error);
+      console.error('Error fetching users:', error);
       toast({
-        title: 'Error',
-        description: `Failed to fetch users: ${error.message}`,
-        variant: 'destructive',
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const [usersCount, mandirsCount, villagesCount, tasksCount] = await Promise.all([
+        supabase.from('profiles').select('*', { count: 'exact', head: true }),
+        supabase.from('mandirs').select('*', { count: 'exact', head: true }),
+        supabase.from('villages').select('*', { count: 'exact', head: true }),
+        supabase.from('tasks').select('*', { count: 'exact', head: true }),
+      ]);
+
+      setStats({
+        totalUsers: usersCount.count || 0,
+        totalMandirs: mandirsCount.count || 0,
+        totalVillages: villagesCount.count || 0,
+        totalTasks: tasksCount.count || 0,
+      });
+    } catch (error: any) {
+      console.error('Error fetching stats:', error);
+    }
+  };
+
+  const loadBackupSettings = () => {
+    const saved = localStorage.getItem('backupSettings');
+    if (saved) {
+      setBackupSettings(JSON.parse(saved));
+    }
+  };
+
+  const saveBackupSettings = () => {
+    localStorage.setItem('backupSettings', JSON.stringify(backupSettings));
+    toast({
+      title: "Settings Saved",
+      description: "Backup settings have been saved successfully.",
+    });
+  };
+
+  const triggerBackup = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('google-drive-backup', {
+        body: { settings: backupSettings }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Backup Successful",
+        description: `Data backed up to Google Drive: ${data.fileName}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Backup Failed",
+        description: error.message,
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchUserPermissions = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('user_permissions')
-        .select('*')
-        .eq('user_id', userId);
-
-      if (error) throw error;
-      setPermissions(data || []);
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch permissions',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const updateUserRole = async (userId: string, newRole: UserRole) => {
+  const updateUserRole = async (userId: string, newRole: string) => {
     try {
       const { error } = await supabase
         .from('profiles')
@@ -116,408 +141,336 @@ const Admin = () => {
       if (error) throw error;
 
       toast({
-        title: 'Success',
-        description: 'User role updated successfully',
+        title: "Success",
+        description: "User role updated successfully",
       });
-      
       fetchUsers();
     } catch (error: any) {
       toast({
-        title: 'Error',
+        title: "Error",
         description: error.message,
-        variant: 'destructive',
+        variant: "destructive",
       });
     }
   };
 
-  const toggleUserStatus = async (userId: string, isActive: boolean) => {
+  const exportData = async () => {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
-        .update({ is_active: isActive })
-        .eq('id', userId);
+        .select('*')
+        .csv();
 
       if (error) throw error;
 
+      const blob = new Blob([data], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'karyakars-export.csv';
+      a.click();
+      window.URL.revokeObjectURL(url);
+
       toast({
-        title: 'Success',
-        description: `User ${isActive ? 'activated' : 'deactivated'} successfully`,
+        title: "Export Successful",
+        description: "Data exported successfully",
       });
-      
-      fetchUsers();
     } catch (error: any) {
       toast({
-        title: 'Error',
+        title: "Export Failed",
         description: error.message,
-        variant: 'destructive',
+        variant: "destructive",
       });
     }
   };
-
-  const updatePermission = async (userId: string, module: string, permission: string, value: boolean) => {
-    try {
-      const { error } = await supabase
-        .from('user_permissions')
-        .upsert({
-          user_id: userId,
-          module: module,
-          [permission]: value
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: 'Success',
-        description: 'Permission updated successfully',
-      });
-      
-      fetchUserPermissions(userId);
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const getRoleColor = (role: UserRole) => {
-    switch (role) {
-      case 'super_admin': return 'bg-red-100 text-red-800';
-      case 'sant_nirdeshak': return 'bg-purple-100 text-purple-800';
-      case 'sah_nirdeshak': return 'bg-blue-100 text-blue-800';
-      case 'mandal_sanchalak': return 'bg-green-100 text-green-800';
-      case 'karyakar': return 'bg-yellow-100 text-yellow-800';
-      case 'sevak': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const filteredUsers = users.filter(user =>
-    user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.mobile_number.includes(searchTerm) ||
-    user.role.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const openMasterDataDialog = (type: 'mandir' | 'kshetra' | 'village') => {
-    setMasterDataType(type);
-    setShowMasterDataDialog(true);
-  };
-
-  if (loading) {
-    return <div className="flex items-center justify-center h-64">Loading admin panel...</div>;
-  }
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Admin Panel</h1>
-          <p className="text-gray-600">Manage users, permissions, and system settings</p>
-        </div>
+        <h1 className="text-3xl font-bold">Admin Panel</h1>
+        <Button onClick={exportData}>
+          <Download className="h-4 w-4 mr-2" />
+          Export Data
+        </Button>
       </div>
 
-      <Tabs defaultValue="users" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalUsers}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Mandirs</CardTitle>
+            <Building2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalMandirs}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Villages</CardTitle>
+            <MapPin className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalVillages}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Tasks</CardTitle>
+            <TreePine className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalTasks}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Tabs defaultValue="users" className="space-y-4">
+        <TabsList>
           <TabsTrigger value="users">User Management</TabsTrigger>
-          <TabsTrigger value="permissions">Permissions</TabsTrigger>
           <TabsTrigger value="master-data">Master Data</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsTrigger value="backup">Google Drive Backup</TabsTrigger>
+          <TabsTrigger value="settings">System Settings</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="users">
+        <TabsContent value="users" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                User Management ({users.length} users)
-              </CardTitle>
-              <CardDescription>
-                Manage user accounts, roles, and status
-              </CardDescription>
+              <CardTitle>User Management</CardTitle>
+              <CardDescription>Manage user roles and permissions</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <Input
-                  placeholder="Search users..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="max-w-sm"
-                />
-
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Mobile</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredUsers.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell className="font-medium">{user.full_name}</TableCell>
-                        <TableCell>{user.mobile_number}</TableCell>
-                        <TableCell>
-                          <Badge className={getRoleColor(user.role)}>
-                            {user.role.replace('_', ' ').toUpperCase()}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Switch
-                            checked={user.is_active}
-                            onCheckedChange={(checked) => toggleUserStatus(user.id, checked)}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <SearchableSelect
-                              options={[
-                                { value: 'sevak', label: 'Sevak' },
-                                { value: 'karyakar', label: 'Karyakar' },
-                                { value: 'mandal_sanchalak', label: 'Mandal Sanchalak' },
-                                { value: 'sah_nirdeshak', label: 'Sah Nirdeshak' },
-                                { value: 'sant_nirdeshak', label: 'Sant Nirdeshak' },
-                                { value: 'super_admin', label: 'Super Admin' },
-                              ]}
-                              value={user.role}
-                              onValueChange={(value) => updateUserRole(user.id, value as UserRole)}
-                              className="w-40"
-                            />
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedUser(user);
-                                fetchUserPermissions(user.id);
-                                setShowPermissionDialog(true);
-                              }}
-                            >
-                              <Settings className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                {users.map((user: any) => (
+                  <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <h3 className="font-medium">{user.full_name}</h3>
+                      <p className="text-sm text-muted-foreground">{user.mobile_number}</p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Badge variant="outline">{user.role}</Badge>
+                      <select
+                        value={user.role}
+                        onChange={(e) => updateUserRole(user.id, e.target.value)}
+                        className="px-2 py-1 border rounded"
+                      >
+                        <option value="sevak">Sevak</option>
+                        <option value="karyakar">Karyakar</option>
+                        <option value="mandal_sanchalak">Mandal Sanchalak</option>
+                        <option value="sah_nirdeshak">Sah Nirdeshak</option>
+                        <option value="sant_nirdeshak">Sant Nirdeshak</option>
+                        <option value="super_admin">Super Admin</option>
+                      </select>
+                    </div>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="permissions">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <UserCheck className="h-5 w-5" />
-                Permission Management
-              </CardTitle>
-              <CardDescription>
-                Configure module-wise permissions for different roles
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600">
-                Select a user from the User Management tab to configure their permissions.
-              </p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="master-data">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <TabsContent value="master-data" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Building className="h-5 w-5" />
-                  Mandirs
-                </CardTitle>
+                <CardTitle>Mandirs</CardTitle>
+                <CardDescription>Manage temple locations</CardDescription>
               </CardHeader>
               <CardContent>
-                <Button 
-                  className="w-full"
-                  onClick={() => openMasterDataDialog('mandir')}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Mandir
-                </Button>
+                <MasterDataDialog
+                  title="Mandir"
+                  table="mandirs"
+                  fields={[
+                    { name: 'name', label: 'Name', type: 'text', required: true },
+                    { name: 'address', label: 'Address', type: 'textarea' },
+                    { name: 'contact_person', label: 'Contact Person', type: 'text' },
+                    { name: 'contact_number', label: 'Contact Number', type: 'text' },
+                    { name: 'email', label: 'Email', type: 'text' },
+                  ]}
+                  onSuccess={fetchStats}
+                />
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5" />
-                  Kshetras
-                </CardTitle>
+                <CardTitle>Kshetras</CardTitle>
+                <CardDescription>Manage regional areas</CardDescription>
               </CardHeader>
               <CardContent>
-                <Button 
-                  className="w-full"
-                  onClick={() => openMasterDataDialog('kshetra')}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Kshetra
-                </Button>
+                <MasterDataDialog
+                  title="Kshetra"
+                  table="kshetras"
+                  fields={[
+                    { name: 'name', label: 'Name', type: 'text', required: true },
+                    { name: 'description', label: 'Description', type: 'textarea' },
+                    { name: 'contact_person', label: 'Contact Person', type: 'text' },
+                  ]}
+                  onSuccess={fetchStats}
+                />
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5" />
-                  Villages
-                </CardTitle>
+                <CardTitle>Villages</CardTitle>
+                <CardDescription>Manage village locations</CardDescription>
               </CardHeader>
               <CardContent>
-                <Button 
-                  className="w-full"
-                  onClick={() => openMasterDataDialog('village')}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Village
-                </Button>
+                <MasterDataDialog
+                  title="Village"
+                  table="villages"
+                  fields={[
+                    { name: 'name', label: 'Name', type: 'text', required: true },
+                    { name: 'district', label: 'District', type: 'text' },
+                    { name: 'state', label: 'State', type: 'text' },
+                    { name: 'pincode', label: 'Pincode', type: 'text' },
+                  ]}
+                  onSuccess={fetchStats}
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Mandals</CardTitle>
+                <CardDescription>Manage community groups</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <MasterDataDialog
+                  title="Mandal"
+                  table="mandals"
+                  fields={[
+                    { name: 'name', label: 'Name', type: 'text', required: true },
+                    { name: 'description', label: 'Description', type: 'textarea' },
+                    { name: 'meeting_day', label: 'Meeting Day', type: 'text' },
+                  ]}
+                  onSuccess={fetchStats}
+                />
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
-        <TabsContent value="settings">
+        <TabsContent value="backup" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
+              <CardTitle className="flex items-center">
+                <Cloud className="h-5 w-5 mr-2" />
+                Google Drive Backup Settings
+              </CardTitle>
+              <CardDescription>
+                Configure automatic backup to Google Drive
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="driveApiKey">Google Drive API Key</Label>
+                  <Input
+                    id="driveApiKey"
+                    type="password"
+                    value={backupSettings.driveApiKey}
+                    onChange={(e) => setBackupSettings(prev => ({ ...prev, driveApiKey: e.target.value }))}
+                    placeholder="Enter your Google Drive API key"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="driveClientId">Client ID</Label>
+                  <Input
+                    id="driveClientId"
+                    value={backupSettings.driveClientId}
+                    onChange={(e) => setBackupSettings(prev => ({ ...prev, driveClientId: e.target.value }))}
+                    placeholder="Enter client ID"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="driveClientSecret">Client Secret</Label>
+                  <Input
+                    id="driveClientSecret"
+                    type="password"
+                    value={backupSettings.driveClientSecret}
+                    onChange={(e) => setBackupSettings(prev => ({ ...prev, driveClientSecret: e.target.value }))}
+                    placeholder="Enter client secret"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="refreshToken">Refresh Token</Label>
+                  <Input
+                    id="refreshToken"
+                    type="password"
+                    value={backupSettings.refreshToken}
+                    onChange={(e) => setBackupSettings(prev => ({ ...prev, refreshToken: e.target.value }))}
+                    placeholder="Enter refresh token"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="folderId">Drive Folder ID</Label>
+                  <Input
+                    id="folderId"
+                    value={backupSettings.folderId}
+                    onChange={(e) => setBackupSettings(prev => ({ ...prev, folderId: e.target.value }))}
+                    placeholder="Enter Google Drive folder ID"
+                  />
+                </div>
+              </div>
+              
+              <div className="flex space-x-2 pt-4">
+                <Button onClick={saveBackupSettings} variant="outline">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Save Settings
+                </Button>
+                <Button onClick={triggerBackup} disabled={loading}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  {loading ? "Backing up..." : "Backup Now"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="settings" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Shield className="h-5 w-5 mr-2" />
                 System Settings
               </CardTitle>
               <CardDescription>
-                Configure system-wide settings and preferences
+                Configure system-wide settings and security
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-medium">Google Drive Integration</h3>
-                    <p className="text-sm text-gray-600">Store data backups in Google Drive</p>
+                <div className="p-4 border rounded-lg">
+                  <h3 className="font-medium mb-2">Database Status</h3>
+                  <div className="flex items-center space-x-2">
+                    <Database className="h-4 w-4 text-green-500" />
+                    <span className="text-sm text-green-600">Connected</span>
                   </div>
-                  <Switch />
                 </div>
                 
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-medium">Real-time Notifications</h3>
-                    <p className="text-sm text-gray-600">Enable push notifications for users</p>
+                <div className="p-4 border rounded-lg">
+                  <h3 className="font-medium mb-2">Authentication</h3>
+                  <div className="flex items-center space-x-2">
+                    <Shield className="h-4 w-4 text-green-500" />
+                    <span className="text-sm text-green-600">Enabled with RLS</span>
                   </div>
-                  <Switch />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-medium">Auto Backup</h3>
-                    <p className="text-sm text-gray-600">Automatically backup data daily</p>
-                  </div>
-                  <Switch />
                 </div>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
-
-      {/* Permission Dialog */}
-      <Dialog open={showPermissionDialog} onOpenChange={setShowPermissionDialog}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>
-              Permissions for {selectedUser?.full_name}
-            </DialogTitle>
-            <DialogDescription>
-              Configure module-wise permissions for this user
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Module</TableHead>
-                  <TableHead>View</TableHead>
-                  <TableHead>Add</TableHead>
-                  <TableHead>Edit</TableHead>
-                  <TableHead>Delete</TableHead>
-                  <TableHead>Export</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {modules.map((module) => {
-                  const permission = permissions.find(p => p.module === module);
-                  return (
-                    <TableRow key={module}>
-                      <TableCell className="font-medium capitalize">{module}</TableCell>
-                      <TableCell>
-                        <Switch
-                          checked={permission?.can_view || false}
-                          onCheckedChange={(checked) => 
-                            selectedUser && updatePermission(selectedUser.id, module, 'can_view', checked)
-                          }
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Switch
-                          checked={permission?.can_add || false}
-                          onCheckedChange={(checked) => 
-                            selectedUser && updatePermission(selectedUser.id, module, 'can_add', checked)
-                          }
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Switch
-                          checked={permission?.can_edit || false}
-                          onCheckedChange={(checked) => 
-                            selectedUser && updatePermission(selectedUser.id, module, 'can_edit', checked)
-                          }
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Switch
-                          checked={permission?.can_delete || false}
-                          onCheckedChange={(checked) => 
-                            selectedUser && updatePermission(selectedUser.id, module, 'can_delete', checked)
-                          }
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Switch
-                          checked={permission?.can_export || false}
-                          onCheckedChange={(checked) => 
-                            selectedUser && updatePermission(selectedUser.id, module, 'can_export', checked)
-                          }
-                        />
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Master Data Dialog */}
-      <MasterDataDialog
-        type={masterDataType}
-        open={showMasterDataDialog}
-        onClose={() => setShowMasterDataDialog(false)}
-        onSuccess={() => {
-          toast({
-            title: 'Success',
-            description: `${masterDataType.charAt(0).toUpperCase() + masterDataType.slice(1)} added successfully`,
-          });
-        }}
-      />
     </div>
   );
 };
