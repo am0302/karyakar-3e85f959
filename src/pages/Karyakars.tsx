@@ -1,83 +1,66 @@
 
-import React, { useState, useEffect } from "react";
-import { useAuth } from '@/components/AuthProvider';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Search, Plus, Filter, MoreVertical, Phone, Mail, Edit, Trash2, Eye } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Switch } from '@/components/ui/switch';
+import { 
+  Users, 
+  Plus, 
+  Search, 
+  Filter, 
+  Download, 
+  Edit, 
+  Trash2, 
+  Grid3X3, 
+  List,
+  Phone,
+  Mail,
+  MapPin,
+  Calendar,
+  User
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { SearchableSelect } from '@/components/SearchableSelect';
+import { KaryakarCard } from '@/components/KaryakarCard';
 import type { Database } from '@/integrations/supabase/types';
+
+type Profile = Database['public']['Tables']['profiles']['Row'] & {
+  professions?: { name: string } | null;
+  seva_types?: { name: string } | null;
+  mandirs?: { name: string } | null;
+  kshetras?: { name: string } | null;
+  villages?: { name: string } | null;
+  mandals?: { name: string } | null;
+};
 
 type UserRole = Database['public']['Enums']['user_role'];
 
-type Karyakar = {
-  id: string;
-  full_name: string;
-  mobile_number: string;
-  whatsapp_number?: string;
-  role: UserRole;
-  mandir_id?: string;
-  village_id?: string;
-  mandal_id?: string;
-  profession_id?: string;
-  seva_type_id?: string;
-  is_active: boolean;
-  created_at: string;
-  profile_photo_url?: string;
-  mandirs?: { name: string };
-  villages?: { name: string };
-  mandals?: { name: string };
-  professions?: { name: string };
-  seva_types?: { name: string };
-};
-
-type MasterData = {
-  professions: any[];
-  mandirs: any[];
-  villages: any[];
-  mandals: any[];
-  seva_types: any[];
-};
-
 const Karyakars = () => {
-  const { user } = useAuth();
   const { toast } = useToast();
-  const [karyakars, setKaryakars] = useState<Karyakar[]>([]);
+  const [karyakars, setKaryakars] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterRole, setFilterRole] = useState("all");
-  const [showRegistrationDialog, setShowRegistrationDialog] = useState(false);
-  const [selectedKaryakar, setSelectedKaryakar] = useState<Karyakar | null>(null);
-  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
-  const [masterData, setMasterData] = useState<MasterData>({
-    professions: [],
-    mandirs: [],
-    villages: [],
-    mandals: [],
-    seva_types: []
-  });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedRole, setSelectedRole] = useState<string>('');
+  const [selectedStatus, setSelectedStatus] = useState<string>('');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [showRegistrationForm, setShowRegistrationForm] = useState(false);
+  const [editingKaryakar, setEditingKaryakar] = useState<Profile | null>(null);
+  
+  // Form states
+  const [mandirs, setMandirs] = useState<Array<{ id: string; name: string }>>([]);
+  const [kshetras, setKshetras] = useState<Array<{ id: string; name: string }>>([]);
+  const [villages, setVillages] = useState<Array<{ id: string; name: string }>>([]);
+  const [mandals, setMandals] = useState<Array<{ id: string; name: string }>>([]);
+  const [professions, setProfessions] = useState<Array<{ id: string; name: string }>>([]);
+  const [sevaTypes, setSevaTypes] = useState<Array<{ id: string; name: string }>>([]);
 
   const [formData, setFormData] = useState({
     full_name: '',
@@ -85,8 +68,10 @@ const Karyakars = () => {
     whatsapp_number: '',
     is_whatsapp_same_as_mobile: false,
     date_of_birth: '',
+    age: '',
     profession_id: '',
     mandir_id: '',
+    kshetra_id: '',
     village_id: '',
     mandal_id: '',
     seva_type_id: '',
@@ -95,58 +80,38 @@ const Karyakars = () => {
   });
 
   useEffect(() => {
-    if (user) {
-      fetchKaryakars();
-      fetchMasterData();
-    }
-  }, [user]);
-
-  const fetchMasterData = async () => {
-    try {
-      const [professions, mandirs, villages, mandals, seva_types] = await Promise.all([
-        supabase.from('professions').select('*').eq('is_active', true),
-        supabase.from('mandirs').select('*').eq('is_active', true),
-        supabase.from('villages').select('*').eq('is_active', true),
-        supabase.from('mandals').select('*').eq('is_active', true),
-        supabase.from('seva_types').select('*').eq('is_active', true)
-      ]);
-
-      setMasterData({
-        professions: professions.data || [],
-        mandirs: mandirs.data || [],
-        villages: villages.data || [],
-        mandals: mandals.data || [],
-        seva_types: seva_types.data || []
-      });
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch master data',
-        variant: 'destructive',
-      });
-    }
-  };
+    fetchKaryakars();
+    fetchMasterData();
+  }, []);
 
   const fetchKaryakars = async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('profiles')
         .select(`
           *,
-          mandirs(name),
-          villages(name),
-          mandals(name),
           professions(name),
-          seva_types(name)
+          seva_types(name),
+          mandirs(name),
+          kshetras(name),
+          villages(name),
+          mandals(name)
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching karyakars:', error);
+        throw error;
+      }
+
+      console.log('Fetched karyakars:', data);
       setKaryakars(data || []);
     } catch (error: any) {
+      console.error('Failed to fetch karyakars:', error);
       toast({
         title: 'Error',
-        description: 'Failed to fetch karyakars',
+        description: `Failed to fetch karyakars: ${error.message}`,
         variant: 'destructive',
       });
     } finally {
@@ -154,66 +119,69 @@ const Karyakars = () => {
     }
   };
 
-  const handleInputChange = (field: string, value: string | boolean) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  const fetchMasterData = async () => {
+    try {
+      const [mandirsRes, kshetrasRes, villagesRes, mandalsRes, professionsRes, sevaTypesRes] = await Promise.all([
+        supabase.from('mandirs').select('id, name').eq('is_active', true).order('name'),
+        supabase.from('kshetras').select('id, name').eq('is_active', true).order('name'),
+        supabase.from('villages').select('id, name').eq('is_active', true).order('name'),
+        supabase.from('mandals').select('id, name').eq('is_active', true).order('name'),
+        supabase.from('professions').select('id, name').eq('is_active', true).order('name'),
+        supabase.from('seva_types').select('id, name').eq('is_active', true).order('name')
+      ]);
 
-    if (field === 'is_whatsapp_same_as_mobile' && value) {
-      setFormData(prev => ({
-        ...prev,
-        whatsapp_number: prev.mobile_number
-      }));
+      setMandirs(mandirsRes.data || []);
+      setKshetras(kshetrasRes.data || []);
+      setVillages(villagesRes.data || []);
+      setMandals(mandalsRes.data || []);
+      setProfessions(professionsRes.data || []);
+      setSevaTypes(sevaTypesRes.data || []);
+    } catch (error: any) {
+      console.error('Error fetching master data:', error);
     }
   };
 
-  const registerKaryakar = async () => {
-    if (!user || !formData.full_name.trim() || !formData.mobile_number.trim()) {
-      toast({
-        title: 'Error',
-        description: 'Please fill in all required fields',
-        variant: 'destructive',
-      });
-      return;
-    }
-
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
     try {
-      const age = formData.date_of_birth ? calculateAge(formData.date_of_birth) : null;
+      const age = formData.age ? parseInt(formData.age) : null;
+      const dataToInsert = {
+        ...formData,
+        age,
+        whatsapp_number: formData.is_whatsapp_same_as_mobile ? formData.mobile_number : formData.whatsapp_number,
+        profession_id: formData.profession_id || null,
+        mandir_id: formData.mandir_id || null,
+        kshetra_id: formData.kshetra_id || null,
+        village_id: formData.village_id || null,
+        mandal_id: formData.mandal_id || null,
+        seva_type_id: formData.seva_type_id || null,
+      };
 
-      const { error } = await supabase.auth.signUp({
-        email: `${formData.mobile_number}@sevasarthi.org`,
-        password: formData.mobile_number + '123',
-        options: {
-          data: {
-            full_name: formData.full_name,
-            mobile_number: formData.mobile_number,
-          }
-        }
-      });
+      let error;
+      if (editingKaryakar) {
+        const result = await supabase
+          .from('profiles')
+          .update(dataToInsert)
+          .eq('id', editingKaryakar.id);
+        error = result.error;
+      } else {
+        const result = await supabase
+          .from('profiles')
+          .insert([dataToInsert]);
+        error = result.error;
+      }
 
       if (error) throw error;
 
       toast({
         title: 'Success',
-        description: 'Karyakar registered successfully',
+        description: `Karyakar ${editingKaryakar ? 'updated' : 'registered'} successfully`,
       });
 
-      setShowRegistrationDialog(false);
-      setFormData({
-        full_name: '',
-        mobile_number: '',
-        whatsapp_number: '',
-        is_whatsapp_same_as_mobile: false,
-        date_of_birth: '',
-        profession_id: '',
-        mandir_id: '',
-        village_id: '',
-        mandal_id: '',
-        seva_type_id: '',
-        role: 'sevak',
-        profile_photo_url: ''
-      });
+      setShowRegistrationForm(false);
+      setEditingKaryakar(null);
+      resetForm();
       fetchKaryakars();
     } catch (error: any) {
       toast({
@@ -224,46 +192,54 @@ const Karyakars = () => {
     }
   };
 
-  const calculateAge = (dateOfBirth: string) => {
-    const today = new Date();
-    const birthDate = new Date(dateOfBirth);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-    
-    return age;
+  const resetForm = () => {
+    setFormData({
+      full_name: '',
+      mobile_number: '',
+      whatsapp_number: '',
+      is_whatsapp_same_as_mobile: false,
+      date_of_birth: '',
+      age: '',
+      profession_id: '',
+      mandir_id: '',
+      kshetra_id: '',
+      village_id: '',
+      mandal_id: '',
+      seva_type_id: '',
+      role: 'sevak',
+      profile_photo_url: ''
+    });
   };
 
-  const updateKaryakarStatus = async (karyakarId: string, isActive: boolean) => {
+  const handleEdit = (karyakar: Profile) => {
+    setFormData({
+      full_name: karyakar.full_name,
+      mobile_number: karyakar.mobile_number,
+      whatsapp_number: karyakar.whatsapp_number || '',
+      is_whatsapp_same_as_mobile: karyakar.is_whatsapp_same_as_mobile || false,
+      date_of_birth: karyakar.date_of_birth || '',
+      age: karyakar.age?.toString() || '',
+      profession_id: karyakar.profession_id || '',
+      mandir_id: karyakar.mandir_id || '',
+      kshetra_id: karyakar.kshetra_id || '',
+      village_id: karyakar.village_id || '',
+      mandal_id: karyakar.mandal_id || '',
+      seva_type_id: karyakar.seva_type_id || '',
+      role: karyakar.role,
+      profile_photo_url: karyakar.profile_photo_url || ''
+    });
+    setEditingKaryakar(karyakar);
+    setShowRegistrationForm(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this karyakar?')) return;
+
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ is_active: isActive })
-        .eq('id', karyakarId);
-
-      if (error) throw error;
-
-      toast({
-        title: 'Success',
-        description: `Karyakar ${isActive ? 'activated' : 'deactivated'} successfully`,
-      });
-      
-      fetchKaryakars();
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const deleteKaryakar = async (karyakarId: string) => {
-    try {
-      const { error } = await supabase.auth.admin.deleteUser(karyakarId);
+        .delete()
+        .eq('id', id);
 
       if (error) throw error;
 
@@ -271,12 +247,47 @@ const Karyakars = () => {
         title: 'Success',
         description: 'Karyakar deleted successfully',
       });
-      
+
       fetchKaryakars();
     } catch (error: any) {
       toast({
         title: 'Error',
         description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const exportData = async () => {
+    try {
+      const csvContent = [
+        ['Name', 'Mobile', 'Role', 'Profession', 'Mandir', 'Status'].join(','),
+        ...filteredKaryakars.map(k => [
+          k.full_name,
+          k.mobile_number,
+          k.role,
+          k.professions?.name || '',
+          k.mandirs?.name || '',
+          k.is_active ? 'Active' : 'Inactive'
+        ].join(','))
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'karyakars.csv';
+      a.click();
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: 'Success',
+        description: 'Data exported successfully',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to export data',
         variant: 'destructive',
       });
     }
@@ -285,11 +296,15 @@ const Karyakars = () => {
   const filteredKaryakars = karyakars.filter(karyakar => {
     const matchesSearch = karyakar.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          karyakar.mobile_number.includes(searchTerm);
-    const matchesRole = filterRole === "all" || karyakar.role === filterRole;
-    return matchesSearch && matchesRole;
+    const matchesRole = !selectedRole || karyakar.role === selectedRole;
+    const matchesStatus = !selectedStatus || 
+                         (selectedStatus === 'active' && karyakar.is_active) ||
+                         (selectedStatus === 'inactive' && !karyakar.is_active);
+    
+    return matchesSearch && matchesRole && matchesStatus;
   });
 
-  const getRoleBadgeColor = (role: UserRole) => {
+  const getRoleColor = (role: UserRole) => {
     switch (role) {
       case 'super_admin': return 'bg-red-100 text-red-800';
       case 'sant_nirdeshak': return 'bg-purple-100 text-purple-800';
@@ -301,404 +316,357 @@ const Karyakars = () => {
     }
   };
 
-  const activeKaryakars = filteredKaryakars.filter(k => k.is_active).length;
-  const totalRoles = [...new Set(karyakars.map(k => k.role))].length;
-  const totalMandirs = [...new Set(karyakars.map(k => k.mandir_id).filter(Boolean))].length;
-
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading karyakars...</div>;
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Karyakars & Sevaks</h1>
-          <p className="text-gray-600 mt-2">
-            Manage community members and their roles
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900">Karyakars</h1>
+          <p className="text-gray-600">Manage karyakar registrations and profiles</p>
         </div>
-        <Dialog open={showRegistrationDialog} onOpenChange={setShowRegistrationDialog}>
+        
+        <Dialog open={showRegistrationForm} onOpenChange={setShowRegistrationForm}>
           <DialogTrigger asChild>
-            <Button className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600">
-              <Plus className="w-4 h-4 mr-2" />
+            <Button onClick={() => {
+              resetForm();
+              setEditingKaryakar(null);
+            }}>
+              <Plus className="h-4 w-4 mr-2" />
               Register Karyakar
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Register New Karyakar</DialogTitle>
+              <DialogTitle>
+                {editingKaryakar ? 'Edit Karyakar' : 'Register New Karyakar'}
+              </DialogTitle>
               <DialogDescription>
-                Register a new community member with their role and details.
+                Fill in the details to {editingKaryakar ? 'update' : 'register'} a karyakar
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
                   <Label htmlFor="full_name">Full Name *</Label>
                   <Input
                     id="full_name"
                     value={formData.full_name}
-                    onChange={(e) => handleInputChange('full_name', e.target.value)}
+                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                     required
                   />
                 </div>
-
-                <div className="space-y-2">
+                
+                <div>
                   <Label htmlFor="mobile_number">Mobile Number *</Label>
                   <Input
                     id="mobile_number"
-                    type="tel"
                     value={formData.mobile_number}
-                    onChange={(e) => handleInputChange('mobile_number', e.target.value)}
+                    onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value })}
                     required
                   />
                 </div>
+              </div>
 
-                <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="is_whatsapp_same_as_mobile"
+                  checked={formData.is_whatsapp_same_as_mobile}
+                  onCheckedChange={(checked) => setFormData({ ...formData, is_whatsapp_same_as_mobile: checked })}
+                />
+                <Label htmlFor="is_whatsapp_same_as_mobile">WhatsApp number is same as mobile</Label>
+              </div>
+
+              {!formData.is_whatsapp_same_as_mobile && (
+                <div>
                   <Label htmlFor="whatsapp_number">WhatsApp Number</Label>
                   <Input
                     id="whatsapp_number"
-                    type="tel"
                     value={formData.whatsapp_number}
-                    onChange={(e) => handleInputChange('whatsapp_number', e.target.value)}
-                    disabled={formData.is_whatsapp_same_as_mobile}
+                    onChange={(e) => setFormData({ ...formData, whatsapp_number: e.target.value })}
                   />
                 </div>
+              )}
 
-                <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
                   <Label htmlFor="date_of_birth">Date of Birth</Label>
                   <Input
                     id="date_of_birth"
                     type="date"
                     value={formData.date_of_birth}
-                    onChange={(e) => handleInputChange('date_of_birth', e.target.value)}
+                    onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
                   />
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="role">Role</Label>
-                  <Select value={formData.role} onValueChange={(value: UserRole) => handleInputChange('role', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="sevak">Sevak</SelectItem>
-                      <SelectItem value="karyakar">Karyakar</SelectItem>
-                      <SelectItem value="mandal_sanchalak">Mandal Sanchalak</SelectItem>
-                      <SelectItem value="sah_nirdeshak">Sah Nirdeshak</SelectItem>
-                      <SelectItem value="sant_nirdeshak">Sant Nirdeshak</SelectItem>
-                      <SelectItem value="super_admin">Super Admin</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="profession_id">Profession</Label>
-                  <Select value={formData.profession_id} onValueChange={(value) => handleInputChange('profession_id', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select profession" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {masterData.professions.map((profession) => (
-                        <SelectItem key={profession.id} value={profession.id}>
-                          {profession.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="mandir_id">Mandir</Label>
-                  <Select value={formData.mandir_id} onValueChange={(value) => handleInputChange('mandir_id', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select mandir" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {masterData.mandirs.map((mandir) => (
-                        <SelectItem key={mandir.id} value={mandir.id}>
-                          {mandir.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="village_id">Village</Label>
-                  <Select value={formData.village_id} onValueChange={(value) => handleInputChange('village_id', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select village" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {masterData.villages.map((village) => (
-                        <SelectItem key={village.id} value={village.id}>
-                          {village.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="mandal_id">Mandal</Label>
-                  <Select value={formData.mandal_id} onValueChange={(value) => handleInputChange('mandal_id', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select mandal" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {masterData.mandals.map((mandal) => (
-                        <SelectItem key={mandal.id} value={mandal.id}>
-                          {mandal.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="seva_type_id">Seva Type</Label>
-                  <Select value={formData.seva_type_id} onValueChange={(value) => handleInputChange('seva_type_id', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select seva type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {masterData.seva_types.map((seva_type) => (
-                        <SelectItem key={seva_type.id} value={seva_type.id}>
-                          {seva_type.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                
+                <div>
+                  <Label htmlFor="age">Age</Label>
+                  <Input
+                    id="age"
+                    type="number"
+                    value={formData.age}
+                    onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+                  />
                 </div>
               </div>
 
-              <div className="flex gap-2">
-                <Button onClick={registerKaryakar} className="flex-1">
-                  Register Karyakar
-                </Button>
-                <Button variant="outline" onClick={() => setShowRegistrationDialog(false)}>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Profession</Label>
+                  <SearchableSelect
+                    options={professions.map(p => ({ value: p.id, label: p.name }))}
+                    value={formData.profession_id}
+                    onValueChange={(value) => setFormData({ ...formData, profession_id: value })}
+                    placeholder="Select Profession"
+                  />
+                </div>
+                
+                <div>
+                  <Label>Seva Type</Label>
+                  <SearchableSelect
+                    options={sevaTypes.map(s => ({ value: s.id, label: s.name }))}
+                    value={formData.seva_type_id}
+                    onValueChange={(value) => setFormData({ ...formData, seva_type_id: value })}
+                    placeholder="Select Seva Type"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Mandir</Label>
+                  <SearchableSelect
+                    options={mandirs.map(m => ({ value: m.id, label: m.name }))}
+                    value={formData.mandir_id}
+                    onValueChange={(value) => setFormData({ ...formData, mandir_id: value })}
+                    placeholder="Select Mandir"
+                  />
+                </div>
+                
+                <div>
+                  <Label>Kshetra</Label>
+                  <SearchableSelect
+                    options={kshetras.map(k => ({ value: k.id, label: k.name }))}
+                    value={formData.kshetra_id}
+                    onValueChange={(value) => setFormData({ ...formData, kshetra_id: value })}
+                    placeholder="Select Kshetra"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Village</Label>
+                  <SearchableSelect
+                    options={villages.map(v => ({ value: v.id, label: v.name }))}
+                    value={formData.village_id}
+                    onValueChange={(value) => setFormData({ ...formData, village_id: value })}
+                    placeholder="Select Village"
+                  />
+                </div>
+                
+                <div>
+                  <Label>Mandal</Label>
+                  <SearchableSelect
+                    options={mandals.map(m => ({ value: m.id, label: m.name }))}
+                    value={formData.mandal_id}
+                    onValueChange={(value) => setFormData({ ...formData, mandal_id: value })}
+                    placeholder="Select Mandal"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label>Role</Label>
+                <SearchableSelect
+                  options={[
+                    { value: 'sevak', label: 'Sevak' },
+                    { value: 'karyakar', label: 'Karyakar' },
+                    { value: 'mandal_sanchalak', label: 'Mandal Sanchalak' },
+                    { value: 'sah_nirdeshak', label: 'Sah Nirdeshak' },
+                    { value: 'sant_nirdeshak', label: 'Sant Nirdeshak' },
+                    { value: 'super_admin', label: 'Super Admin' },
+                  ]}
+                  value={formData.role}
+                  onValueChange={(value) => setFormData({ ...formData, role: value as UserRole })}
+                  placeholder="Select Role"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="profile_photo_url">Profile Photo URL</Label>
+                <Input
+                  id="profile_photo_url"
+                  value={formData.profile_photo_url}
+                  onChange={(e) => setFormData({ ...formData, profile_photo_url: e.target.value })}
+                  placeholder="https://example.com/photo.jpg"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-2">
+                <Button type="button" variant="outline" onClick={() => setShowRegistrationForm(false)}>
                   Cancel
                 </Button>
+                <Button type="submit">
+                  {editingKaryakar ? 'Update' : 'Register'}
+                </Button>
               </div>
-            </div>
+            </form>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Search & Filter</CardTitle>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                All Karyakars ({filteredKaryakars.length})
+              </CardTitle>
+              <CardDescription>
+                Manage and view all registered karyakars
+              </CardDescription>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+              >
+                {viewMode === 'grid' ? <List className="h-4 w-4" /> : <Grid3X3 className="h-4 w-4" />}
+              </Button>
+              <Button variant="outline" size="sm" onClick={exportData}>
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
+            </div>
+          </div>
         </CardHeader>
+        
         <CardContent>
-          <div className="flex gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            <div className="flex-1">
               <Input
-                placeholder="Search by name or mobile..."
+                placeholder="Search karyakars..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="w-full"
               />
             </div>
-            <Select value={filterRole} onValueChange={setFilterRole}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Filter by role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Roles</SelectItem>
-                <SelectItem value="sevak">Sevak</SelectItem>
-                <SelectItem value="karyakar">Karyakar</SelectItem>
-                <SelectItem value="mandal_sanchalak">Mandal Sanchalak</SelectItem>
-                <SelectItem value="sah_nirdeshak">Sah Nirdeshak</SelectItem>
-                <SelectItem value="sant_nirdeshak">Sant Nirdeshak</SelectItem>
-                <SelectItem value="super_admin">Super Admin</SelectItem>
-              </SelectContent>
-            </Select>
+            
+            <SearchableSelect
+              options={[
+                { value: '', label: 'All Roles' },
+                { value: 'sevak', label: 'Sevak' },
+                { value: 'karyakar', label: 'Karyakar' },
+                { value: 'mandal_sanchalak', label: 'Mandal Sanchalak' },
+                { value: 'sah_nirdeshak', label: 'Sah Nirdeshak' },
+                { value: 'sant_nirdeshak', label: 'Sant Nirdeshak' },
+                { value: 'super_admin', label: 'Super Admin' },
+              ]}
+              value={selectedRole}
+              onValueChange={setSelectedRole}
+              placeholder="Filter by Role"
+              className="w-48"
+            />
+            
+            <SearchableSelect
+              options={[
+                { value: '', label: 'All Status' },
+                { value: 'active', label: 'Active' },
+                { value: 'inactive', label: 'Inactive' },
+              ]}
+              value={selectedStatus}
+              onValueChange={setSelectedStatus}
+              placeholder="Filter by Status"
+              className="w-48"
+            />
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-green-600">{activeKaryakars}</div>
-            <p className="text-sm text-gray-600">Active Members</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-blue-600">{totalRoles}</div>
-            <p className="text-sm text-gray-600">Different Roles</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-purple-600">{totalMandirs}</div>
-            <p className="text-sm text-gray-600">Mandirs</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-orange-600">{karyakars.length}</div>
-            <p className="text-sm text-gray-600">Total Members</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Karyakars Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Community Members</CardTitle>
-          <CardDescription>
-            List of all registered karyakars and sevaks in the community
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Member</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Assignment</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          {viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredKaryakars.map((karyakar) => (
-                <TableRow key={karyakar.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={karyakar.profile_photo_url || undefined} />
-                        <AvatarFallback className="bg-gradient-to-r from-orange-500 to-amber-500 text-white">
-                          {karyakar.full_name.split(' ').map(n => n[0]).join('')}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="font-medium">{karyakar.full_name}</div>
-                        <div className="text-sm text-gray-500">{karyakar.mobile_number}</div>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1 text-sm">
-                        <Phone className="w-3 h-3" />
-                        {karyakar.mobile_number}
-                      </div>
-                      {karyakar.whatsapp_number && (
-                        <div className="flex items-center gap-1 text-sm text-gray-500">
-                          <Mail className="w-3 h-3" />
-                          {karyakar.whatsapp_number}
-                        </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getRoleBadgeColor(karyakar.role)}>
-                      {karyakar.role.replace('_', ' ').toUpperCase()}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm">
-                      <div className="font-medium">{karyakar.mandirs?.name || 'Not assigned'}</div>
-                      <div className="text-gray-500">
-                        {karyakar.villages?.name || 'No village'} • {karyakar.mandals?.name || 'No mandal'}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge 
-                      variant={karyakar.is_active ? 'default' : 'secondary'}
-                      className={karyakar.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}
-                    >
-                      {karyakar.is_active ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => {
-                          setSelectedKaryakar(karyakar);
-                          setShowDetailsDialog(true);
-                        }}
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => updateKaryakarStatus(karyakar.id, !karyakar.is_active)}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => deleteKaryakar(karyakar.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                <KaryakarCard
+                  key={karyakar.id}
+                  karyakar={karyakar}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  showActions={true}
+                />
               ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Mobile</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Profession</TableHead>
+                  <TableHead>Mandir</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredKaryakars.map((karyakar) => (
+                  <TableRow key={karyakar.id}>
+                    <TableCell className="font-medium">{karyakar.full_name}</TableCell>
+                    <TableCell>{karyakar.mobile_number}</TableCell>
+                    <TableCell>
+                      <Badge className={getRoleColor(karyakar.role)}>
+                        {karyakar.role.replace('_', ' ').toUpperCase()}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{karyakar.professions?.name || 'N/A'}</TableCell>
+                    <TableCell>{karyakar.mandirs?.name || 'N/A'}</TableCell>
+                    <TableCell>
+                      <Badge variant={karyakar.is_active ? "default" : "secondary"}>
+                        {karyakar.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEdit(karyakar)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(karyakar.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
 
-      {/* Details Dialog */}
-      <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {selectedKaryakar?.full_name} Details
-            </DialogTitle>
-          </DialogHeader>
-          {selectedKaryakar && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <Avatar className="h-16 w-16">
-                  <AvatarImage src={selectedKaryakar.profile_photo_url || undefined} />
-                  <AvatarFallback className="bg-gradient-to-r from-orange-500 to-amber-500 text-white text-lg">
-                    {selectedKaryakar.full_name.split(' ').map(n => n[0]).join('')}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <h3 className="font-semibold text-lg">{selectedKaryakar.full_name}</h3>
-                  <Badge className={getRoleBadgeColor(selectedKaryakar.role)}>
-                    {selectedKaryakar.role.replace('_', ' ').toUpperCase()}
-                  </Badge>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <div><strong>Mobile:</strong> {selectedKaryakar.mobile_number}</div>
-                {selectedKaryakar.whatsapp_number && (
-                  <div><strong>WhatsApp:</strong> {selectedKaryakar.whatsapp_number}</div>
-                )}
-                <div><strong>Profession:</strong> {selectedKaryakar.professions?.name || 'Not specified'}</div>
-                <div><strong>Mandir:</strong> {selectedKaryakar.mandirs?.name || 'Not assigned'}</div>
-                <div><strong>Village:</strong> {selectedKaryakar.villages?.name || 'Not assigned'}</div>
-                <div><strong>Mandal:</strong> {selectedKaryakar.mandals?.name || 'Not assigned'}</div>
-                <div><strong>Seva Type:</strong> {selectedKaryakar.seva_types?.name || 'Not specified'}</div>
-                <div><strong>Status:</strong> {selectedKaryakar.is_active ? 'Active' : 'Inactive'}</div>
-                <div><strong>Joined:</strong> {new Date(selectedKaryakar.created_at).toLocaleDateString()}</div>
-              </div>
+          {filteredKaryakars.length === 0 && (
+            <div className="text-center py-8">
+              <User className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No karyakars found</h3>
+              <p className="text-gray-600">
+                {searchTerm || selectedRole || selectedStatus
+                  ? 'Try adjusting your search filters'
+                  : 'Get started by registering your first karyakar'}
+              </p>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+        </CardContent>
+      </Card>
     </div>
   );
 };

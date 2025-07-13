@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,12 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
 import { Users, Building, MapPin, UserCheck, Settings, Plus, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { SearchableSelect } from '@/components/SearchableSelect';
+import { MasterDataDialog } from '@/components/MasterDataDialog';
 import type { Database } from '@/integrations/supabase/types';
 
 type UserRole = Database['public']['Enums']['user_role'];
@@ -46,6 +46,8 @@ const Admin = () => {
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showPermissionDialog, setShowPermissionDialog] = useState(false);
+  const [showMasterDataDialog, setShowMasterDataDialog] = useState(false);
+  const [masterDataType, setMasterDataType] = useState<'mandir' | 'kshetra' | 'village'>('mandir');
   const [searchTerm, setSearchTerm] = useState('');
 
   const modules = [
@@ -61,17 +63,24 @@ const Admin = () => {
 
   const fetchUsers = async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching users:', error);
+        throw error;
+      }
+      
+      console.log('Fetched users:', data);
       setUsers(data || []);
     } catch (error: any) {
+      console.error('Failed to fetch users:', error);
       toast({
         title: 'Error',
-        description: 'Failed to fetch users',
+        description: `Failed to fetch users: ${error.message}`,
         variant: 'destructive',
       });
     } finally {
@@ -190,6 +199,11 @@ const Admin = () => {
     user.role.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const openMasterDataDialog = (type: 'mandir' | 'kshetra' | 'village') => {
+    setMasterDataType(type);
+    setShowMasterDataDialog(true);
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading admin panel...</div>;
   }
@@ -211,13 +225,12 @@ const Admin = () => {
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
-        {/* User Management */}
         <TabsContent value="users">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
-                User Management
+                User Management ({users.length} users)
               </CardTitle>
               <CardDescription>
                 Manage user accounts, roles, and status
@@ -260,22 +273,19 @@ const Admin = () => {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
-                            <Select
+                            <SearchableSelect
+                              options={[
+                                { value: 'sevak', label: 'Sevak' },
+                                { value: 'karyakar', label: 'Karyakar' },
+                                { value: 'mandal_sanchalak', label: 'Mandal Sanchalak' },
+                                { value: 'sah_nirdeshak', label: 'Sah Nirdeshak' },
+                                { value: 'sant_nirdeshak', label: 'Sant Nirdeshak' },
+                                { value: 'super_admin', label: 'Super Admin' },
+                              ]}
                               value={user.role}
-                              onValueChange={(value: UserRole) => updateUserRole(user.id, value)}
-                            >
-                              <SelectTrigger className="w-40">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="sevak">Sevak</SelectItem>
-                                <SelectItem value="karyakar">Karyakar</SelectItem>
-                                <SelectItem value="mandal_sanchalak">Mandal Sanchalak</SelectItem>
-                                <SelectItem value="sah_nirdeshak">Sah Nirdeshak</SelectItem>
-                                <SelectItem value="sant_nirdeshak">Sant Nirdeshak</SelectItem>
-                                <SelectItem value="super_admin">Super Admin</SelectItem>
-                              </SelectContent>
-                            </Select>
+                              onValueChange={(value) => updateUserRole(user.id, value as UserRole)}
+                              className="w-40"
+                            />
                             <Button
                               variant="outline"
                               size="sm"
@@ -298,7 +308,6 @@ const Admin = () => {
           </Card>
         </TabsContent>
 
-        {/* Permissions */}
         <TabsContent value="permissions">
           <Card>
             <CardHeader>
@@ -328,7 +337,10 @@ const Admin = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <Button className="w-full">
+                <Button 
+                  className="w-full"
+                  onClick={() => openMasterDataDialog('mandir')}
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Mandir
                 </Button>
@@ -343,7 +355,10 @@ const Admin = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <Button className="w-full">
+                <Button 
+                  className="w-full"
+                  onClick={() => openMasterDataDialog('kshetra')}
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Kshetra
                 </Button>
@@ -358,7 +373,10 @@ const Admin = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <Button className="w-full">
+                <Button 
+                  className="w-full"
+                  onClick={() => openMasterDataDialog('village')}
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Village
                 </Button>
@@ -487,6 +505,19 @@ const Admin = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Master Data Dialog */}
+      <MasterDataDialog
+        type={masterDataType}
+        open={showMasterDataDialog}
+        onClose={() => setShowMasterDataDialog(false)}
+        onSuccess={() => {
+          toast({
+            title: 'Success',
+            description: `${masterDataType.charAt(0).toUpperCase() + masterDataType.slice(1)} added successfully`,
+          });
+        }}
+      />
     </div>
   );
 };
