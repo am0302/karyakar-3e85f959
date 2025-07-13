@@ -21,11 +21,57 @@ export const useForeignKeyOptions = (fields: FormField[]) => {
     for (const field of foreignKeyFields) {
       if (field.foreignKey) {
         try {
-          const { data, error } = await supabase
-            .from(field.foreignKey as any)
-            .select('id, name')
-            .eq('is_active', true)
-            .order('name');
+          let data: any[] | null = null;
+          let error: any = null;
+
+          // Handle each table type explicitly to ensure proper TypeScript inference
+          switch (field.foreignKey) {
+            case 'mandirs':
+              ({ data, error } = await supabase
+                .from('mandirs')
+                .select('id, name')
+                .eq('is_active', true)
+                .order('name'));
+              break;
+            case 'kshetras':
+              ({ data, error } = await supabase
+                .from('kshetras')
+                .select('id, name')
+                .eq('is_active', true)
+                .order('name'));
+              break;
+            case 'villages':
+              ({ data, error } = await supabase
+                .from('villages')
+                .select('id, name')
+                .eq('is_active', true)
+                .order('name'));
+              break;
+            case 'mandals':
+              ({ data, error } = await supabase
+                .from('mandals')
+                .select('id, name')
+                .eq('is_active', true)
+                .order('name'));
+              break;
+            case 'professions':
+              ({ data, error } = await supabase
+                .from('professions')
+                .select('id, name')
+                .eq('is_active', true)
+                .order('name'));
+              break;
+            case 'seva_types':
+              ({ data, error } = await supabase
+                .from('seva_types')
+                .select('id, name')
+                .eq('is_active', true)
+                .order('name'));
+              break;
+            default:
+              console.warn(`Unknown foreign key table: ${field.foreignKey}`);
+              continue;
+          }
 
           if (error) {
             console.error(`Error loading ${field.foreignKey} options:`, error);
