@@ -62,18 +62,66 @@ export const MasterDataDialog = ({ title, table, fields, onSuccess }: MasterData
     for (const field of foreignKeyFields) {
       if (field.foreignKey) {
         try {
-          const { data, error } = await supabase
-            .from(field.foreignKey as any)
-            .select('id, name')
-            .eq('is_active', true)
-            .order('name');
+          let data: any[] = [];
+          let error: any = null;
+
+          // Handle different table queries based on the foreign key
+          if (field.foreignKey === 'mandirs') {
+            const result = await supabase
+              .from('mandirs')
+              .select('id, name')
+              .eq('is_active', true)
+              .order('name');
+            data = result.data || [];
+            error = result.error;
+          } else if (field.foreignKey === 'kshetras') {
+            const result = await supabase
+              .from('kshetras')
+              .select('id, name')
+              .eq('is_active', true)
+              .order('name');
+            data = result.data || [];
+            error = result.error;
+          } else if (field.foreignKey === 'villages') {
+            const result = await supabase
+              .from('villages')
+              .select('id, name')
+              .eq('is_active', true)
+              .order('name');
+            data = result.data || [];
+            error = result.error;
+          } else if (field.foreignKey === 'mandals') {
+            const result = await supabase
+              .from('mandals')
+              .select('id, name')
+              .eq('is_active', true)
+              .order('name');
+            data = result.data || [];
+            error = result.error;
+          } else if (field.foreignKey === 'professions') {
+            const result = await supabase
+              .from('professions')
+              .select('id, name')
+              .eq('is_active', true)
+              .order('name');
+            data = result.data || [];
+            error = result.error;
+          } else if (field.foreignKey === 'seva_types') {
+            const result = await supabase
+              .from('seva_types')
+              .select('id, name')
+              .eq('is_active', true)
+              .order('name');
+            data = result.data || [];
+            error = result.error;
+          }
 
           if (error) {
             console.error(`Error loading ${field.foreignKey} options:`, error);
             continue;
           }
 
-          if (data) {
+          if (data && Array.isArray(data)) {
             options[field.name] = data.map(item => ({
               value: item.id,
               label: item.name
