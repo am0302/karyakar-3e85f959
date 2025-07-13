@@ -33,9 +33,18 @@ interface MasterDataDialogProps {
   onSuccess: () => void;
 }
 
+type TableInsertTypes = {
+  mandirs: Database['public']['Tables']['mandirs']['Insert'];
+  kshetras: Database['public']['Tables']['kshetras']['Insert'];
+  villages: Database['public']['Tables']['villages']['Insert'];
+  mandals: Database['public']['Tables']['mandals']['Insert'];
+  professions: Database['public']['Tables']['professions']['Insert'];
+  seva_types: Database['public']['Tables']['seva_types']['Insert'];
+};
+
 export const MasterDataDialog = ({ title, table, fields, onSuccess }: MasterDataDialogProps) => {
   const [open, setOpen] = useState(false);
-  const [formData, setFormData] = useState<Record<string, any>>({});
+  const [formData, setFormData] = useState<Partial<TableInsertTypes[TableName]>>({});
   const [loading, setLoading] = useState(false);
   const [foreignKeyOptions, setForeignKeyOptions] = useState<Record<string, Array<{ value: string; label: string }>>>({});
   const { toast } = useToast();
@@ -59,12 +68,17 @@ export const MasterDataDialog = ({ title, table, fields, onSuccess }: MasterData
             .eq('is_active', true)
             .order('name');
 
-          if (error) throw error;
+          if (error) {
+            console.error(`Error loading ${field.foreignKey} options:`, error);
+            continue;
+          }
 
-          options[field.name] = data?.map(item => ({
-            value: item.id,
-            label: item.name
-          })) || [];
+          if (data) {
+            options[field.name] = data.map(item => ({
+              value: item.id,
+              label: item.name
+            }));
+          }
         } catch (error) {
           console.error(`Error loading ${field.foreignKey} options:`, error);
         }
@@ -81,7 +95,7 @@ export const MasterDataDialog = ({ title, table, fields, onSuccess }: MasterData
     try {
       const { error } = await supabase
         .from(table)
-        .insert(formData);
+        .insert(formData as any);
 
       if (error) throw error;
 
@@ -129,14 +143,14 @@ export const MasterDataDialog = ({ title, table, fields, onSuccess }: MasterData
               {field.type === 'textarea' ? (
                 <Textarea
                   id={field.name}
-                  value={formData[field.name] || ''}
+                  value={(formData as any)[field.name] || ''}
                   onChange={(e) => updateFormData(field.name, e.target.value)}
                   required={field.required}
                 />
               ) : field.type === 'select' && field.foreignKey ? (
                 <SearchableSelect
                   options={foreignKeyOptions[field.name] || []}
-                  value={formData[field.name] || ''}
+                  value={(formData as any)[field.name] || ''}
                   onValueChange={(value) => updateFormData(field.name, value)}
                   placeholder={`Select ${field.label}`}
                 />
@@ -144,7 +158,7 @@ export const MasterDataDialog = ({ title, table, fields, onSuccess }: MasterData
                 <Input
                   id={field.name}
                   type={field.type}
-                  value={formData[field.name] || ''}
+                  value={(formData as any)[field.name] || ''}
                   onChange={(e) => updateFormData(field.name, e.target.value)}
                   required={field.required}
                 />
