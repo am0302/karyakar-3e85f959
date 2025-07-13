@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { SearchableSelect } from '@/components/SearchableSelect';
 import { Plus, Filter, Search, Calendar, MessageSquare } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -29,10 +30,17 @@ type Task = {
   };
 };
 
+type Karyakar = {
+  id: string;
+  full_name: string;
+  role: string;
+};
+
 const Tasks = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [karyakars, setKaryakars] = useState<Karyakar[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -52,6 +60,7 @@ const Tasks = () => {
 
   useEffect(() => {
     fetchTasks();
+    fetchKaryakars();
   }, [user]);
 
   const fetchTasks = async () => {
@@ -79,6 +88,21 @@ const Tasks = () => {
     }
   };
 
+  const fetchKaryakars = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, role')
+        .eq('is_active', true)
+        .order('full_name');
+
+      if (error) throw error;
+      setKaryakars(data || []);
+    } catch (error: any) {
+      console.error('Error fetching karyakars:', error);
+    }
+  };
+
   const createTask = async () => {
     if (!user || !newTask.title.trim()) {
       toast({
@@ -93,7 +117,7 @@ const Tasks = () => {
       const { error } = await supabase.from('tasks').insert({
         ...newTask,
         assigned_by: user.id,
-        assigned_to: newTask.task_type === 'personal' ? user.id : newTask.assigned_to || null,
+        assigned_to: newTask.task_type === 'personal' ? user.id : newTask.assigned_to || user.id,
       });
 
       if (error) throw error;
@@ -322,6 +346,19 @@ const Tasks = () => {
                 <SelectItem value="broadcasted">Broadcasted</SelectItem>
               </SelectContent>
             </Select>
+            
+            {newTask.task_type !== 'personal' && (
+              <div>
+                <label className="text-sm font-medium">Assign to Karyakar</label>
+                <SearchableSelect
+                  options={karyakars.map(k => ({ value: k.id, label: `${k.full_name} (${k.role})` }))}
+                  value={newTask.assigned_to}
+                  onValueChange={(value) => setNewTask({ ...newTask, assigned_to: value })}
+                  placeholder="Select Karyakar"
+                />
+              </div>
+            )}
+            
             <Select value={newTask.priority} onValueChange={(value: any) => setNewTask({ ...newTask, priority: value })}>
               <SelectTrigger>
                 <SelectValue />

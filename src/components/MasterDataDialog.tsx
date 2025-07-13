@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,15 +11,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
 
 type TableName = 'mandirs' | 'kshetras' | 'villages' | 'mandals' | 'professions' | 'seva_types';
-
-// Type helper to get insert types for each table
-type InsertData<T extends TableName> = Database['public']['Tables'][T]['Insert'];
 
 interface MasterDataDialogProps {
   title: string;
@@ -39,35 +37,51 @@ export const MasterDataDialog = ({ title, table, fields, onSuccess }: MasterData
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
+  const [foreignKeyOptions, setForeignKeyOptions] = useState<Record<string, Array<{ value: string; label: string }>>>({});
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (open) {
+      loadForeignKeyOptions();
+    }
+  }, [open]);
+
+  const loadForeignKeyOptions = async () => {
+    const foreignKeyFields = fields.filter(field => field.foreignKey);
+    const options: Record<string, Array<{ value: string; label: string }>> = {};
+
+    for (const field of foreignKeyFields) {
+      if (field.foreignKey) {
+        try {
+          const { data, error } = await supabase
+            .from(field.foreignKey as any)
+            .select('id, name')
+            .eq('is_active', true)
+            .order('name');
+
+          if (error) throw error;
+
+          options[field.name] = data?.map(item => ({
+            value: item.id,
+            label: item.name
+          })) || [];
+        } catch (error) {
+          console.error(`Error loading ${field.foreignKey} options:`, error);
+        }
+      }
+    }
+
+    setForeignKeyOptions(options);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // Prepare the data based on the table type
-      let insertData: any = { ...formData };
-      
-      // Add required fields based on table type
-      if (table === 'kshetras' && !insertData.mandir_id) {
-        // For kshetras, we need a mandir_id - this should be provided by the form
-        // For now, we'll skip this validation and let the database handle it
-      }
-      
-      if (table === 'villages' && !insertData.kshetra_id) {
-        // For villages, we need a kshetra_id - this should be provided by the form
-        // For now, we'll skip this validation and let the database handle it
-      }
-      
-      if (table === 'mandals' && !insertData.village_id) {
-        // For mandals, we need a village_id - this should be provided by the form
-        // For now, we'll skip this validation and let the database handle it
-      }
-
       const { error } = await supabase
         .from(table)
-        .insert(insertData as InsertData<typeof table>);
+        .insert(formData);
 
       if (error) throw error;
 
@@ -118,6 +132,13 @@ export const MasterDataDialog = ({ title, table, fields, onSuccess }: MasterData
                   value={formData[field.name] || ''}
                   onChange={(e) => updateFormData(field.name, e.target.value)}
                   required={field.required}
+                />
+              ) : field.type === 'select' && field.foreignKey ? (
+                <SearchableSelect
+                  options={foreignKeyOptions[field.name] || []}
+                  value={formData[field.name] || ''}
+                  onValueChange={(value) => updateFormData(field.name, value)}
+                  placeholder={`Select ${field.label}`}
                 />
               ) : (
                 <Input

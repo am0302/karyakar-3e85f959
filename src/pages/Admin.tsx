@@ -1,8 +1,7 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -13,11 +12,8 @@ import {
   Building2, 
   MapPin, 
   TreePine, 
-  Settings, 
   Download,
-  Upload,
   Database,
-  Cloud,
   Shield
 } from "lucide-react";
 import type { Database as DatabaseType } from "@/integrations/supabase/types";
@@ -33,20 +29,11 @@ const Admin = () => {
     totalVillages: 0,
     totalTasks: 0,
   });
-  const [backupSettings, setBackupSettings] = useState({
-    driveApiKey: '',
-    driveClientId: '',
-    driveClientSecret: '',
-    refreshToken: '',
-    folderId: '',
-    autoBackup: false,
-  });
   const { toast } = useToast();
 
   useEffect(() => {
     fetchUsers();
     fetchStats();
-    loadBackupSettings();
   }, []);
 
   const fetchUsers = async () => {
@@ -90,45 +77,6 @@ const Admin = () => {
       });
     } catch (error: any) {
       console.error('Error fetching stats:', error);
-    }
-  };
-
-  const loadBackupSettings = () => {
-    const saved = localStorage.getItem('backupSettings');
-    if (saved) {
-      setBackupSettings(JSON.parse(saved));
-    }
-  };
-
-  const saveBackupSettings = () => {
-    localStorage.setItem('backupSettings', JSON.stringify(backupSettings));
-    toast({
-      title: "Settings Saved",
-      description: "Backup settings have been saved successfully.",
-    });
-  };
-
-  const triggerBackup = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('google-drive-backup', {
-        body: { settings: backupSettings }
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Backup Successful",
-        description: `Data backed up to Google Drive: ${data.fileName}`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Backup Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -239,7 +187,6 @@ const Admin = () => {
         <TabsList>
           <TabsTrigger value="users">User Management</TabsTrigger>
           <TabsTrigger value="master-data">Master Data</TabsTrigger>
-          <TabsTrigger value="backup">Google Drive Backup</TabsTrigger>
           <TabsTrigger value="settings">System Settings</TabsTrigger>
         </TabsList>
 
@@ -313,6 +260,7 @@ const Admin = () => {
                   table="kshetras"
                   fields={[
                     { name: 'name', label: 'Name', type: 'text', required: true },
+                    { name: 'mandir_id', label: 'Mandir', type: 'select', required: true, foreignKey: 'mandirs' },
                     { name: 'description', label: 'Description', type: 'textarea' },
                     { name: 'contact_person', label: 'Contact Person', type: 'text' },
                   ]}
@@ -332,6 +280,7 @@ const Admin = () => {
                   table="villages"
                   fields={[
                     { name: 'name', label: 'Name', type: 'text', required: true },
+                    { name: 'kshetra_id', label: 'Kshetra', type: 'select', required: true, foreignKey: 'kshetras' },
                     { name: 'district', label: 'District', type: 'text' },
                     { name: 'state', label: 'State', type: 'text' },
                     { name: 'pincode', label: 'Pincode', type: 'text' },
@@ -352,6 +301,7 @@ const Admin = () => {
                   table="mandals"
                   fields={[
                     { name: 'name', label: 'Name', type: 'text', required: true },
+                    { name: 'village_id', label: 'Village', type: 'select', required: true, foreignKey: 'villages' },
                     { name: 'description', label: 'Description', type: 'textarea' },
                     { name: 'meeting_day', label: 'Meeting Day', type: 'text' },
                   ]}
@@ -359,84 +309,43 @@ const Admin = () => {
                 />
               </CardContent>
             </Card>
-          </div>
-        </TabsContent>
 
-        <TabsContent value="backup" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Cloud className="h-5 w-5 mr-2" />
-                Google Drive Backup Settings
-              </CardTitle>
-              <CardDescription>
-                Configure automatic backup to Google Drive
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="driveApiKey">Google Drive API Key</Label>
-                  <Input
-                    id="driveApiKey"
-                    type="password"
-                    value={backupSettings.driveApiKey}
-                    onChange={(e) => setBackupSettings(prev => ({ ...prev, driveApiKey: e.target.value }))}
-                    placeholder="Enter your Google Drive API key"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="driveClientId">Client ID</Label>
-                  <Input
-                    id="driveClientId"
-                    value={backupSettings.driveClientId}
-                    onChange={(e) => setBackupSettings(prev => ({ ...prev, driveClientId: e.target.value }))}
-                    placeholder="Enter client ID"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="driveClientSecret">Client Secret</Label>
-                  <Input
-                    id="driveClientSecret"
-                    type="password"
-                    value={backupSettings.driveClientSecret}
-                    onChange={(e) => setBackupSettings(prev => ({ ...prev, driveClientSecret: e.target.value }))}
-                    placeholder="Enter client secret"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="refreshToken">Refresh Token</Label>
-                  <Input
-                    id="refreshToken"
-                    type="password"
-                    value={backupSettings.refreshToken}
-                    onChange={(e) => setBackupSettings(prev => ({ ...prev, refreshToken: e.target.value }))}
-                    placeholder="Enter refresh token"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="folderId">Drive Folder ID</Label>
-                  <Input
-                    id="folderId"
-                    value={backupSettings.folderId}
-                    onChange={(e) => setBackupSettings(prev => ({ ...prev, folderId: e.target.value }))}
-                    placeholder="Enter Google Drive folder ID"
-                  />
-                </div>
-              </div>
-              
-              <div className="flex space-x-2 pt-4">
-                <Button onClick={saveBackupSettings} variant="outline">
-                  <Settings className="h-4 w-4 mr-2" />
-                  Save Settings
-                </Button>
-                <Button onClick={triggerBackup} disabled={loading}>
-                  <Upload className="h-4 w-4 mr-2" />
-                  {loading ? "Backing up..." : "Backup Now"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Professions</CardTitle>
+                <CardDescription>Manage professions</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <MasterDataDialog
+                  title="Profession"
+                  table="professions"
+                  fields={[
+                    { name: 'name', label: 'Name', type: 'text', required: true },
+                    { name: 'description', label: 'Description', type: 'textarea' },
+                  ]}
+                  onSuccess={fetchStats}
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Seva Types</CardTitle>
+                <CardDescription>Manage seva types</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <MasterDataDialog
+                  title="Seva Type"
+                  table="seva_types"
+                  fields={[
+                    { name: 'name', label: 'Name', type: 'text', required: true },
+                    { name: 'description', label: 'Description', type: 'textarea' },
+                  ]}
+                  onSuccess={fetchStats}
+                />
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-4">

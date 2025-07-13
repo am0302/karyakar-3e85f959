@@ -9,14 +9,12 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Send, 
   Plus, 
   Search, 
   Users, 
   MessageCircle, 
-  MoreVertical,
   Phone,
   Video,
   Info
@@ -63,8 +61,6 @@ const Communication = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showNewChatDialog, setShowNewChatDialog] = useState(false);
-  const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
-  const [groupName, setGroupName] = useState('');
   const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -110,6 +106,7 @@ const Communication = () => {
       const rooms = data?.map(item => item.chat_rooms).filter(Boolean) || [];
       setChatRooms(rooms as ChatRoom[]);
     } catch (error: any) {
+      console.error('Error fetching chat rooms:', error);
       toast({
         title: 'Error',
         description: 'Failed to fetch chat rooms',
@@ -131,6 +128,7 @@ const Communication = () => {
       if (error) throw error;
       setContacts(data || []);
     } catch (error: any) {
+      console.error('Error fetching contacts:', error);
       toast({
         title: 'Error',
         description: 'Failed to fetch contacts',
@@ -170,6 +168,7 @@ const Communication = () => {
 
       setMessages(formattedMessages);
     } catch (error: any) {
+      console.error('Error fetching messages:', error);
       toast({
         title: 'Error',
         description: 'Failed to fetch messages',
@@ -187,7 +186,6 @@ const Communication = () => {
         table: 'messages',
         filter: `room_id=eq.${roomId}`
       }, (payload) => {
-        // Fetch the new message with profile data
         fetchMessages(roomId);
       })
       .subscribe();
@@ -214,6 +212,7 @@ const Communication = () => {
 
       setNewMessage('');
     } catch (error: any) {
+      console.error('Error sending message:', error);
       toast({
         title: 'Error',
         description: 'Failed to send message',
@@ -222,19 +221,16 @@ const Communication = () => {
     }
   };
 
-  const createNewChat = async () => {
-    if (selectedContacts.length === 0 || !user) return;
+  const createNewChat = async (contactId: string) => {
+    if (!user) return;
 
     try {
-      const isGroup = selectedContacts.length > 1;
-      const chatName = isGroup ? groupName || 'Group Chat' : null;
-
       // Create chat room
       const { data: room, error: roomError } = await supabase
         .from('chat_rooms')
         .insert({
-          name: chatName,
-          is_group: isGroup,
+          name: null,
+          is_group: false,
           created_by: user.id
         })
         .select()
@@ -245,10 +241,7 @@ const Communication = () => {
       // Add participants
       const participants = [
         { room_id: room.id, user_id: user.id },
-        ...selectedContacts.map(contactId => ({
-          room_id: room.id,
-          user_id: contactId
-        }))
+        { room_id: room.id, user_id: contactId }
       ];
 
       const { error: participantsError } = await supabase
@@ -259,14 +252,16 @@ const Communication = () => {
 
       toast({
         title: 'Success',
-        description: `${isGroup ? 'Group chat' : 'Chat'} created successfully`,
+        description: 'Chat created successfully',
       });
 
       setShowNewChatDialog(false);
-      setSelectedContacts([]);
-      setGroupName('');
       fetchChatRooms();
+      
+      // Select the new room
+      setSelectedRoom(room);
     } catch (error: any) {
+      console.error('Error creating chat:', error);
       toast({
         title: 'Error',
         description: 'Failed to create chat',
@@ -322,43 +317,28 @@ const Communication = () => {
                 <DialogHeader>
                   <DialogTitle>New Chat</DialogTitle>
                   <DialogDescription>
-                    Select contacts to start a new conversation
+                    Select a karyakar to start a conversation
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                     <Input
-                      placeholder="Search contacts..."
+                      placeholder="Search karyakars..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10"
                     />
                   </div>
 
-                  {selectedContacts.length > 1 && (
-                    <Input
-                      placeholder="Group name (optional)"
-                      value={groupName}
-                      onChange={(e) => setGroupName(e.target.value)}
-                    />
-                  )}
-
                   <ScrollArea className="h-60">
                     <div className="space-y-2">
                       {filteredContacts.map((contact) => (
-                        <div key={contact.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={contact.id}
-                            checked={selectedContacts.includes(contact.id)}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setSelectedContacts([...selectedContacts, contact.id]);
-                              } else {
-                                setSelectedContacts(selectedContacts.filter(id => id !== contact.id));
-                              }
-                            }}
-                          />
+                        <div 
+                          key={contact.id} 
+                          className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                          onClick={() => createNewChat(contact.id)}
+                        >
                           <Avatar className="h-8 w-8">
                             <AvatarImage src={contact.profile_photo_url || undefined} />
                             <AvatarFallback className="bg-gradient-to-r from-orange-500 to-amber-500 text-white">
@@ -374,18 +354,9 @@ const Communication = () => {
                     </div>
                   </ScrollArea>
 
-                  <div className="flex gap-2">
-                    <Button 
-                      onClick={createNewChat} 
-                      disabled={selectedContacts.length === 0}
-                      className="flex-1"
-                    >
-                      Create Chat
-                    </Button>
-                    <Button variant="outline" onClick={() => setShowNewChatDialog(false)}>
-                      Cancel
-                    </Button>
-                  </div>
+                  <Button variant="outline" onClick={() => setShowNewChatDialog(false)} className="w-full">
+                    Cancel
+                  </Button>
                 </div>
               </DialogContent>
             </Dialog>
