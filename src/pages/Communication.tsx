@@ -49,6 +49,11 @@ type Contact = {
   role: string;
   profile_photo_url?: string;
   is_active: boolean;
+  mandirs?: { name: string } | null;
+  kshetras?: { name: string } | null;
+  villages?: { name: string } | null;
+  mandals?: { name: string } | null;
+  seva_types?: { name: string } | null;
 };
 
 const Communication = () => {
@@ -92,7 +97,7 @@ const Communication = () => {
         .from('chat_participants')
         .select(`
           room_id,
-          chat_rooms (
+          chat_rooms!inner (
             id,
             name,
             is_group,
@@ -107,11 +112,8 @@ const Communication = () => {
       setChatRooms(rooms as ChatRoom[]);
     } catch (error: any) {
       console.error('Error fetching chat rooms:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch chat rooms',
-        variant: 'destructive',
-      });
+      // Don't show error toast for empty chat rooms, just set empty array
+      setChatRooms([]);
     } finally {
       setLoading(false);
     }
@@ -121,7 +123,18 @@ const Communication = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, role, profile_photo_url, is_active')
+        .select(`
+          id, 
+          full_name, 
+          role, 
+          profile_photo_url, 
+          is_active,
+          mandirs!profiles_mandir_id_fkey (name),
+          kshetras!profiles_kshetra_id_fkey (name),
+          villages!profiles_village_id_fkey (name),
+          mandals!profiles_mandal_id_fkey (name),
+          seva_types!profiles_seva_type_id_fkey (name)
+        `)
         .eq('is_active', true)
         .neq('id', user?.id);
 
@@ -225,7 +238,41 @@ const Communication = () => {
     if (!user) return;
 
     try {
-      // Create chat room
+      // Check if chat already exists between these users
+      const { data: existingRoom, error: checkError } = await supabase
+        .from('chat_participants')
+        .select(`
+          room_id,
+          chat_rooms!inner (
+            id,
+            name,
+            is_group,
+            created_at
+          )
+        `)
+        .eq('user_id', user.id)
+        .in('room_id', 
+          await supabase
+            .from('chat_participants')
+            .select('room_id')
+            .eq('user_id', contactId)
+            .then(({ data }) => data?.map(p => p.room_id) || [])
+        );
+
+      if (checkError) throw checkError;
+
+      // Find a room that has both users and is not a group
+      const existingDirectRoom = existingRoom?.find(room => 
+        room.chat_rooms && !room.chat_rooms.is_group
+      );
+
+      if (existingDirectRoom?.chat_rooms) {
+        // Select existing room
+        setSelectedRoom(existingDirectRoom.chat_rooms as ChatRoom);
+        return;
+      }
+
+      // Create new chat room if none exists
       const { data: room, error: roomError } = await supabase
         .from('chat_rooms')
         .insert({
@@ -250,12 +297,6 @@ const Communication = () => {
 
       if (participantsError) throw participantsError;
 
-      toast({
-        title: 'Success',
-        description: 'Chat created successfully',
-      });
-
-      setShowNewChatDialog(false);
       fetchChatRooms();
       
       // Select the new room
@@ -264,7 +305,7 @@ const Communication = () => {
       console.error('Error creating chat:', error);
       toast({
         title: 'Error',
-        description: 'Failed to create chat',
+        description: 'Failed to open chat',
         variant: 'destructive',
       });
     }
@@ -302,101 +343,66 @@ const Communication = () => {
 
   return (
     <div className="h-[calc(100vh-2rem)] flex">
-      {/* Chat List Sidebar */}
-      <div className="w-80 border-r bg-white flex flex-col">
+      {/* Karyakars List Sidebar */}
+      <div className="w-96 border-r bg-white flex flex-col">
         <div className="p-4 border-b">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Messages</h2>
-            <Dialog open={showNewChatDialog} onOpenChange={setShowNewChatDialog}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="bg-orange-500 hover:bg-orange-600">
-                  <Plus className="w-4 h-4" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>New Chat</DialogTitle>
-                  <DialogDescription>
-                    Select a karyakar to start a conversation
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <Input
-                      placeholder="Search karyakars..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-
-                  <ScrollArea className="h-60">
-                    <div className="space-y-2">
-                      {filteredContacts.map((contact) => (
-                        <div 
-                          key={contact.id} 
-                          className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
-                          onClick={() => createNewChat(contact.id)}
-                        >
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={contact.profile_photo_url || undefined} />
-                            <AvatarFallback className="bg-gradient-to-r from-orange-500 to-amber-500 text-white">
-                              {contact.full_name.split(' ').map(n => n[0]).join('')}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1">
-                            <p className="font-medium text-sm">{contact.full_name}</p>
-                            <p className="text-xs text-gray-500 capitalize">{contact.role.replace('_', ' ')}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-
-                  <Button variant="outline" onClick={() => setShowNewChatDialog(false)} className="w-full">
-                    Cancel
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <h2 className="text-xl font-semibold">Karyakars</h2>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Search karyakars..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 w-48"
+              />
+            </div>
           </div>
         </div>
 
         <ScrollArea className="flex-1">
           <div className="p-2">
-            {chatRooms.length > 0 ? chatRooms.map((room) => (
+            {filteredContacts.length > 0 ? filteredContacts.map((contact) => (
               <div
-                key={room.id}
-                className={`p-3 rounded-lg cursor-pointer hover:bg-gray-50 mb-1 ${
-                  selectedRoom?.id === room.id ? 'bg-orange-50 border-l-4 border-orange-500' : ''
-                }`}
-                onClick={() => setSelectedRoom(room)}
+                key={contact.id}
+                className="p-3 rounded-lg cursor-pointer hover:bg-gray-50 mb-2 border"
+                onClick={() => createNewChat(contact.id)}
               >
                 <div className="flex items-center space-x-3">
-                  <Avatar className="h-10 w-10">
+                  <Avatar className="h-12 w-12">
+                    <AvatarImage src={contact.profile_photo_url || undefined} />
                     <AvatarFallback className="bg-gradient-to-r from-orange-500 to-amber-500 text-white">
-                      {room.is_group ? <Users className="w-5 h-5" /> : <MessageCircle className="w-5 h-5" />}
+                      {contact.full_name.split(' ').map(n => n[0]).join('')}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">
-                      {room.name || `Chat ${room.id.slice(0, 8)}`}
-                    </p>
-                    <p className="text-xs text-gray-500 truncate">
-                      {room.last_message?.content || 'No messages yet'}
-                    </p>
-                  </div>
-                  <div className="text-xs text-gray-400">
-                    {room.last_message && formatTime(room.last_message.created_at)}
+                    <p className="font-medium text-sm truncate">{contact.full_name}</p>
+                    <p className="text-xs text-gray-500 capitalize">{contact.role.replace('_', ' ')}</p>
+                    <div className="text-xs text-gray-400 space-y-1 mt-1">
+                      {contact.mandirs?.name && (
+                        <div>Mandir: {contact.mandirs.name}</div>
+                      )}
+                      {contact.kshetras?.name && (
+                        <div>Kshetra: {contact.kshetras.name}</div>
+                      )}
+                      {contact.villages?.name && (
+                        <div>Village: {contact.villages.name}</div>
+                      )}
+                      {contact.mandals?.name && (
+                        <div>Mandal: {contact.mandals.name}</div>
+                      )}
+                      {contact.seva_types?.name && (
+                        <div>Seva Type: {contact.seva_types.name}</div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
             )) : (
               <div className="text-center text-gray-500 py-8">
-                <MessageCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p>No chats yet</p>
-                <p className="text-sm">Start a new conversation</p>
+                <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p>No karyakars found</p>
+                <p className="text-sm">Try adjusting your search</p>
               </div>
             )}
           </div>
