@@ -344,6 +344,7 @@ export type Database = {
           age: number | null
           created_at: string
           date_of_birth: string | null
+          email: string | null
           full_name: string
           id: string
           is_active: boolean
@@ -364,6 +365,7 @@ export type Database = {
           age?: number | null
           created_at?: string
           date_of_birth?: string | null
+          email?: string | null
           full_name: string
           id: string
           is_active?: boolean
@@ -384,6 +386,7 @@ export type Database = {
           age?: number | null
           created_at?: string
           date_of_birth?: string | null
+          email?: string | null
           full_name?: string
           id?: string
           is_active?: boolean

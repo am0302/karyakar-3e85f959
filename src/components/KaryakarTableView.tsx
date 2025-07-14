@@ -40,11 +40,14 @@ export const KaryakarTableView = ({ karyakars, onEdit, onDelete }: KaryakarTable
     <Table>
       <TableHeader>
         <TableRow>
+          <TableHead>Photo</TableHead>
           <TableHead>Name</TableHead>
           <TableHead>Mobile</TableHead>
           <TableHead>Role</TableHead>
           <TableHead>Profession</TableHead>
           <TableHead>Mandir</TableHead>
+          <TableHead>Kshetra</TableHead>
+          <TableHead>Mandal</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Actions</TableHead>
         </TableRow>
@@ -52,6 +55,21 @@ export const KaryakarTableView = ({ karyakars, onEdit, onDelete }: KaryakarTable
       <TableBody>
         {karyakars.map((karyakar) => (
           <TableRow key={karyakar.id}>
+            <TableCell>
+              <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                {karyakar.profile_photo_url ? (
+                  <img 
+                    src={karyakar.profile_photo_url} 
+                    alt={karyakar.full_name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-xs font-medium text-gray-600">
+                    {karyakar.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                  </span>
+                )}
+              </div>
+            </TableCell>
             <TableCell className="font-medium">{karyakar.full_name}</TableCell>
             <TableCell>{karyakar.mobile_number}</TableCell>
             <TableCell>
@@ -61,6 +79,8 @@ export const KaryakarTableView = ({ karyakars, onEdit, onDelete }: KaryakarTable
             </TableCell>
             <TableCell>{karyakar.professions?.name || 'N/A'}</TableCell>
             <TableCell>{karyakar.mandirs?.name || 'N/A'}</TableCell>
+            <TableCell>{karyakar.kshetras?.name || 'N/A'}</TableCell>
+            <TableCell>{karyakar.mandals?.name || 'N/A'}</TableCell>
             <TableCell>
               <Badge variant={karyakar.is_active ? "default" : "secondary"}>
                 {karyakar.is_active ? "Active" : "Inactive"}

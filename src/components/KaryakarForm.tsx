@@ -15,6 +15,7 @@ type UserRole = Database['public']['Enums']['user_role'];
 interface KaryakarFormProps {
   formData: {
     full_name: string;
+    email: string;
     mobile_number: string;
     whatsapp_number: string;
     is_whatsapp_same_as_mobile: boolean;
@@ -91,14 +92,25 @@ export const KaryakarForm = ({
             </div>
             
             <div>
-              <Label htmlFor="mobile_number">Mobile Number *</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
-                id="mobile_number"
-                value={formData.mobile_number}
-                onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value })}
-                required
+                id="email"
+                type="email"
+                value={formData.email || ''}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="example@email.com"
               />
             </div>
+          </div>
+
+          <div>
+            <Label htmlFor="mobile_number">Mobile Number *</Label>
+            <Input
+              id="mobile_number"
+              value={formData.mobile_number}
+              onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value })}
+              required
+            />
           </div>
 
           <div className="flex items-center space-x-2">

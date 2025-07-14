@@ -51,6 +51,7 @@ const Karyakars = () => {
 
   const [formData, setFormData] = useState({
     full_name: '',
+    email: '',
     mobile_number: '',
     whatsapp_number: '',
     is_whatsapp_same_as_mobile: false,
@@ -135,6 +136,7 @@ const Karyakars = () => {
       const age = formData.age ? parseInt(formData.age) : null;
       const dataToSubmit = {
         full_name: formData.full_name,
+        email: formData.email || null,
         mobile_number: formData.mobile_number,
         whatsapp_number: formData.is_whatsapp_same_as_mobile ? formData.mobile_number : formData.whatsapp_number,
         is_whatsapp_same_as_mobile: formData.is_whatsapp_same_as_mobile,
@@ -190,6 +192,7 @@ const Karyakars = () => {
   const resetForm = () => {
     setFormData({
       full_name: '',
+      email: '',
       mobile_number: '',
       whatsapp_number: '',
       is_whatsapp_same_as_mobile: false,
@@ -209,6 +212,7 @@ const Karyakars = () => {
   const handleEdit = (karyakar: Profile) => {
     setFormData({
       full_name: karyakar.full_name,
+      email: karyakar.email || '',
       mobile_number: karyakar.mobile_number,
       whatsapp_number: karyakar.whatsapp_number || '',
       is_whatsapp_same_as_mobile: karyakar.is_whatsapp_same_as_mobile || false,

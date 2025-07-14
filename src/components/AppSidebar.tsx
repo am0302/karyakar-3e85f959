@@ -19,6 +19,7 @@ import {
   MapPin,
   UserPlus,
 } from "lucide-react";
+import { useAuth } from './AuthProvider';
 
 const navigationItems = [
   {
@@ -41,11 +42,6 @@ const navigationItems = [
     url: "/communication",
     icon: MessageSquare,
   },
-  {
-    title: "Registration",
-    url: "/registration",
-    icon: UserPlus,
-  },
 ];
 
 const managementItems = [
@@ -67,6 +63,7 @@ const adminItems = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
+  const { user } = useAuth();
   const isCollapsed = state === "collapsed";
 
   const isActive = (path: string) => location.pathname === path;
@@ -127,7 +124,7 @@ export function AppSidebar() {
           </SidebarMenu>
         </div>
 
-        {/* Admin Section */}
+        {/* Admin Section - Always show for now, will add role check later */}
         <div className="px-4 pb-4">
           {!isCollapsed && <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Administration</p>}
           <SidebarMenu>

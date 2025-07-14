@@ -238,10 +238,9 @@ const Admin = () => {
                   table="mandirs"
                   fields={[
                     { name: 'name', label: 'Name', type: 'text', required: true },
+                    { name: 'description', label: 'Description', type: 'textarea' },
                     { name: 'address', label: 'Address', type: 'textarea' },
-                    { name: 'contact_person', label: 'Contact Person', type: 'text' },
-                    { name: 'contact_number', label: 'Contact Number', type: 'text' },
-                    { name: 'email', label: 'Email', type: 'text' },
+                    { name: 'established_date', label: 'Established Date', type: 'text' },
                   ]}
                   onSuccess={fetchStats}
                 />
@@ -259,9 +258,9 @@ const Admin = () => {
                   table="kshetras"
                   fields={[
                     { name: 'name', label: 'Name', type: 'text', required: true },
-                    { name: 'mandir_id', label: 'Mandir', type: 'select', required: true, foreignKey: 'mandirs' },
                     { name: 'description', label: 'Description', type: 'textarea' },
-                    { name: 'contact_person', label: 'Contact Person', type: 'text' },
+                    { name: 'contact_number', label: 'Contact Number', type: 'text' },
+                    { name: 'mandir_id', label: 'Mandir', type: 'select', required: true, foreignKey: 'mandirs' },
                   ]}
                   onSuccess={fetchStats}
                 />
@@ -280,11 +279,7 @@ const Admin = () => {
                   fields={[
                     { name: 'name', label: 'Name', type: 'text', required: true },
                     { name: 'kshetra_id', label: 'Kshetra', type: 'select', required: true, foreignKey: 'kshetras' },
-                    { name: 'district', label: 'District', type: 'text' },
-                    { name: 'state', label: 'State', type: 'text' },
-                    { name: 'pincode', label: 'Pincode', type: 'text' },
-                    { name: 'contact_person', label: 'Contact Person', type: 'text' },
-                    { name: 'contact_number', label: 'Contact Number', type: 'text' },
+                    { name: 'population', label: 'Population', type: 'text' },
                   ]}
                   onSuccess={fetchStats}
                 />
