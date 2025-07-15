@@ -315,6 +315,96 @@ export type Database = {
           },
         ]
       }
+      module_permissions: {
+        Row: {
+          can_add: boolean | null
+          can_delete: boolean | null
+          can_edit: boolean | null
+          can_export: boolean | null
+          can_view: boolean | null
+          created_at: string
+          id: string
+          module_name: string
+          scope_kshetra_id: string | null
+          scope_mandal_id: string | null
+          scope_mandir_id: string | null
+          scope_type: string | null
+          scope_village_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          can_add?: boolean | null
+          can_delete?: boolean | null
+          can_edit?: boolean | null
+          can_export?: boolean | null
+          can_view?: boolean | null
+          created_at?: string
+          id?: string
+          module_name: string
+          scope_kshetra_id?: string | null
+          scope_mandal_id?: string | null
+          scope_mandir_id?: string | null
+          scope_type?: string | null
+          scope_village_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          can_add?: boolean | null
+          can_delete?: boolean | null
+          can_edit?: boolean | null
+          can_export?: boolean | null
+          can_view?: boolean | null
+          created_at?: string
+          id?: string
+          module_name?: string
+          scope_kshetra_id?: string | null
+          scope_mandal_id?: string | null
+          scope_mandir_id?: string | null
+          scope_type?: string | null
+          scope_village_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "module_permissions_scope_kshetra_id_fkey"
+            columns: ["scope_kshetra_id"]
+            isOneToOne: false
+            referencedRelation: "kshetras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "module_permissions_scope_mandal_id_fkey"
+            columns: ["scope_mandal_id"]
+            isOneToOne: false
+            referencedRelation: "mandals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "module_permissions_scope_mandir_id_fkey"
+            columns: ["scope_mandir_id"]
+            isOneToOne: false
+            referencedRelation: "mandirs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "module_permissions_scope_village_id_fkey"
+            columns: ["scope_village_id"]
+            isOneToOne: false
+            referencedRelation: "villages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "module_permissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       professions: {
         Row: {
           created_at: string
@@ -753,6 +843,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_user_permission: {
+        Args: {
+          _user_id: string
+          _module_name: string
+          _permission_type: string
+        }
+        Returns: boolean
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["user_role"]

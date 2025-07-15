@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { MasterDataDialog } from "@/components/MasterDataDialog";
+import PermissionsManager from "@/components/PermissionsManager";
 import { 
   Users, 
   Building2, 
@@ -185,6 +186,7 @@ const Admin = () => {
       <Tabs defaultValue="users" className="space-y-4">
         <TabsList>
           <TabsTrigger value="users">User Management</TabsTrigger>
+          <TabsTrigger value="permissions">User Permissions</TabsTrigger>
           <TabsTrigger value="master-data">Master Data</TabsTrigger>
           <TabsTrigger value="settings">System Settings</TabsTrigger>
         </TabsList>
@@ -223,6 +225,10 @@ const Admin = () => {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="permissions" className="space-y-4">
+          <PermissionsManager />
         </TabsContent>
 
         <TabsContent value="master-data" className="space-y-4">

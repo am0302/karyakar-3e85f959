@@ -8,7 +8,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SearchableSelect } from '@/components/SearchableSelect';
+import TaskCalendar from '@/components/TaskCalendar';
 import { Plus, Filter, Search, Calendar, MessageSquare, Edit, Trash2, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -63,6 +65,7 @@ const Tasks = () => {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [userRole, setUserRole] = useState('');
+  const [activeTab, setActiveTab] = useState('list');
   
   // Chat states
   const [taskComments, setTaskComments] = useState<TaskComment[]>([]);
@@ -383,134 +386,147 @@ const Tasks = () => {
         </Button>
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-4 items-center">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <Input
-            placeholder="Search tasks..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="in_progress">In Progress</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={filterPriority} onValueChange={setFilterPriority}>
-          <SelectTrigger className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Priority</SelectItem>
-            <SelectItem value="urgent">Urgent</SelectItem>
-            <SelectItem value="high">High</SelectItem>
-            <SelectItem value="medium">Medium</SelectItem>
-            <SelectItem value="low">Low</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="list">Task List</TabsTrigger>
+          <TabsTrigger value="calendar">Calendar View</TabsTrigger>
+        </TabsList>
 
-      {/* Tasks Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredTasks.map((task) => (
-          <Card key={task.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <CardTitle className="text-lg">{task.title}</CardTitle>
-                  <CardDescription className="mt-1">
-                    {task.profiles?.full_name && `Assigned to: ${task.profiles.full_name}`}
-                    <br />
-                    {task.assigned_by_profile?.full_name && `Assigned by: ${task.assigned_by_profile.full_name}`}
-                  </CardDescription>
-                </div>
-                <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)}`} />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600 mb-4 line-clamp-2">{task.description}</p>
-              
-              <div className="flex justify-between items-center mb-4">
-                <Badge className={getStatusColor(task.status)}>
-                  {task.status.replace('_', ' ').toUpperCase()}
-                </Badge>
-                <span className="text-sm text-gray-500 capitalize">{task.task_type}</span>
-              </div>
+        <TabsContent value="list" className="space-y-6">
+          {/* Filters */}
+          <div className="flex gap-4 items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Search tasks..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterPriority} onValueChange={setFilterPriority}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Priority</SelectItem>
+                <SelectItem value="urgent">Urgent</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="low">Low</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-              {task.due_date && (
-                <div className="flex items-center text-sm text-gray-500 mb-4">
-                  <Calendar className="h-4 w-4 mr-1" />
-                  {format(new Date(task.due_date), 'MMM dd, yyyy')}
-                </div>
-              )}
+          {/* Tasks Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredTasks.map((task) => (
+              <Card key={task.id} className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <CardTitle className="text-lg">{task.title}</CardTitle>
+                      <CardDescription className="mt-1">
+                        {task.profiles?.full_name && `Assigned to: ${task.profiles.full_name}`}
+                        <br />
+                        {task.assigned_by_profile?.full_name && `Assigned by: ${task.assigned_by_profile.full_name}`}
+                      </CardDescription>
+                    </div>
+                    <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)}`} />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-600 mb-4 line-clamp-2">{task.description}</p>
+                  
+                  <div className="flex justify-between items-center mb-4">
+                    <Badge className={getStatusColor(task.status)}>
+                      {task.status.replace('_', ' ').toUpperCase()}
+                    </Badge>
+                    <span className="text-sm text-gray-500 capitalize">{task.task_type}</span>
+                  </div>
 
-              <div className="flex gap-2 mb-2">
-                <Select value={task.status} onValueChange={(value) => updateTaskStatus(task.id, value as any)}>
-                  <SelectTrigger className="flex-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setSelectedTask(task);
-                    fetchTaskComments(task.id);
-                    setShowDetailsDialog(true);
-                  }}
-                >
-                  <MessageSquare className="h-4 w-4" />
-                </Button>
-              </div>
+                  {task.due_date && (
+                    <div className="flex items-center text-sm text-gray-500 mb-4">
+                      <Calendar className="h-4 w-4 mr-1" />
+                      {format(new Date(task.due_date), 'MMM dd, yyyy')}
+                    </div>
+                  )}
 
-              <div className="flex gap-2">
-                {canEditTask(task) && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setEditingTask(task);
-                      setShowEditDialog(true);
-                    }}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                )}
-                {canDeleteTask(task) && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => deleteTask(task.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                  <div className="flex gap-2 mb-2">
+                    <Select value={task.status} onValueChange={(value) => updateTaskStatus(task.id, value as any)}>
+                      <SelectTrigger className="flex-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="in_progress">In Progress</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedTask(task);
+                        fetchTaskComments(task.id);
+                        setShowDetailsDialog(true);
+                      }}
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                    </Button>
+                  </div>
 
-      {filteredTasks.length === 0 && (
-        <div className="text-center py-12">
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
-          <p className="text-gray-600">Create your first task to get started.</p>
-        </div>
-      )}
+                  <div className="flex gap-2">
+                    {canEditTask(task) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setEditingTask(task);
+                          setShowEditDialog(true);
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {canDeleteTask(task) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => deleteTask(task.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {filteredTasks.length === 0 && (
+            <div className="text-center py-12">
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
+              <p className="text-gray-600">Create your first task to get started.</p>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="calendar">
+          <TaskCalendar />
+        </TabsContent>
+      </Tabs>
 
       {/* Create Task Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>

@@ -1,152 +1,193 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { 
-  Send, 
-  Plus, 
-  Search, 
-  Users, 
-  MessageCircle, 
-  Phone,
-  Video,
-  Info
-} from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Search, MessageCircle, Send, Phone, Mail, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
 
-type ChatRoom = {
+type Karyakar = {
   id: string;
-  name: string | null;
-  is_group: boolean;
-  created_at: string;
-  last_message?: {
-    content: string;
-    created_at: string;
-    sender_name: string;
-  };
-  participants_count?: number;
+  full_name: string;
+  mobile_number: string;
+  email?: string;
+  role: string;
+  mandirs?: { name: string };
+  kshetras?: { name: string };
+  villages?: { name: string };
+  mandals?: { name: string };
+  seva_types?: { name: string };
 };
 
 type Message = {
   id: string;
   content: string;
-  sender_id: string;
   created_at: string;
-  sender_name: string;
-  sender_avatar?: string;
+  sender_id: string;
+  profiles: {
+    full_name: string;
+  };
 };
 
-type Contact = {
+type ChatRoom = {
   id: string;
-  full_name: string;
-  role: string;
-  profile_photo_url?: string;
-  is_active: boolean;
-  mandirs?: { name: string } | null;
-  kshetras?: { name: string } | null;
-  villages?: { name: string } | null;
-  mandals?: { name: string } | null;
-  seva_types?: { name: string } | null;
+  name?: string;
+  created_at: string;
+  participants?: any[];
 };
 
 const Communication = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
-  const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
+  const [karyakars, setKaryakars] = useState<Karyakar[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [selectedKaryakar, setSelectedKaryakar] = useState<Karyakar | null>(null);
+  const [showChatDialog, setShowChatDialog] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showNewChatDialog, setShowNewChatDialog] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [currentRoom, setCurrentRoom] = useState<ChatRoom | null>(null);
+  const [loadingMessages, setLoadingMessages] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      fetchChatRooms();
-      fetchContacts();
-    }
-  }, [user]);
+    fetchKaryakars();
+  }, []);
 
-  useEffect(() => {
-    if (selectedRoom) {
-      fetchMessages(selectedRoom.id);
-      subscribeToMessages(selectedRoom.id);
-    }
-  }, [selectedRoom]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const fetchChatRooms = async () => {
+  const fetchKaryakars = async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
-        .from('chat_participants')
+        .from('profiles')
         .select(`
-          room_id,
-          chat_rooms!inner (
-            id,
-            name,
-            is_group,
-            created_at
-          )
+          id,
+          full_name,
+          mobile_number,
+          email,
+          role,
+          mandirs(name),
+          kshetras(name),
+          villages(name),
+          mandals(name),
+          seva_types(name)
         `)
-        .eq('user_id', user?.id);
+        .eq('is_active', true)
+        .order('full_name');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
-      const rooms = data?.map(item => item.chat_rooms).filter(Boolean) || [];
-      setChatRooms(rooms as ChatRoom[]);
+      console.log('Fetched karyakars:', data);
+      setKaryakars(data || []);
     } catch (error: any) {
-      console.error('Error fetching chat rooms:', error);
-      // Don't show error toast for empty chat rooms, just set empty array
-      setChatRooms([]);
+      console.error('Failed to fetch karyakars:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch karyakars',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchContacts = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select(`
-          id, 
-          full_name, 
-          role, 
-          profile_photo_url, 
-          is_active,
-          mandirs!profiles_mandir_id_fkey (name),
-          kshetras!profiles_kshetra_id_fkey (name),
-          villages!profiles_village_id_fkey (name),
-          mandals!profiles_mandal_id_fkey (name),
-          seva_types!profiles_seva_type_id_fkey (name)
-        `)
-        .eq('is_active', true)
-        .neq('id', user?.id);
+  const openChat = async (karyakar: Karyakar) => {
+    if (!user) return;
 
-      if (error) throw error;
-      setContacts(data || []);
+    try {
+      setLoadingMessages(true);
+      setSelectedKaryakar(karyakar);
+      
+      // First, try to find an existing private chat room between these two users
+      const { data: existingRooms, error: roomError } = await supabase
+        .from('chat_rooms')
+        .select(`
+          id,
+          name,
+          created_at,
+          chat_participants!inner(user_id)
+        `)
+        .eq('is_group', false);
+
+      if (roomError) {
+        console.error('Error fetching existing rooms:', roomError);
+        throw roomError;
+      }
+
+      // Find a room that has exactly these two participants
+      let room = null;
+      if (existingRooms) {
+        for (const r of existingRooms) {
+          const { data: participants, error: participantsError } = await supabase
+            .from('chat_participants')
+            .select('user_id')
+            .eq('room_id', r.id);
+
+          if (participantsError) continue;
+
+          const participantIds = participants?.map(p => p.user_id) || [];
+          if (participantIds.length === 2 && 
+              participantIds.includes(user.id) && 
+              participantIds.includes(karyakar.id)) {
+            room = r;
+            break;
+          }
+        }
+      }
+
+      // If no existing room found, create a new one
+      if (!room) {
+        const { data: newRoom, error: createRoomError } = await supabase
+          .from('chat_rooms')
+          .insert({
+            name: `Chat with ${karyakar.full_name}`,
+            is_group: false,
+            created_by: user.id
+          })
+          .select()
+          .single();
+
+        if (createRoomError) {
+          console.error('Error creating room:', createRoomError);
+          throw createRoomError;
+        }
+
+        room = newRoom;
+
+        // Add both participants to the room
+        const { error: participantsError } = await supabase
+          .from('chat_participants')
+          .insert([
+            { room_id: room.id, user_id: user.id },
+            { room_id: room.id, user_id: karyakar.id }
+          ]);
+
+        if (participantsError) {
+          console.error('Error adding participants:', participantsError);
+          throw participantsError;
+        }
+      }
+
+      setCurrentRoom(room);
+      await fetchMessages(room.id);
+      setShowChatDialog(true);
+
     } catch (error: any) {
-      console.error('Error fetching contacts:', error);
+      console.error('Failed to open chat:', error);
       toast({
         title: 'Error',
-        description: 'Failed to fetch contacts',
+        description: 'Failed to open chat. Please try again.',
         variant: 'destructive',
       });
+    } finally {
+      setLoadingMessages(false);
     }
   };
 
@@ -157,29 +198,15 @@ const Communication = () => {
         .select(`
           id,
           content,
-          sender_id,
           created_at,
-          profiles!messages_sender_id_fkey (
-            full_name,
-            profile_photo_url
-          )
+          sender_id,
+          profiles(full_name)
         `)
         .eq('room_id', roomId)
-        .eq('is_deleted', false)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-
-      const formattedMessages = data?.map(msg => ({
-        id: msg.id,
-        content: msg.content || '',
-        sender_id: msg.sender_id,
-        created_at: msg.created_at,
-        sender_name: msg.profiles?.full_name || 'Unknown',
-        sender_avatar: msg.profiles?.profile_photo_url
-      })) || [];
-
-      setMessages(formattedMessages);
+      setMessages(data || []);
     } catch (error: any) {
       console.error('Error fetching messages:', error);
       toast({
@@ -190,32 +217,14 @@ const Communication = () => {
     }
   };
 
-  const subscribeToMessages = (roomId: string) => {
-    const channel = supabase
-      .channel(`room-${roomId}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: `room_id=eq.${roomId}`
-      }, (payload) => {
-        fetchMessages(roomId);
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  };
-
   const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedRoom || !user) return;
+    if (!user || !currentRoom || !newMessage.trim()) return;
 
     try {
       const { error } = await supabase
         .from('messages')
         .insert({
-          room_id: selectedRoom.id,
+          room_id: currentRoom.id,
           sender_id: user.id,
           content: newMessage.trim(),
           message_type: 'text'
@@ -224,6 +233,7 @@ const Communication = () => {
       if (error) throw error;
 
       setNewMessage('');
+      await fetchMessages(currentRoom.id);
     } catch (error: any) {
       console.error('Error sending message:', error);
       toast({
@@ -234,306 +244,171 @@ const Communication = () => {
     }
   };
 
-  const createNewChat = async (contactId: string) => {
-    if (!user) return;
-
-    try {
-      // Check if chat already exists between these users
-      const { data: existingRoom, error: checkError } = await supabase
-        .from('chat_participants')
-        .select(`
-          room_id,
-          chat_rooms!inner (
-            id,
-            name,
-            is_group,
-            created_at
-          )
-        `)
-        .eq('user_id', user.id)
-        .in('room_id', 
-          await supabase
-            .from('chat_participants')
-            .select('room_id')
-            .eq('user_id', contactId)
-            .then(({ data }) => data?.map(p => p.room_id) || [])
-        );
-
-      if (checkError) throw checkError;
-
-      // Find a room that has both users and is not a group
-      const existingDirectRoom = existingRoom?.find(room => 
-        room.chat_rooms && !room.chat_rooms.is_group
-      );
-
-      if (existingDirectRoom?.chat_rooms) {
-        // Select existing room
-        setSelectedRoom(existingDirectRoom.chat_rooms as ChatRoom);
-        return;
-      }
-
-      // Create new chat room if none exists
-      const { data: room, error: roomError } = await supabase
-        .from('chat_rooms')
-        .insert({
-          name: null,
-          is_group: false,
-          created_by: user.id
-        })
-        .select()
-        .single();
-
-      if (roomError) throw roomError;
-
-      // Add participants
-      const participants = [
-        { room_id: room.id, user_id: user.id },
-        { room_id: room.id, user_id: contactId }
-      ];
-
-      const { error: participantsError } = await supabase
-        .from('chat_participants')
-        .insert(participants);
-
-      if (participantsError) throw participantsError;
-
-      fetchChatRooms();
-      
-      // Select the new room
-      setSelectedRoom(room);
-    } catch (error: any) {
-      console.error('Error creating chat:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to open chat',
-        variant: 'destructive',
-      });
-    }
+  const handleCall = (mobileNumber: string) => {
+    window.open(`tel:${mobileNumber}`, '_self');
   };
 
-  const filteredContacts = contacts.filter(contact =>
-    contact.full_name.toLowerCase().includes(searchTerm.toLowerCase())
+  const handleEmail = (email: string) => {
+    window.open(`mailto:${email}`, '_self');
+  };
+
+  const filteredKaryakars = karyakars.filter(karyakar =>
+    karyakar.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    karyakar.mobile_number.includes(searchTerm) ||
+    karyakar.role.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const formatTime = (timestamp: string) => {
-    return new Date(timestamp).toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const formatDate = (timestamp: string) => {
-    const date = new Date(timestamp);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    if (date.toDateString() === today.toDateString()) {
-      return 'Today';
-    } else if (date.toDateString() === yesterday.toDateString()) {
-      return 'Yesterday';
-    } else {
-      return date.toLocaleDateString();
-    }
-  };
-
   if (loading) {
-    return <div className="flex items-center justify-center h-64">Loading chats...</div>;
+    return <div className="flex items-center justify-center h-64">Loading karyakars...</div>;
   }
 
   return (
-    <div className="h-[calc(100vh-2rem)] flex">
-      {/* Karyakars List Sidebar */}
-      <div className="w-96 border-r bg-white flex flex-col">
-        <div className="p-4 border-b">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Karyakars</h2>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Search karyakars..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-48"
-              />
-            </div>
-          </div>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Communication</h1>
+          <p className="text-gray-600">Connect and communicate with karyakars</p>
         </div>
-
-        <ScrollArea className="flex-1">
-          <div className="p-2">
-            {filteredContacts.length > 0 ? filteredContacts.map((contact) => (
-              <div
-                key={contact.id}
-                className="p-3 rounded-lg cursor-pointer hover:bg-gray-50 mb-2 border"
-                onClick={() => createNewChat(contact.id)}
-              >
-                <div className="flex items-center space-x-3">
-                  <Avatar className="h-12 w-12">
-                    <AvatarImage src={contact.profile_photo_url || undefined} />
-                    <AvatarFallback className="bg-gradient-to-r from-orange-500 to-amber-500 text-white">
-                      {contact.full_name.split(' ').map(n => n[0]).join('')}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{contact.full_name}</p>
-                    <p className="text-xs text-gray-500 capitalize">{contact.role.replace('_', ' ')}</p>
-                    <div className="text-xs text-gray-400 space-y-1 mt-1">
-                      {contact.mandirs?.name && (
-                        <div>Mandir: {contact.mandirs.name}</div>
-                      )}
-                      {contact.kshetras?.name && (
-                        <div>Kshetra: {contact.kshetras.name}</div>
-                      )}
-                      {contact.villages?.name && (
-                        <div>Village: {contact.villages.name}</div>
-                      )}
-                      {contact.mandals?.name && (
-                        <div>Mandal: {contact.mandals.name}</div>
-                      )}
-                      {contact.seva_types?.name && (
-                        <div>Seva Type: {contact.seva_types.name}</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )) : (
-              <div className="text-center text-gray-500 py-8">
-                <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p>No karyakars found</p>
-                <p className="text-sm">Try adjusting your search</p>
-              </div>
-            )}
-          </div>
-        </ScrollArea>
       </div>
 
-      {/* Chat Area */}
-      <div className="flex-1 flex flex-col">
-        {selectedRoom ? (
-          <>
-            {/* Chat Header */}
-            <div className="p-4 border-b bg-white flex justify-between items-center">
-              <div className="flex items-center space-x-3">
-                <Avatar className="h-10 w-10">
-                  <AvatarFallback className="bg-gradient-to-r from-orange-500 to-amber-500 text-white">
-                    {selectedRoom.is_group ? <Users className="w-5 h-5" /> : <MessageCircle className="w-5 h-5" />}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <h3 className="font-semibold">
-                    {selectedRoom.name || `Chat ${selectedRoom.id.slice(0, 8)}`}
-                  </h3>
-                  <p className="text-sm text-gray-500">
-                    {selectedRoom.is_group ? 'Group Chat' : 'Direct Message'}
-                  </p>
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+        <Input
+          placeholder="Search karyakars..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+
+      {/* Karyakars List */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filteredKaryakars.map((karyakar) => (
+          <Card key={karyakar.id} className="hover:shadow-lg transition-shadow">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                  <User className="h-5 w-5 text-orange-600" />
+                </div>
+                <div className="flex-1">
+                  <CardTitle className="text-lg">{karyakar.full_name}</CardTitle>
+                  <Badge variant="outline" className="mt-1">
+                    {karyakar.role}
+                  </Badge>
                 </div>
               </div>
-              <div className="flex space-x-2">
-                <Button variant="ghost" size="icon">
-                  <Phone className="w-4 h-4" />
-                </Button>
-                <Button variant="ghost" size="icon">
-                  <Video className="w-4 h-4" />
-                </Button>
-                <Button variant="ghost" size="icon">
-                  <Info className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Messages */}
-            <ScrollArea className="flex-1 p-4">
-              <div className="space-y-4">
-                {messages.length > 0 ? messages.map((message, index) => {
-                  const isOwnMessage = message.sender_id === user?.id;
-                  const showDate = index === 0 || formatDate(message.created_at) !== formatDate(messages[index - 1].created_at);
-
-                  return (
-                    <div key={message.id}>
-                      {showDate && (
-                        <div className="text-center text-xs text-gray-500 my-4">
-                          {formatDate(message.created_at)}
-                        </div>
-                      )}
-                      <div className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`flex space-x-2 max-w-xs lg:max-w-md ${isOwnMessage ? 'flex-row-reverse space-x-reverse' : ''}`}>
-                          {!isOwnMessage && (
-                            <Avatar className="h-8 w-8">
-                              <AvatarImage src={message.sender_avatar || undefined} />
-                              <AvatarFallback className="bg-gray-300 text-gray-600 text-xs">
-                                {message.sender_name.split(' ').map(n => n[0]).join('')}
-                              </AvatarFallback>
-                            </Avatar>
-                          )}
-                          <div>
-                            {!isOwnMessage && (
-                              <p className="text-xs text-gray-500 mb-1">{message.sender_name}</p>
-                            )}
-                            <div
-                              className={`px-4 py-2 rounded-lg ${
-                                isOwnMessage
-                                  ? 'bg-orange-500 text-white'
-                                  : 'bg-gray-100 text-gray-900'
-                              }`}
-                            >
-                              <p className="text-sm">{message.content}</p>
-                            </div>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {formatTime(message.created_at)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }) : (
-                  <div className="text-center text-gray-500 py-8">
-                    <MessageCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                    <p>No messages yet</p>
-                    <p className="text-sm">Start the conversation!</p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="text-sm space-y-1">
+                <div className="flex items-center gap-1">
+                  <Phone className="h-3 w-3 text-gray-500" />
+                  <button
+                    onClick={() => handleCall(karyakar.mobile_number)}
+                    className="text-blue-600 hover:underline"
+                  >
+                    {karyakar.mobile_number}
+                  </button>
+                </div>
+                {karyakar.email && (
+                  <div className="flex items-center gap-1">
+                    <Mail className="h-3 w-3 text-gray-500" />
+                    <button
+                      onClick={() => handleEmail(karyakar.email!)}
+                      className="text-blue-600 hover:underline"
+                    >
+                      {karyakar.email}
+                    </button>
                   </div>
                 )}
-                <div ref={messagesEndRef} />
               </div>
+              
+              <div className="text-xs text-gray-500 space-y-1">
+                {karyakar.mandirs?.name && <div>Mandir: {karyakar.mandirs.name}</div>}
+                {karyakar.kshetras?.name && <div>Kshetra: {karyakar.kshetras.name}</div>}
+                {karyakar.villages?.name && <div>Village: {karyakar.villages.name}</div>}
+                {karyakar.mandals?.name && <div>Mandal: {karyakar.mandals.name}</div>}
+                {karyakar.seva_types?.name && <div>Seva: {karyakar.seva_types.name}</div>}
+              </div>
+
+              <Button 
+                onClick={() => openChat(karyakar)}
+                className="w-full"
+                size="sm"
+              >
+                <MessageCircle className="h-4 w-4 mr-2" />
+                Open Chat
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {filteredKaryakars.length === 0 && (
+        <div className="text-center py-12">
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No karyakars found</h3>
+          <p className="text-gray-600">Try adjusting your search terms.</p>
+        </div>
+      )}
+
+      {/* Chat Dialog */}
+      <Dialog open={showChatDialog} onOpenChange={setShowChatDialog}>
+        <DialogContent className="max-w-2xl h-[600px] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>
+              Chat with {selectedKaryakar?.full_name}
+            </DialogTitle>
+            <DialogDescription>
+              Send messages and stay connected
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 flex flex-col">
+            <ScrollArea className="flex-1 p-4 border rounded-lg">
+              {loadingMessages ? (
+                <div className="text-center">Loading messages...</div>
+              ) : messages.length > 0 ? (
+                <div className="space-y-4">
+                  {messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div
+                        className={`max-w-[70%] p-3 rounded-lg ${
+                          message.sender_id === user?.id
+                            ? 'bg-orange-500 text-white'
+                            : 'bg-gray-100 text-gray-900'
+                        }`}
+                      >
+                        <p className="text-sm">{message.content}</p>
+                        <p className="text-xs opacity-70 mt-1">
+                          {format(new Date(message.created_at), 'HH:mm')}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center text-gray-500">No messages yet</div>
+              )}
             </ScrollArea>
 
-            {/* Message Input */}
-            <div className="p-4 border-t bg-white">
-              <div className="flex space-x-2">
-                <Input
-                  placeholder="Type a message..."
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      sendMessage();
-                    }
-                  }}
-                  className="flex-1"
-                />
-                <Button 
-                  onClick={sendMessage}
-                  disabled={!newMessage.trim()}
-                  className="bg-orange-500 hover:bg-orange-600"
-                >
-                  <Send className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center bg-gray-50">
-            <div className="text-center text-gray-500">
-              <MessageCircle className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-              <h3 className="text-lg font-medium mb-2">Welcome to Seva Sarthi Connect</h3>
-              <p>Select a chat to start messaging</p>
+            <div className="flex gap-2 mt-4">
+              <Input
+                placeholder="Type your message..."
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                className="flex-1"
+              />
+              <Button onClick={sendMessage} size="sm">
+                <Send className="h-4 w-4" />
+              </Button>
             </div>
           </div>
-        )}
-      </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
