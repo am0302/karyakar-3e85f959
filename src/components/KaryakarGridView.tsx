@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { KaryakarCard } from '@/components/KaryakarCard';
+import KaryakarCard from '@/components/KaryakarCard';
 import type { Database } from '@/integrations/supabase/types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'] & {
