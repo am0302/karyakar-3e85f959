@@ -27,7 +27,6 @@ export const KaryakarGridView = ({ karyakars, onEdit, onDelete }: KaryakarGridVi
           karyakar={karyakar}
           onEdit={onEdit}
           onDelete={onDelete}
-          showActions={true}
         />
       ))}
     </div>
