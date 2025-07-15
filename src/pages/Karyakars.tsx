@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,6 +16,7 @@ import { KaryakarFilters } from '@/components/KaryakarFilters';
 import { KaryakarStats } from '@/components/KaryakarStats';
 import { KaryakarTableView } from '@/components/KaryakarTableView';
 import { KaryakarGridView } from '@/components/KaryakarGridView';
+import { useAuth } from '@/components/AuthProvider';
 import type { Database } from '@/integrations/supabase/types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'] & {
@@ -31,6 +31,7 @@ type Profile = Database['public']['Tables']['profiles']['Row'] & {
 type UserRole = Database['public']['Enums']['user_role'];
 
 const Karyakars = () => {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [karyakars, setKaryakars] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,6 +41,7 @@ const Karyakars = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
   const [editingKaryakar, setEditingKaryakar] = useState<Profile | null>(null);
+  const [userRole, setUserRole] = useState('');
   
   // Form states
   const [mandirs, setMandirs] = useState<Array<{ id: string; name: string }>>([]);
@@ -70,7 +72,25 @@ const Karyakars = () => {
   useEffect(() => {
     fetchKaryakars();
     fetchMasterData();
+    fetchUserRole();
   }, []);
+
+  const fetchUserRole = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+        
+      if (error) throw error;
+      setUserRole(data?.role || '');
+    } catch (error: any) {
+      console.error('Error fetching user role:', error);
+    }
+  };
 
   const fetchKaryakars = async () => {
     try {
@@ -315,41 +335,43 @@ const Karyakars = () => {
           <p className="text-gray-600">Manage karyakar registrations and profiles</p>
         </div>
         
-        <Dialog open={showRegistrationForm} onOpenChange={setShowRegistrationForm}>
-          <DialogTrigger asChild>
-            <Button onClick={() => {
-              resetForm();
-              setEditingKaryakar(null);
-            }}>
-              <Plus className="h-4 w-4 mr-2" />
-              Register Karyakar
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {editingKaryakar ? 'Edit Karyakar' : 'Register New Karyakar'}
-              </DialogTitle>
-              <DialogDescription>
-                Fill in the details to {editingKaryakar ? 'update' : 'register'} a karyakar
-              </DialogDescription>
-            </DialogHeader>
+        {userRole === 'super_admin' && (
+          <Dialog open={showRegistrationForm} onOpenChange={setShowRegistrationForm}>
+            <DialogTrigger asChild>
+              <Button onClick={() => {
+                resetForm();
+                setEditingKaryakar(null);
+              }}>
+                <Plus className="h-4 w-4 mr-2" />
+                Register Karyakar
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  {editingKaryakar ? 'Edit Karyakar' : 'Register New Karyakar'}
+                </DialogTitle>
+                <DialogDescription>
+                  Fill in the details to {editingKaryakar ? 'update' : 'register'} a karyakar
+                </DialogDescription>
+              </DialogHeader>
 
-            <KaryakarForm
-              formData={formData}
-              setFormData={setFormData}
-              onSubmit={handleSubmit}
-              onCancel={() => setShowRegistrationForm(false)}
-              editingKaryakar={editingKaryakar}
-              mandirs={mandirs}
-              kshetras={kshetras}
-              villages={villages}
-              mandals={mandals}
-              professions={professions}
-              sevaTypes={sevaTypes}
-            />
-          </DialogContent>
-        </Dialog>
+              <KaryakarForm
+                formData={formData}
+                setFormData={setFormData}
+                onSubmit={handleSubmit}
+                onCancel={() => setShowRegistrationForm(false)}
+                editingKaryakar={editingKaryakar}
+                mandirs={mandirs}
+                kshetras={kshetras}
+                villages={villages}
+                mandals={mandals}
+                professions={professions}
+                sevaTypes={sevaTypes}
+              />
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       <Card>
@@ -402,7 +424,9 @@ const Karyakars = () => {
               <p className="text-gray-600">
                 {searchTerm || selectedRole || selectedStatus
                   ? 'Try adjusting your search filters'
-                  : 'Get started by registering your first karyakar'}
+                  : userRole === 'super_admin' 
+                    ? 'Get started by registering your first karyakar'
+                    : 'No karyakars available to view'}
               </p>
             </div>
           )}

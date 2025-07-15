@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   Users,
   CheckSquare,
@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { useNavigate } from 'react-router-dom';
+import { KaryakarForm } from '@/components/KaryakarForm';
 
 type DashboardStats = {
   totalKaryakars: number;
@@ -36,6 +38,11 @@ type DashboardStats = {
 const Dashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  
+  const [showKaryakarForm, setShowKaryakarForm] = useState(false);
+  const [userRole, setUserRole] = useState('');
+  
   const [stats, setStats] = useState<DashboardStats>({
     totalKaryakars: 0,
     activeKaryakars: 0,
@@ -50,9 +57,36 @@ const Dashboard = () => {
   });
   const [loading, setLoading] = useState(true);
 
+  const [mandirs, setMandirs] = useState<Array<{ id: string; name: string }>>([]);
+  const [kshetras, setKshetras] = useState<Array<{ id: string; name: string }>>([]);
+  const [villages, setVillages] = useState<Array<{ id: string; name: string }>>([]);
+  const [mandals, setMandals] = useState<Array<{ id: string; name: string }>>([]);
+  const [professions, setProfessions] = useState<Array<{ id: string; name: string }>>([]);
+  const [sevaTypes, setSevaTypes] = useState<Array<{ id: string; name: string }>>([]);
+
+  const [formData, setFormData] = useState({
+    full_name: '',
+    email: '',
+    mobile_number: '',
+    whatsapp_number: '',
+    is_whatsapp_same_as_mobile: false,
+    date_of_birth: '',
+    age: '',
+    profession_id: '',
+    mandir_id: '',
+    kshetra_id: '',
+    village_id: '',
+    mandal_id: '',
+    seva_type_id: '',
+    role: 'sevak' as const,
+    profile_photo_url: ''
+  });
+
   useEffect(() => {
     if (user) {
       fetchDashboardStats();
+      fetchUserRole();
+      fetchMasterData();
     }
   }, [user]);
 
@@ -128,6 +162,108 @@ const Dashboard = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUserRole = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+        
+      if (error) throw error;
+      setUserRole(data?.role || '');
+    } catch (error: any) {
+      console.error('Error fetching user role:', error);
+    }
+  };
+
+  const fetchMasterData = async () => {
+    try {
+      const [mandirsRes, kshetrasRes, villagesRes, mandalsRes, professionsRes, sevaTypesRes] = await Promise.all([
+        supabase.from('mandirs').select('id, name').eq('is_active', true).order('name'),
+        supabase.from('kshetras').select('id, name').eq('is_active', true).order('name'),
+        supabase.from('villages').select('id, name').eq('is_active', true).order('name'),
+        supabase.from('mandals').select('id, name').eq('is_active', true).order('name'),
+        supabase.from('professions').select('id, name').eq('is_active', true).order('name'),
+        supabase.from('seva_types').select('id, name').eq('is_active', true).order('name')
+      ]);
+
+      setMandirs(mandirsRes.data || []);
+      setKshetras(kshetrasRes.data || []);
+      setVillages(villagesRes.data || []);
+      setMandals(mandalsRes.data || []);
+      setProfessions(professionsRes.data || []);
+      setSevaTypes(sevaTypesRes.data || []);
+    } catch (error: any) {
+      console.error('Error fetching master data:', error);
+    }
+  };
+
+  const handleKaryakarSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const age = formData.age ? parseInt(formData.age) : null;
+      const dataToSubmit = {
+        full_name: formData.full_name,
+        email: formData.email || null,
+        mobile_number: formData.mobile_number,
+        whatsapp_number: formData.is_whatsapp_same_as_mobile ? formData.mobile_number : formData.whatsapp_number,
+        is_whatsapp_same_as_mobile: formData.is_whatsapp_same_as_mobile,
+        date_of_birth: formData.date_of_birth || null,
+        age,
+        profession_id: formData.profession_id || null,
+        mandir_id: formData.mandir_id || null,
+        kshetra_id: formData.kshetra_id || null,
+        village_id: formData.village_id || null,
+        mandal_id: formData.mandal_id || null,
+        seva_type_id: formData.seva_type_id || null,
+        role: formData.role,
+        profile_photo_url: formData.profile_photo_url || null,
+        id: crypto.randomUUID(),
+      };
+
+      const { error } = await supabase
+        .from('profiles')
+        .insert([dataToSubmit]);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Karyakar registered successfully',
+      });
+
+      setShowKaryakarForm(false);
+      setFormData({
+        full_name: '',
+        email: '',
+        mobile_number: '',
+        whatsapp_number: '',
+        is_whatsapp_same_as_mobile: false,
+        date_of_birth: '',
+        age: '',
+        profession_id: '',
+        mandir_id: '',
+        kshetra_id: '',
+        village_id: '',
+        mandal_id: '',
+        seva_type_id: '',
+        role: 'sevak',
+        profile_photo_url: ''
+      });
+      fetchDashboardStats();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
     }
   };
 
@@ -359,25 +495,65 @@ const Dashboard = () => {
         </CardHeader>
         <CardContent>
           <div className="flex gap-4 flex-wrap">
-            <Button className="bg-orange-500 hover:bg-orange-600">
-              <Users className="w-4 h-4 mr-2" />
-              Register Karyakar
-            </Button>
-            <Button variant="outline">
+            {userRole === 'super_admin' && (
+              <Button 
+                className="bg-orange-500 hover:bg-orange-600"
+                onClick={() => setShowKaryakarForm(true)}
+              >
+                <Users className="w-4 h-4 mr-2" />
+                Register Karyakar
+              </Button>
+            )}
+            <Button 
+              variant="outline"
+              onClick={() => navigate('/tasks')}
+            >
               <CheckSquare className="w-4 h-4 mr-2" />
               Create Task
             </Button>
-            <Button variant="outline">
+            <Button 
+              variant="outline"
+              onClick={() => navigate('/communication')}
+            >
               <MessageSquare className="w-4 h-4 mr-2" />
               Start Chat
             </Button>
-            <Button variant="outline">
+            <Button 
+              variant="outline"
+              onClick={() => navigate('/reports')}
+            >
               <Calendar className="w-4 h-4 mr-2" />
-              Schedule Meeting
+              View Reports
             </Button>
           </div>
         </CardContent>
       </Card>
+
+      {/* Karyakar Registration Dialog */}
+      <Dialog open={showKaryakarForm} onOpenChange={setShowKaryakarForm}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Register New Karyakar</DialogTitle>
+            <DialogDescription>
+              Fill in the details to register a new karyakar
+            </DialogDescription>
+          </DialogHeader>
+
+          <KaryakarForm
+            formData={formData}
+            setFormData={setFormData}
+            onSubmit={handleKaryakarSubmit}
+            onCancel={() => setShowKaryakarForm(false)}
+            editingKaryakar={null}
+            mandirs={mandirs}
+            kshetras={kshetras}
+            villages={villages}
+            mandals={mandals}
+            professions={professions}
+            sevaTypes={sevaTypes}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

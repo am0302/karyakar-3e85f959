@@ -1,4 +1,3 @@
-
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -20,6 +19,8 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useAuth } from './AuthProvider';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 const navigationItems = [
   {
@@ -65,6 +66,30 @@ export function AppSidebar() {
   const location = useLocation();
   const { user } = useAuth();
   const isCollapsed = state === "collapsed";
+  const [userRole, setUserRole] = useState('');
+
+  useEffect(() => {
+    if (user) {
+      fetchUserRole();
+    }
+  }, [user]);
+
+  const fetchUserRole = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+        
+      if (error) throw error;
+      setUserRole(data?.role || '');
+    } catch (error: any) {
+      console.error('Error fetching user role:', error);
+    }
+  };
 
   const isActive = (path: string) => location.pathname === path;
   
@@ -124,22 +149,24 @@ export function AppSidebar() {
           </SidebarMenu>
         </div>
 
-        {/* Admin Section - Always show for now, will add role check later */}
-        <div className="px-4 pb-4">
-          {!isCollapsed && <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Administration</p>}
-          <SidebarMenu>
-            {adminItems.map((item) => (
-              <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton asChild>
-                  <NavLink to={item.url} className={getNavClass(item.url)}>
-                    <item.icon className="h-4 w-4" />
-                    {!isCollapsed && <span>{item.title}</span>}
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </div>
+        {/* Admin Section - Only show for super_admin */}
+        {userRole === 'super_admin' && (
+          <div className="px-4 pb-4">
+            {!isCollapsed && <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Administration</p>}
+            <SidebarMenu>
+              {adminItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <NavLink to={item.url} className={getNavClass(item.url)}>
+                      <item.icon className="h-4 w-4" />
+                      {!isCollapsed && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </div>
+        )}
       </SidebarContent>
     </Sidebar>
   );
