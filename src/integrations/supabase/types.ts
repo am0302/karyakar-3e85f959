@@ -855,6 +855,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      is_user_participant_in_room: {
+        Args: { room_id: string; user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       task_priority: "low" | "medium" | "high" | "urgent"

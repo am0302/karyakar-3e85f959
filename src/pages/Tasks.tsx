@@ -1,107 +1,98 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
+import { usePermissions } from '@/hooks/usePermissions';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { SearchableSelect } from '@/components/SearchableSelect';
-import TaskCalendar from '@/components/TaskCalendar';
-import { Plus, Filter, Search, Calendar, MessageSquare, Edit, Trash2, Send } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Plus, Calendar, User, MessageSquare, Filter } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { TaskCalendar } from '@/components/TaskCalendar';
 
 type Task = {
   id: string;
   title: string;
   description: string;
-  task_type: 'personal' | 'delegated' | 'broadcasted';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
   status: 'pending' | 'in_progress' | 'completed';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  task_type: 'personal' | 'delegated' | 'broadcasted';
   due_date: string;
+  created_at: string;
   assigned_by: string;
   assigned_to: string;
-  created_at: string;
-  profiles?: {
-    full_name: string;
-  };
-  assigned_by_profile?: {
-    full_name: string;
-  };
+  assigned_by_profile?: { full_name: string };
+  assigned_to_profile?: { full_name: string };
 };
 
-type TaskComment = {
-  id: string;
-  comment: string;
-  created_at: string;
-  user_id: string;
-  profiles: {
-    full_name: string;
-  };
-};
-
-type Karyakar = {
+type Profile = {
   id: string;
   full_name: string;
   role: string;
 };
 
+type Comment = {
+  id: string;
+  comment: string;
+  created_at: string;
+  profiles: { full_name: string };
+};
+
 const Tasks = () => {
   const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const { toast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [karyakars, setKaryakars] = useState<Karyakar[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterPriority, setFilterPriority] = useState('all');
-  const [filterUser, setFilterUser] = useState('all');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
-  const [showEditDialog, setShowEditDialog] = useState(false);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [userRole, setUserRole] = useState('');
-  const [activeTab, setActiveTab] = useState('list');
-  
-  // Chat states
-  const [taskComments, setTaskComments] = useState<TaskComment[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
-  const [loadingComments, setLoadingComments] = useState(false);
+  const [view, setView] = useState<'list' | 'calendar'>('list');
 
-  const [newTask, setNewTask] = useState({
+  // Filters
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [priorityFilter, setPriorityFilter] = useState<string>('all');
+  const [userFilter, setUserFilter] = useState<string>('all');
+
+  // Form state
+  const [formData, setFormData] = useState({
     title: '',
     description: '',
-    task_type: 'personal' as const,
+    assigned_to: '',
     priority: 'medium' as const,
-    due_date: '',
-    assigned_to: ''
+    task_type: 'delegated' as const,
+    due_date: ''
   });
 
-  useEffect(() => {
-    fetchTasks();
-    fetchKaryakars();
-    fetchUserRole();
-  }, [user]);
+  const isSuperAdmin = user?.role === 'super_admin';
 
-  const fetchUserRole = async () => {
-    if (!user) return;
-    
+  useEffect(() => {
+    if (user) {
+      fetchTasks();
+      fetchProfiles();
+    }
+  }, [user, statusFilter, priorityFilter, userFilter]);
+
+  const fetchProfiles = async () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-        
+        .select('id, full_name, role')
+        .eq('is_active', true)
+        .order('full_name');
+
       if (error) throw error;
-      setUserRole(data?.role || '');
+      setProfiles(data || []);
     } catch (error: any) {
-      console.error('Error fetching user role:', error);
+      console.error('Error fetching profiles:', error);
     }
   };
 
@@ -109,25 +100,52 @@ const Tasks = () => {
     if (!user) return;
 
     try {
+      setLoading(true);
       let query = supabase
         .from('tasks')
         .select(`
           *,
-          profiles!tasks_assigned_to_fkey(full_name),
-          assigned_by_profile:profiles!tasks_assigned_by_fkey(full_name)
-        `)
-        .order('created_at', { ascending: false });
+          assigned_by_profile:profiles!tasks_assigned_by_fkey(full_name),
+          assigned_to_profile:profiles!tasks_assigned_to_fkey(full_name)
+        `);
 
-      // Super admin can see all tasks, others see only their assigned/created tasks
-      if (userRole !== 'super_admin') {
-        query = query.or(`assigned_to.eq.${user.id},assigned_by.eq.${user.id}`);
+      // Apply user-based filtering
+      if (!isSuperAdmin) {
+        // Regular users can only see tasks assigned by them or to them
+        query = query.or(`assigned_by.eq.${user.id},assigned_to.eq.${user.id}`);
       }
 
-      const { data, error } = await query;
+      // Apply status filter
+      if (statusFilter !== 'all') {
+        query = query.eq('status', statusFilter);
+      }
 
+      // Apply priority filter
+      if (priorityFilter !== 'all') {
+        query = query.eq('priority', priorityFilter);
+      }
+
+      // Apply user filter (only for super admin)
+      if (isSuperAdmin && userFilter !== 'all') {
+        if (userFilter === 'assigned_by_me') {
+          query = query.eq('assigned_by', user.id);
+        } else if (userFilter === 'assigned_to_me') {
+          query = query.eq('assigned_to', user.id);
+        } else {
+          // Filter by specific user (either assigned by or assigned to)
+          query = query.or(`assigned_by.eq.${userFilter},assigned_to.eq.${userFilter}`);
+        }
+      }
+
+      query = query.order('created_at', { ascending: false });
+
+      const { data, error } = await query;
       if (error) throw error;
+
+      console.log('Fetched tasks:', data);
       setTasks(data || []);
     } catch (error: any) {
+      console.error('Error fetching tasks:', error);
       toast({
         title: 'Error',
         description: 'Failed to fetch tasks',
@@ -138,43 +156,94 @@ const Tasks = () => {
     }
   };
 
-  const fetchKaryakars = async () => {
+  const createTask = async () => {
+    if (!user || !formData.title.trim()) return;
+
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, role')
-        .eq('is_active', true)
-        .order('full_name');
+      const taskData = {
+        title: formData.title,
+        description: formData.description,
+        assigned_by: user.id,
+        assigned_to: formData.assigned_to || user.id,
+        priority: formData.priority,
+        task_type: formData.task_type,
+        due_date: formData.due_date || null,
+        status: 'pending' as const
+      };
+
+      const { error } = await supabase
+        .from('tasks')
+        .insert(taskData);
 
       if (error) throw error;
-      setKaryakars(data || []);
+
+      toast({
+        title: 'Success',
+        description: 'Task created successfully',
+      });
+
+      setShowCreateDialog(false);
+      setFormData({
+        title: '',
+        description: '',
+        assigned_to: '',
+        priority: 'medium',
+        task_type: 'delegated',
+        due_date: ''
+      });
+      fetchTasks();
     } catch (error: any) {
-      console.error('Error fetching karyakars:', error);
+      console.error('Error creating task:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to create task',
+        variant: 'destructive',
+      });
     }
   };
 
-  const fetchTaskComments = async (taskId: string) => {
-    setLoadingComments(true);
+  const updateTaskStatus = async (taskId: string, status: Task['status']) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ status })
+        .eq('id', taskId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Task status updated',
+      });
+
+      fetchTasks();
+    } catch (error: any) {
+      console.error('Error updating task:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update task',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const fetchComments = async (taskId: string) => {
     try {
       const { data, error } = await supabase
         .from('task_comments')
         .select(`
-          *,
+          id,
+          comment,
+          created_at,
           profiles(full_name)
         `)
         .eq('task_id', taskId)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setTaskComments(data || []);
+      setComments(data || []);
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch comments',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoadingComments(false);
+      console.error('Error fetching comments:', error);
     }
   };
 
@@ -193,160 +262,24 @@ const Tasks = () => {
       if (error) throw error;
 
       setNewComment('');
-      fetchTaskComments(selectedTask.id);
-      
+      fetchComments(selectedTask.id);
       toast({
         title: 'Success',
         description: 'Comment added successfully',
       });
     } catch (error: any) {
+      console.error('Error adding comment:', error);
       toast({
         title: 'Error',
-        description: error.message,
+        description: 'Failed to add comment',
         variant: 'destructive',
       });
     }
   };
 
-  const createTask = async () => {
-    if (!user || !newTask.title.trim()) {
-      toast({
-        title: 'Error',
-        description: 'Please fill in all required fields',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    try {
-      const { error } = await supabase.from('tasks').insert({
-        ...newTask,
-        assigned_by: user.id,
-        assigned_to: newTask.task_type === 'personal' ? user.id : newTask.assigned_to || user.id,
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: 'Success',
-        description: 'Task created successfully',
-      });
-
-      setShowCreateDialog(false);
-      setNewTask({
-        title: '',
-        description: '',
-        task_type: 'personal',
-        priority: 'medium',
-        due_date: '',
-        assigned_to: ''
-      });
-      fetchTasks();
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const updateTask = async () => {
-    if (!editingTask || !editingTask.title.trim()) {
-      toast({
-        title: 'Error',
-        description: 'Please fill in all required fields',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('tasks')
-        .update({
-          title: editingTask.title,
-          description: editingTask.description,
-          task_type: editingTask.task_type,
-          priority: editingTask.priority,
-          due_date: editingTask.due_date,
-          assigned_to: editingTask.assigned_to
-        })
-        .eq('id', editingTask.id);
-
-      if (error) throw error;
-
-      toast({
-        title: 'Success',
-        description: 'Task updated successfully',
-      });
-
-      setShowEditDialog(false);
-      setEditingTask(null);
-      fetchTasks();
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const deleteTask = async (taskId: string) => {
-    if (!confirm('Are you sure you want to delete this task?')) return;
-
-    try {
-      const { error } = await supabase
-        .from('tasks')
-        .delete()
-        .eq('id', taskId);
-
-      if (error) throw error;
-
-      toast({
-        title: 'Success',
-        description: 'Task deleted successfully',
-      });
-      fetchTasks();
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const updateTaskStatus = async (taskId: string, status: 'pending' | 'in_progress' | 'completed') => {
-    try {
-      const { error } = await supabase
-        .from('tasks')
-        .update({ status })
-        .eq('id', taskId);
-
-      if (error) throw error;
-
-      toast({
-        title: 'Success',
-        description: 'Task status updated',
-      });
-      fetchTasks();
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const canEditTask = (task: Task) => {
-    return userRole === 'super_admin' || task.assigned_by === user?.id;
-  };
-
-  const canDeleteTask = (task: Task) => {
-    return userRole === 'super_admin' || task.assigned_by === user?.id;
+  const openTaskDetails = (task: Task) => {
+    setSelectedTask(task);
+    fetchComments(task.id);
   };
 
   const getPriorityColor = (priority: string) => {
@@ -361,22 +294,12 @@ const Tasks = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800';
-      case 'in_progress': return 'bg-blue-100 text-blue-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'completed': return 'bg-green-500';
+      case 'in_progress': return 'bg-blue-500';
+      case 'pending': return 'bg-gray-500';
+      default: return 'bg-gray-500';
     }
   };
-
-  const filteredTasks = tasks.filter(task => {
-    const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         task.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || task.status === filterStatus;
-    const matchesPriority = filterPriority === 'all' || task.priority === filterPriority;
-    const matchesUser = filterUser === 'all' || task.assigned_to === filterUser || task.assigned_by === filterUser;
-    
-    return matchesSearch && matchesStatus && matchesPriority && matchesUser;
-  });
 
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading tasks...</div>;
@@ -389,365 +312,306 @@ const Tasks = () => {
           <h1 className="text-3xl font-bold text-gray-900">Tasks</h1>
           <p className="text-gray-600">Manage and track your tasks</p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)} className="bg-orange-500 hover:bg-orange-600">
-          <Plus className="h-4 w-4 mr-2" />
-          Create Task
-        </Button>
-      </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="list">Task List</TabsTrigger>
-          <TabsTrigger value="calendar">Calendar View</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="list" className="space-y-6">
-          {/* Filters */}
-          <div className="flex gap-4 items-center">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Search tasks..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="All Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={filterPriority} onValueChange={setFilterPriority}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="All Priority" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Priority</SelectItem>
-                <SelectItem value="urgent">Urgent</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
-              </SelectContent>
-            </Select>
-            {userRole === 'super_admin' && (
-              <Select value={filterUser} onValueChange={setFilterUser}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="All Users" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Users</SelectItem>
-                  {karyakars.map((karyakar) => (
-                    <SelectItem key={karyakar.id} value={karyakar.id}>
-                      {karyakar.full_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-
-          {/* Tasks Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredTasks.map((task) => (
-              <Card key={task.id} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg">{task.title}</CardTitle>
-                      <CardDescription className="mt-1">
-                        {task.profiles?.full_name && `Assigned to: ${task.profiles.full_name}`}
-                        <br />
-                        {task.assigned_by_profile?.full_name && `Assigned by: ${task.assigned_by_profile.full_name}`}
-                      </CardDescription>
-                    </div>
-                    <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)}`} />
+        <div className="flex gap-2">
+          <Button
+            variant={view === 'list' ? 'default' : 'outline'}
+            onClick={() => setView('list')}
+          >
+            List View
+          </Button>
+          <Button
+            variant={view === 'calendar' ? 'default' : 'outline'}
+            onClick={() => setView('calendar')}
+          >
+            <Calendar className="h-4 w-4 mr-2" />
+            Calendar
+          </Button>
+          {hasPermission('tasks', 'add') && (
+            <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Task
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create New Task</DialogTitle>
+                  <DialogDescription>
+                    Create a new task and assign it to a team member
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium">Title</label>
+                    <Input
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      placeholder="Enter task title"
+                    />
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-600 mb-4 line-clamp-2">{task.description}</p>
-                  
-                  <div className="flex justify-between items-center mb-4">
-                    <Badge className={getStatusColor(task.status)}>
-                      {task.status.replace('_', ' ').toUpperCase()}
-                    </Badge>
-                    <span className="text-sm text-gray-500 capitalize">{task.task_type}</span>
+                  <div>
+                    <label className="text-sm font-medium">Description</label>
+                    <Textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      placeholder="Enter task description"
+                      rows={3}
+                    />
                   </div>
-
-                  {task.due_date && (
-                    <div className="flex items-center text-sm text-gray-500 mb-4">
-                      <Calendar className="h-4 w-4 mr-1" />
-                      {format(new Date(task.due_date), 'MMM dd, yyyy')}
-                    </div>
-                  )}
-
-                  <div className="flex gap-2 mb-2">
-                    <Select value={task.status} onValueChange={(value) => updateTaskStatus(task.id, value as any)}>
-                      <SelectTrigger className="flex-1">
-                        <SelectValue />
+                  <div>
+                    <label className="text-sm font-medium">Assign To</label>
+                    <Select value={formData.assigned_to} onValueChange={(value) => setFormData({ ...formData, assigned_to: value })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select assignee" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="in_progress">In Progress</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="">Assign to myself</SelectItem>
+                        {profiles.map((profile) => (
+                          <SelectItem key={profile.id} value={profile.id}>
+                            {profile.full_name} ({profile.role})
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedTask(task);
-                        fetchTaskComments(task.id);
-                        setShowDetailsDialog(true);
-                      }}
-                    >
-                      <MessageSquare className="h-4 w-4" />
-                    </Button>
                   </div>
-
-                  <div className="flex gap-2">
-                    {canEditTask(task) && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setEditingTask(task);
-                          setShowEditDialog(true);
-                        }}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {canDeleteTask(task) && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => deleteTask(task.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium">Priority</label>
+                      <Select value={formData.priority} onValueChange={(value: any) => setFormData({ ...formData, priority: value })}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">Low</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
+                          <SelectItem value="urgent">Urgent</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Type</label>
+                      <Select value={formData.task_type} onValueChange={(value: any) => setFormData({ ...formData, task_type: value })}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="personal">Personal</SelectItem>
+                          <SelectItem value="delegated">Delegated</SelectItem>
+                          <SelectItem value="broadcasted">Broadcasted</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {filteredTasks.length === 0 && (
-            <div className="text-center py-12">
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
-              <p className="text-gray-600">Create your first task to get started.</p>
-            </div>
+                  <div>
+                    <label className="text-sm font-medium">Due Date</label>
+                    <Input
+                      type="datetime-local"
+                      value={formData.due_date}
+                      onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                    />
+                  </div>
+                  <Button onClick={createTask} className="w-full">
+                    Create Task
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           )}
-        </TabsContent>
+        </div>
+      </div>
 
-        <TabsContent value="calendar">
-          <TaskCalendar />
-        </TabsContent>
-      </Tabs>
+      {/* Filters */}
+      <div className="flex gap-4 items-center">
+        <Filter className="h-4 w-4 text-gray-500" />
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-32">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="in_progress">In Progress</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+          <SelectTrigger className="w-32">
+            <SelectValue placeholder="Priority" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Priority</SelectItem>
+            <SelectItem value="urgent">Urgent</SelectItem>
+            <SelectItem value="high">High</SelectItem>
+            <SelectItem value="medium">Medium</SelectItem>
+            <SelectItem value="low">Low</SelectItem>
+          </SelectContent>
+        </Select>
+        {isSuperAdmin && (
+          <Select value={userFilter} onValueChange={setUserFilter}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Filter by user" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Users</SelectItem>
+              <SelectItem value="assigned_by_me">Assigned by me</SelectItem>
+              <SelectItem value="assigned_to_me">Assigned to me</SelectItem>
+              {profiles.map((profile) => (
+                <SelectItem key={profile.id} value={profile.id}>
+                  {profile.full_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
 
-      {/* Create Task Dialog */}
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Create New Task</DialogTitle>
-            <DialogDescription>
-              Add a new task to your workflow
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Input
-              placeholder="Task title"
-              value={newTask.title}
-              onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-            />
-            <Textarea
-              placeholder="Task description"
-              value={newTask.description}
-              onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-            />
-            <Select value={newTask.task_type} onValueChange={(value: any) => setNewTask({ ...newTask, task_type: value })}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="personal">Personal</SelectItem>
-                <SelectItem value="delegated">Delegated</SelectItem>
-                <SelectItem value="broadcasted">Broadcasted</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <div>
-              <label className="text-sm font-medium">Assign to Karyakar</label>
-              <SearchableSelect
-                options={karyakars.map(k => ({ value: k.id, label: `${k.full_name} (${k.role})` }))}
-                value={newTask.assigned_to}
-                onValueChange={(value) => setNewTask({ ...newTask, assigned_to: value })}
-                placeholder="Select Karyakar"
-              />
-            </div>
-            
-            <Select value={newTask.priority} onValueChange={(value: any) => setNewTask({ ...newTask, priority: value })}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="low">Low</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="urgent">Urgent</SelectItem>
-              </SelectContent>
-            </Select>
-            <Input
-              type="datetime-local"
-              value={newTask.due_date}
-              onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
-            />
-            <div className="flex gap-2">
-              <Button onClick={createTask} className="flex-1">
-                Create Task
-              </Button>
-              <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Content */}
+      {view === 'calendar' ? (
+        <TaskCalendar tasks={tasks} onTaskClick={openTaskDetails} />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {tasks.map((task) => (
+            <Card key={task.id} className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openTaskDetails(task)}>
+              <CardHeader className="pb-3">
+                <div className="flex justify-between items-start">
+                  <CardTitle className="text-lg">{task.title}</CardTitle>
+                  <div className="flex gap-1">
+                    <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)}`} />
+                    <Badge variant="outline" className={`text-xs ${getStatusColor(task.status)} text-white`}>
+                      {task.status.replace('_', ' ')}
+                    </Badge>
+                  </div>
+                </div>
+                <CardDescription className="line-clamp-2">
+                  {task.description || 'No description'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <User className="h-3 w-3" />
+                  <span>By: {task.assigned_by_profile?.full_name || 'Unknown'}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <User className="h-3 w-3" />
+                  <span>To: {task.assigned_to_profile?.full_name || 'Unknown'}</span>
+                </div>
+                {task.due_date && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Calendar className="h-3 w-3" />
+                    <span>Due: {format(new Date(task.due_date), 'MMM dd, yyyy HH:mm')}</span>
+                  </div>
+                )}
+                <div className="flex gap-2 mt-3">
+                  {task.status !== 'completed' && (task.assigned_to === user?.id || task.assigned_by === user?.id) && (
+                    <>
+                      {task.status === 'pending' && (
+                        <Button size="sm" onClick={(e) => { e.stopPropagation(); updateTaskStatus(task.id, 'in_progress'); }}>
+                          Start
+                        </Button>
+                      )}
+                      {task.status === 'in_progress' && (
+                        <Button size="sm" onClick={(e) => { e.stopPropagation(); updateTaskStatus(task.id, 'completed'); }}>
+                          Complete
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
-      {/* Task Details/Chat Dialog */}
-      <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh]">
+      {tasks.length === 0 && (
+        <div className="text-center py-12">
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
+          <p className="text-gray-600 mb-4">Create your first task or adjust your filters.</p>
+        </div>
+      )}
+
+      {/* Task Details Dialog */}
+      <Dialog open={!!selectedTask} onOpenChange={() => setSelectedTask(null)}>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{selectedTask?.title}</DialogTitle>
             <DialogDescription>
               Task details and comments
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            {selectedTask && (
-              <div className="border-b pb-4">
-                <p className="text-sm text-gray-600 mb-2">{selectedTask.description}</p>
-                <div className="flex gap-2 text-xs text-gray-500">
-                  <span>Assigned to: {selectedTask.profiles?.full_name}</span>
-                  <span>•</span>
-                  <span>Assigned by: {selectedTask.assigned_by_profile?.full_name}</span>
+          {selectedTask && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-medium">Status:</span>
+                  <Badge className={`ml-2 ${getStatusColor(selectedTask.status)} text-white`}>
+                    {selectedTask.status.replace('_', ' ')}
+                  </Badge>
+                </div>
+                <div>
+                  <span className="font-medium">Priority:</span>
+                  <Badge className={`ml-2 ${getPriorityColor(selectedTask.priority)} text-white`}>
+                    {selectedTask.priority}
+                  </Badge>
+                </div>
+                <div>
+                  <span className="font-medium">Assigned By:</span>
+                  <span className="ml-2">{selectedTask.assigned_by_profile?.full_name}</span>
+                </div>
+                <div>
+                  <span className="font-medium">Assigned To:</span>
+                  <span className="ml-2">{selectedTask.assigned_to_profile?.full_name}</span>
                 </div>
               </div>
-            )}
-            
-            <div className="max-h-64 overflow-y-auto space-y-3">
-              {loadingComments ? (
-                <div className="text-center">Loading comments...</div>
-              ) : taskComments.length > 0 ? (
-                taskComments.map((comment) => (
-                  <div key={comment.id} className="bg-gray-50 p-3 rounded-lg">
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="font-medium text-sm">{comment.profiles.full_name}</span>
-                      <span className="text-xs text-gray-500">
-                        {format(new Date(comment.created_at), 'MMM dd, yyyy HH:mm')}
-                      </span>
-                    </div>
-                    <p className="text-sm">{comment.comment}</p>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center text-gray-500">No comments yet</div>
+              
+              {selectedTask.description && (
+                <div>
+                  <span className="font-medium">Description:</span>
+                  <p className="mt-1 text-sm text-gray-600">{selectedTask.description}</p>
+                </div>
               )}
-            </div>
-            
-            <div className="flex gap-2">
-              <Input
-                placeholder="Add a comment..."
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && addComment()}
-              />
-              <Button onClick={addComment} size="sm">
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
-      {/* Edit Task Dialog */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Task</DialogTitle>
-            <DialogDescription>
-              Update task details
-            </DialogDescription>
-          </DialogHeader>
-          {editingTask && (
-            <div className="space-y-4">
-              <Input
-                placeholder="Task title"
-                value={editingTask.title}
-                onChange={(e) => setEditingTask({ ...editingTask, title: e.target.value })}
-              />
-              <Textarea
-                placeholder="Task description"
-                value={editingTask.description}
-                onChange={(e) => setEditingTask({ ...editingTask, description: e.target.value })}
-              />
-              <Select 
-                value={editingTask.task_type} 
-                onValueChange={(value: any) => setEditingTask({ ...editingTask, task_type: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="personal">Personal</SelectItem>
-                  <SelectItem value="delegated">Delegated</SelectItem>
-                  <SelectItem value="broadcasted">Broadcasted</SelectItem>
-                </SelectContent>
-              </Select>
-              
+              {selectedTask.due_date && (
+                <div>
+                  <span className="font-medium">Due Date:</span>
+                  <span className="ml-2 text-sm">{format(new Date(selectedTask.due_date), 'MMM dd, yyyy HH:mm')}</span>
+                </div>
+              )}
+
               <div>
-                <label className="text-sm font-medium">Assign to Karyakar</label>
-                <SearchableSelect
-                  options={karyakars.map(k => ({ value: k.id, label: `${k.full_name} (${k.role})` }))}
-                  value={editingTask.assigned_to}
-                  onValueChange={(value) => setEditingTask({ ...editingTask, assigned_to: value })}
-                  placeholder="Select Karyakar"
-                />
-              </div>
-              
-              <Select 
-                value={editingTask.priority} 
-                onValueChange={(value: any) => setEditingTask({ ...editingTask, priority: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="urgent">Urgent</SelectItem>
-                </SelectContent>
-              </Select>
-              <Input
-                type="datetime-local"
-                value={editingTask.due_date}
-                onChange={(e) => setEditingTask({ ...editingTask, due_date: e.target.value })}
-              />
-              <div className="flex gap-2">
-                <Button onClick={updateTask} className="flex-1">
-                  Update Task
-                </Button>
-                <Button variant="outline" onClick={() => setShowEditDialog(false)}>
-                  Cancel
-                </Button>
+                <div className="flex items-center gap-2 mb-3">
+                  <MessageSquare className="h-4 w-4" />
+                  <span className="font-medium">Comments</span>
+                </div>
+                <ScrollArea className="h-64 border rounded-lg p-3">
+                  {comments.length > 0 ? (
+                    <div className="space-y-3">
+                      {comments.map((comment) => (
+                        <div key={comment.id} className="bg-gray-50 p-2 rounded">
+                          <div className="text-xs text-gray-500 mb-1">
+                            {comment.profiles.full_name} • {format(new Date(comment.created_at), 'MMM dd, HH:mm')}
+                          </div>
+                          <div className="text-sm">{comment.comment}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center text-gray-500 text-sm">No comments yet</div>
+                  )}
+                </ScrollArea>
+                <div className="flex gap-2 mt-3">
+                  <Input
+                    placeholder="Add a comment..."
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && addComment()}
+                  />
+                  <Button onClick={addComment} size="sm">
+                    Add
+                  </Button>
+                </div>
               </div>
             </div>
           )}
