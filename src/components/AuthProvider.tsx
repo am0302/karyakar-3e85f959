@@ -1,9 +1,12 @@
+
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-interface Profile extends User {
+interface Profile {
+  id: string;
+  email?: string;
   full_name?: string;
   role?: string;
   mobile_number?: string;
@@ -17,6 +20,9 @@ interface AuthContextType {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, userData: any) => Promise<{ error: any }>;
+  signInWithEmail: (email: string, password: string) => Promise<{ error: any }>;
+  signUpWithEmail: (email: string, password: string) => Promise<{ error: any }>;
+  signInWithGoogle: () => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -116,6 +122,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return { error };
   };
 
+  const signInWithEmail = async (email: string, password: string) => {
+    return signIn(email, password);
+  };
+
   const signUp = async (email: string, password: string, userData: any) => {
     const redirectUrl = `${window.location.origin}/`;
     
@@ -125,6 +135,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       options: {
         emailRedirectTo: redirectUrl,
         data: userData
+      }
+    });
+    return { error };
+  };
+
+  const signUpWithEmail = async (email: string, password: string) => {
+    return signUp(email, password, {});
+  };
+
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/`
       }
     });
     return { error };
@@ -144,6 +168,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     loading,
     signIn,
     signUp,
+    signInWithEmail,
+    signUpWithEmail,
+    signInWithGoogle,
     signOut,
     refreshUser,
   };

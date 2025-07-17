@@ -14,7 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, Calendar, User, MessageSquare, Filter } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { TaskCalendar } from '@/components/TaskCalendar';
+import TaskCalendar from '@/components/TaskCalendar';
 
 type Task = {
   id: string;
@@ -378,7 +378,7 @@ const Tasks = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="text-sm font-medium">Priority</label>
-                      <Select value={formData.priority} onValueChange={(value: any) => setFormData({ ...formData, priority: value })}>
+                      <Select value={formData.priority} onValueChange={(value: 'low' | 'medium' | 'high' | 'urgent') => setFormData({ ...formData, priority: value })}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -392,7 +392,7 @@ const Tasks = () => {
                     </div>
                     <div>
                       <label className="text-sm font-medium">Type</label>
-                      <Select value={formData.task_type} onValueChange={(value: any) => setFormData({ ...formData, task_type: value })}>
+                      <Select value={formData.task_type} onValueChange={(value: 'personal' | 'delegated' | 'broadcasted') => setFormData({ ...formData, task_type: value })}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -469,7 +469,7 @@ const Tasks = () => {
 
       {/* Content */}
       {view === 'calendar' ? (
-        <TaskCalendar tasks={tasks} onTaskClick={openTaskDetails} />
+        <TaskCalendar />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {tasks.map((task) => (
