@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -16,13 +15,17 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import TaskCalendar from '@/components/TaskCalendar';
 
+type TaskStatus = 'pending' | 'in_progress' | 'completed';
+type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+type TaskType = 'personal' | 'delegated' | 'broadcasted';
+
 type Task = {
   id: string;
   title: string;
   description: string;
-  status: 'pending' | 'in_progress' | 'completed';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  task_type: 'personal' | 'delegated' | 'broadcasted';
+  status: TaskStatus;
+  priority: TaskPriority;
+  task_type: TaskType;
   due_date: string;
   created_at: string;
   assigned_by: string;
@@ -62,13 +65,20 @@ const Tasks = () => {
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [userFilter, setUserFilter] = useState<string>('all');
 
-  // Form state
-  const [formData, setFormData] = useState({
+  // Form state with proper typing
+  const [formData, setFormData] = useState<{
+    title: string;
+    description: string;
+    assigned_to: string;
+    priority: TaskPriority;
+    task_type: TaskType;
+    due_date: string;
+  }>({
     title: '',
     description: '',
     assigned_to: '',
-    priority: 'medium' as const,
-    task_type: 'delegated' as const,
+    priority: 'medium',
+    task_type: 'delegated',
     due_date: ''
   });
 
@@ -117,12 +127,12 @@ const Tasks = () => {
 
       // Apply status filter
       if (statusFilter !== 'all') {
-        query = query.eq('status', statusFilter);
+        query = query.eq('status', statusFilter as TaskStatus);
       }
 
       // Apply priority filter
       if (priorityFilter !== 'all') {
-        query = query.eq('priority', priorityFilter);
+        query = query.eq('priority', priorityFilter as TaskPriority);
       }
 
       // Apply user filter (only for super admin)
@@ -168,7 +178,7 @@ const Tasks = () => {
         priority: formData.priority,
         task_type: formData.task_type,
         due_date: formData.due_date || null,
-        status: 'pending' as const
+        status: 'pending' as TaskStatus
       };
 
       const { error } = await supabase
@@ -202,7 +212,7 @@ const Tasks = () => {
     }
   };
 
-  const updateTaskStatus = async (taskId: string, status: Task['status']) => {
+  const updateTaskStatus = async (taskId: string, status: TaskStatus) => {
     try {
       const { error } = await supabase
         .from('tasks')
@@ -378,7 +388,7 @@ const Tasks = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="text-sm font-medium">Priority</label>
-                      <Select value={formData.priority} onValueChange={(value: 'low' | 'medium' | 'high' | 'urgent') => setFormData({ ...formData, priority: value })}>
+                      <Select value={formData.priority} onValueChange={(value: TaskPriority) => setFormData({ ...formData, priority: value })}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -392,7 +402,7 @@ const Tasks = () => {
                     </div>
                     <div>
                       <label className="text-sm font-medium">Type</label>
-                      <Select value={formData.task_type} onValueChange={(value: 'personal' | 'delegated' | 'broadcasted') => setFormData({ ...formData, task_type: value })}>
+                      <Select value={formData.task_type} onValueChange={(value: TaskType) => setFormData({ ...formData, task_type: value })}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
