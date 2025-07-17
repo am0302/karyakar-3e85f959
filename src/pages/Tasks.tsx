@@ -59,6 +59,7 @@ const Tasks = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
+  const [filterUser, setFilterUser] = useState('all');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
@@ -108,7 +109,7 @@ const Tasks = () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('tasks')
         .select(`
           *,
@@ -116,6 +117,13 @@ const Tasks = () => {
           assigned_by_profile:profiles!tasks_assigned_by_fkey(full_name)
         `)
         .order('created_at', { ascending: false });
+
+      // Super admin can see all tasks, others see only their assigned/created tasks
+      if (userRole !== 'super_admin') {
+        query = query.or(`assigned_to.eq.${user.id},assigned_by.eq.${user.id}`);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setTasks(data || []);
@@ -365,8 +373,9 @@ const Tasks = () => {
                          task.description?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'all' || task.status === filterStatus;
     const matchesPriority = filterPriority === 'all' || task.priority === filterPriority;
+    const matchesUser = filterUser === 'all' || task.assigned_to === filterUser || task.assigned_by === filterUser;
     
-    return matchesSearch && matchesStatus && matchesPriority;
+    return matchesSearch && matchesStatus && matchesPriority && matchesUser;
   });
 
   if (loading) {
@@ -406,7 +415,7 @@ const Tasks = () => {
             </div>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
               <SelectTrigger className="w-40">
-                <SelectValue />
+                <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
@@ -417,7 +426,7 @@ const Tasks = () => {
             </Select>
             <Select value={filterPriority} onValueChange={setFilterPriority}>
               <SelectTrigger className="w-40">
-                <SelectValue />
+                <SelectValue placeholder="All Priority" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Priority</SelectItem>
@@ -427,6 +436,21 @@ const Tasks = () => {
                 <SelectItem value="low">Low</SelectItem>
               </SelectContent>
             </Select>
+            {userRole === 'super_admin' && (
+              <Select value={filterUser} onValueChange={setFilterUser}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="All Users" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Users</SelectItem>
+                  {karyakars.map((karyakar) => (
+                    <SelectItem key={karyakar.id} value={karyakar.id}>
+                      {karyakar.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           {/* Tasks Grid */}

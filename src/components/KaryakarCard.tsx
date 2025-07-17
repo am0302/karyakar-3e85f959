@@ -16,6 +16,7 @@ interface KaryakarCardProps {
     age?: number;
     date_of_birth?: string;
     whatsapp_number?: string;
+    profile_photo_url?: string;
     professions?: { name: string } | null;
     seva_types?: { name: string } | null;
     mandirs?: { name: string } | null;
@@ -50,23 +51,34 @@ const KaryakarCard: React.FC<KaryakarCardProps> = ({ karyakar, onEdit, onDelete 
 
   return (
     <Card className="hover:shadow-lg transition-shadow">
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-              <User className="h-6 w-6 text-orange-600" />
+      {/* Large Profile Picture at Top */}
+      <div className="relative w-full h-32 bg-gradient-to-br from-orange-100 to-orange-200 rounded-t-lg">
+        <div className="absolute inset-0 flex items-center justify-center">
+          {karyakar.profile_photo_url ? (
+            <img
+              src={karyakar.profile_photo_url}
+              alt={karyakar.full_name}
+              className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
+            />
+          ) : (
+            <div className="w-24 h-24 bg-orange-500 rounded-full flex items-center justify-center border-4 border-white shadow-lg">
+              <User className="h-12 w-12 text-white" />
             </div>
-            <div>
-              <CardTitle className="text-lg">{karyakar.full_name}</CardTitle>
-              <Badge className={getRoleColor(karyakar.role)}>
-                {karyakar.role.replace('_', ' ').toUpperCase()}
-              </Badge>
-            </div>
-          </div>
-          <Badge variant={karyakar.is_active ? 'default' : 'secondary'}>
-            {karyakar.is_active ? 'Active' : 'Inactive'}
-          </Badge>
+          )}
         </div>
+        <Badge 
+          variant={karyakar.is_active ? 'default' : 'secondary'}
+          className="absolute top-2 right-2"
+        >
+          {karyakar.is_active ? 'Active' : 'Inactive'}
+        </Badge>
+      </div>
+
+      <CardHeader className="pt-4 pb-2 text-center">
+        <CardTitle className="text-lg">{karyakar.full_name}</CardTitle>
+        <Badge className={getRoleColor(karyakar.role)}>
+          {karyakar.role.replace('_', ' ').toUpperCase()}
+        </Badge>
       </CardHeader>
       
       <CardContent className="space-y-4">
@@ -162,11 +174,11 @@ const KaryakarCard: React.FC<KaryakarCardProps> = ({ karyakar, onEdit, onDelete 
 
         {/* Action Buttons */}
         <div className="flex gap-2 pt-2">
-          <Button variant="outline" size="sm" onClick={() => onEdit(karyakar)}>
+          <Button variant="outline" size="sm" onClick={() => onEdit(karyakar)} className="flex-1">
             <Edit className="h-4 w-4 mr-1" />
             Edit
           </Button>
-          <Button variant="outline" size="sm" onClick={() => onDelete(karyakar.id)}>
+          <Button variant="outline" size="sm" onClick={() => onDelete(karyakar.id)} className="flex-1">
             <Trash2 className="h-4 w-4 mr-1" />
             Delete
           </Button>

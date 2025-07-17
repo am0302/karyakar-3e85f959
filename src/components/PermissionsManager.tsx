@@ -56,6 +56,11 @@ const PermissionsManager = () => {
       setUsers(data || []);
     } catch (error: any) {
       console.error('Error fetching users:', error);
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
     }
   };
 
@@ -71,6 +76,11 @@ const PermissionsManager = () => {
       setPermissions(data || []);
     } catch (error: any) {
       console.error('Error fetching permissions:', error);
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
@@ -87,6 +97,7 @@ const PermissionsManager = () => {
       const existingPermission = permissions.find(p => p.module_name === module);
 
       if (existingPermission) {
+        // Update existing permission
         const { error } = await supabase
           .from('module_permissions')
           .update({
@@ -97,13 +108,20 @@ const PermissionsManager = () => {
 
         if (error) throw error;
       } else {
+        // Create new permission record
+        const newPermission = {
+          user_id: selectedUser,
+          module_name: module,
+          can_view: permissionType === 'can_view' ? value : false,
+          can_add: permissionType === 'can_add' ? value : false,
+          can_edit: permissionType === 'can_edit' ? value : false,
+          can_delete: permissionType === 'can_delete' ? value : false,
+          can_export: permissionType === 'can_export' ? value : false,
+        };
+
         const { error } = await supabase
           .from('module_permissions')
-          .insert({
-            user_id: selectedUser,
-            module_name: module,
-            [permissionType]: value
-          });
+          .insert(newPermission);
 
         if (error) throw error;
       }
@@ -113,8 +131,10 @@ const PermissionsManager = () => {
         description: 'Permission updated successfully',
       });
 
-      fetchUserPermissions(selectedUser);
+      // Refresh permissions
+      await fetchUserPermissions(selectedUser);
     } catch (error: any) {
+      console.error('Error updating permission:', error);
       toast({
         title: 'Error',
         description: error.message,

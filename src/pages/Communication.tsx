@@ -99,55 +99,48 @@ const Communication = () => {
   };
 
   const openChat = async (karyakar: Karyakar) => {
-    if (!user) return;
+    if (!user) {
+      toast({
+        title: 'Error',
+        description: 'User not authenticated',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     try {
       setLoadingMessages(true);
       setSelectedKaryakar(karyakar);
       
-      // First, try to find an existing private chat room between these two users
-      const { data: existingRooms, error: roomError } = await supabase
+      console.log('Opening chat for:', karyakar.full_name);
+      console.log('Current user ID:', user.id);
+      console.log('Target user ID:', karyakar.id);
+      
+      // Create a deterministic room name for private chats
+      const roomName = [user.id, karyakar.id].sort().join('_');
+      
+      // Check if a private chat room already exists
+      const { data: existingRoom, error: roomCheckError } = await supabase
         .from('chat_rooms')
-        .select(`
-          id,
-          name,
-          created_at,
-          chat_participants!inner(user_id)
-        `)
-        .eq('is_group', false);
+        .select('*')
+        .eq('name', roomName)
+        .eq('is_group', false)
+        .single();
 
-      if (roomError) {
-        console.error('Error fetching existing rooms:', roomError);
-        throw roomError;
+      if (roomCheckError && roomCheckError.code !== 'PGRST116') {
+        console.error('Error checking for existing room:', roomCheckError);
+        throw roomCheckError;
       }
 
-      // Find a room that has exactly these two participants
-      let room = null;
-      if (existingRooms) {
-        for (const r of existingRooms) {
-          const { data: participants, error: participantsError } = await supabase
-            .from('chat_participants')
-            .select('user_id')
-            .eq('room_id', r.id);
-
-          if (participantsError) continue;
-
-          const participantIds = participants?.map(p => p.user_id) || [];
-          if (participantIds.length === 2 && 
-              participantIds.includes(user.id) && 
-              participantIds.includes(karyakar.id)) {
-            room = r;
-            break;
-          }
-        }
-      }
+      let room = existingRoom;
 
       // If no existing room found, create a new one
       if (!room) {
+        console.log('Creating new chat room');
         const { data: newRoom, error: createRoomError } = await supabase
           .from('chat_rooms')
           .insert({
-            name: `Chat with ${karyakar.full_name}`,
+            name: roomName,
             is_group: false,
             created_by: user.id
           })
@@ -175,6 +168,7 @@ const Communication = () => {
         }
       }
 
+      console.log('Using room:', room);
       setCurrentRoom(room);
       await fetchMessages(room.id);
       setShowChatDialog(true);
@@ -183,7 +177,7 @@ const Communication = () => {
       console.error('Failed to open chat:', error);
       toast({
         title: 'Error',
-        description: 'Failed to open chat. Please try again.',
+        description: `Failed to open chat: ${error.message}`,
         variant: 'destructive',
       });
     } finally {
@@ -193,6 +187,7 @@ const Communication = () => {
 
   const fetchMessages = async (roomId: string) => {
     try {
+      console.log('Fetching messages for room:', roomId);
       const { data, error } = await supabase
         .from('messages')
         .select(`
@@ -203,9 +198,15 @@ const Communication = () => {
           profiles(full_name)
         `)
         .eq('room_id', roomId)
+        .eq('is_deleted', false)
         .order('created_at', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching messages:', error);
+        throw error;
+      }
+      
+      console.log('Fetched messages:', data);
       setMessages(data || []);
     } catch (error: any) {
       console.error('Error fetching messages:', error);
@@ -221,6 +222,7 @@ const Communication = () => {
     if (!user || !currentRoom || !newMessage.trim()) return;
 
     try {
+      console.log('Sending message:', newMessage);
       const { error } = await supabase
         .from('messages')
         .insert({
@@ -230,10 +232,18 @@ const Communication = () => {
           message_type: 'text'
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error sending message:', error);
+        throw error;
+      }
 
       setNewMessage('');
       await fetchMessages(currentRoom.id);
+      
+      toast({
+        title: 'Success',
+        description: 'Message sent successfully',
+      });
     } catch (error: any) {
       console.error('Error sending message:', error);
       toast({
@@ -335,9 +345,10 @@ const Communication = () => {
                 onClick={() => openChat(karyakar)}
                 className="w-full"
                 size="sm"
+                disabled={loadingMessages}
               >
                 <MessageCircle className="h-4 w-4 mr-2" />
-                Open Chat
+                {loadingMessages ? 'Opening...' : 'Open Chat'}
               </Button>
             </CardContent>
           </Card>
