@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Save, User, Shield, Users } from 'lucide-react';
 
+type UserRole = 'super_admin' | 'sant_nirdeshak' | 'sah_nirdeshak' | 'mandal_sanchalak' | 'karyakar' | 'sevak';
+
 type Profile = {
   id: string;
   full_name: string;
@@ -30,7 +32,7 @@ type ModulePermission = {
 
 type RolePermission = {
   id?: string;
-  role: string;
+  role: UserRole;
   module_name: string;
   can_view: boolean;
   can_add: boolean;
@@ -55,7 +57,7 @@ const PERMISSIONS = [
   { key: 'can_export', label: 'Export' }
 ];
 
-const ROLES = [
+const ROLES: UserRole[] = [
   'sevak',
   'karyakar', 
   'mandal_sanchalak',
@@ -67,7 +69,7 @@ const PermissionsManager = () => {
   const { toast } = useToast();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string>('');
-  const [selectedRole, setSelectedRole] = useState<string>('');
+  const [selectedRole, setSelectedRole] = useState<UserRole | ''>('');
   const [permissions, setPermissions] = useState<ModulePermission[]>([]);
   const [rolePermissions, setRolePermissions] = useState<RolePermission[]>([]);
   const [loading, setLoading] = useState(false);
@@ -147,7 +149,7 @@ const PermissionsManager = () => {
     }
   };
 
-  const fetchRolePermissions = async (role: string) => {
+  const fetchRolePermissions = async (role: UserRole) => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -310,15 +312,7 @@ const PermissionsManager = () => {
       if (permissionsToInsert.length > 0) {
         const { error } = await supabase
           .from('role_permissions')
-          .insert(permissionsToInsert.map(p => ({
-            role: p.role,
-            module_name: p.module_name,
-            can_view: p.can_view,
-            can_add: p.can_add,
-            can_edit: p.can_edit,
-            can_delete: p.can_delete,
-            can_export: p.can_export
-          })));
+          .insert(permissionsToInsert);
 
         if (error) throw error;
       }
@@ -508,7 +502,7 @@ const PermissionsManager = () => {
               <div className="flex gap-4 items-end">
                 <div className="flex-1">
                   <label className="text-sm font-medium">Role</label>
-                  <Select value={selectedRole} onValueChange={setSelectedRole}>
+                  <Select value={selectedRole} onValueChange={(value: UserRole) => setSelectedRole(value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select a role" />
                     </SelectTrigger>
