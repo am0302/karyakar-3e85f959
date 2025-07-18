@@ -150,17 +150,26 @@ const PermissionsManager = () => {
   const fetchRolePermissions = async (role: string) => {
     try {
       setLoading(true);
-      // For now, we'll create a placeholder structure since role_permissions table doesn't exist yet
-      // This would be implemented once the role_permissions table is created
-      const rolePerms: RolePermission[] = MODULES.map(module => ({
-        role: role,
-        module_name: module,
-        can_view: false,
-        can_add: false,
-        can_edit: false,
-        can_delete: false,
-        can_export: false
-      }));
+      const { data, error } = await supabase
+        .from('role_permissions')
+        .select('*')
+        .eq('role', role);
+
+      if (error) throw error;
+
+      // Create a full set of permissions for all modules
+      const rolePerms: RolePermission[] = MODULES.map(module => {
+        const existingPermission = data?.find(p => p.module_name === module);
+        return existingPermission || {
+          role: role,
+          module_name: module,
+          can_view: false,
+          can_add: false,
+          can_edit: false,
+          can_delete: false,
+          can_export: false
+        };
+      });
 
       setRolePermissions(rolePerms);
     } catch (error: any) {
@@ -281,11 +290,56 @@ const PermissionsManager = () => {
   };
 
   const saveRolePermissions = async () => {
-    // This would be implemented once role_permissions table is created
-    toast({
-      title: 'Info',
-      description: 'Role-based permissions will be implemented in the next update',
-    });
+    if (!selectedRole) return;
+
+    try {
+      setSaving(true);
+
+      // Delete existing permissions for this role
+      await supabase
+        .from('role_permissions')
+        .delete()
+        .eq('role', selectedRole);
+
+      // Insert new permissions (only for modules that have at least one permission enabled)
+      const permissionsToInsert = rolePermissions.filter(permission => 
+        permission.can_view || permission.can_add || permission.can_edit || 
+        permission.can_delete || permission.can_export
+      );
+
+      if (permissionsToInsert.length > 0) {
+        const { error } = await supabase
+          .from('role_permissions')
+          .insert(permissionsToInsert.map(p => ({
+            role: p.role,
+            module_name: p.module_name,
+            can_view: p.can_view,
+            can_add: p.can_add,
+            can_edit: p.can_edit,
+            can_delete: p.can_delete,
+            can_export: p.can_export
+          })));
+
+        if (error) throw error;
+      }
+
+      toast({
+        title: 'Success',
+        description: 'Role permissions updated successfully',
+      });
+
+      // Refresh permissions
+      fetchRolePermissions(selectedRole);
+    } catch (error: any) {
+      console.error('Error saving role permissions:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to save role permissions',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const selectedProfile = profiles.find(p => p.id === selectedUserId);
@@ -471,30 +525,92 @@ const PermissionsManager = () => {
             </CardContent>
           </Card>
 
-          {/* Role Permissions Preview */}
+          {/* Role Permissions Grid */}
           {selectedRole && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Shield className="h-5 w-5" />
-                  Role Module Permissions (Preview)
+                  Role Module Permissions
                 </CardTitle>
                 <CardDescription>
-                  Default permissions for {selectedRole.replace('_', ' ')} role - Coming Soon!
+                  Default permissions for {selectedRole.replace('_', ' ')} role (individual user permissions override these)
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="bg-gray-50 p-6 rounded-lg text-center">
-                  <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Role-Based Permissions</h3>
-                  <p className="text-gray-600 mb-4">
-                    This feature will allow you to set default permissions for each role, 
-                    which will be inherited by all users with that role.
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Individual user permissions will override role permissions when specified.
-                  </p>
-                </div>
+                {loading ? (
+                  <div className="text-center py-8">Loading permissions...</div>
+                ) : (
+                  <div className="space-y-6">
+                    {rolePermissions.map((permission, moduleIndex) => (
+                      <div key={permission.module_name} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <h3 className="font-medium capitalize">
+                              {permission.module_name}
+                            </h3>
+                            <p className="text-sm text-gray-600">
+                              Default access to {permission.module_name} module for {selectedRole.replace('_', ' ')} role
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setAllRolePermissionsForModule(moduleIndex, true)}
+                            >
+                              Enable All
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setAllRolePermissionsForModule(moduleIndex, false)}
+                            >
+                              Disable All
+                            </Button>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                          {PERMISSIONS.map((perm) => (
+                            <div key={perm.key} className="flex items-center space-x-2">
+                              <Switch
+                                id={`${permission.module_name}-${perm.key}-role`}
+                                checked={permission[perm.key as keyof RolePermission] as boolean}
+                                onCheckedChange={(checked) => 
+                                  updateRolePermission(moduleIndex, perm.key, checked)
+                                }
+                              />
+                              <label
+                                htmlFor={`${permission.module_name}-${perm.key}-role`}
+                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                              >
+                                {perm.label}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+
+                    <div className="flex justify-end pt-4">
+                      <Button onClick={saveRolePermissions} disabled={saving}>
+                        <Save className="h-4 w-4 mr-2" />
+                        {saving ? 'Saving...' : 'Save Role Permissions'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {!selectedRole && (
+            <Card>
+              <CardContent className="text-center py-12">
+                <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Role Selected</h3>
+                <p className="text-gray-600">Select a role above to manage its default module permissions</p>
               </CardContent>
             </Card>
           )}
