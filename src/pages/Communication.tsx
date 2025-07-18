@@ -59,6 +59,32 @@ const Communication = () => {
     fetchKaryakars();
   }, []);
 
+  // Set up real-time subscription for messages
+  useEffect(() => {
+    if (!currentRoom) return;
+
+    const channel = supabase
+      .channel('messages')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `room_id=eq.${currentRoom.id}`,
+        },
+        (payload) => {
+          console.log('New message received:', payload);
+          fetchMessages(currentRoom.id);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentRoom]);
+
   const fetchKaryakars = async () => {
     try {
       setLoading(true);
@@ -125,9 +151,9 @@ const Communication = () => {
         .select('*')
         .eq('name', roomName)
         .eq('is_group', false)
-        .single();
+        .maybeSingle();
 
-      if (roomCheckError && roomCheckError.code !== 'PGRST116') {
+      if (roomCheckError) {
         console.error('Error checking for existing room:', roomCheckError);
         throw roomCheckError;
       }
@@ -154,17 +180,26 @@ const Communication = () => {
 
         room = newRoom;
 
-        // Add both participants to the room
-        const { error: participantsError } = await supabase
-          .from('chat_participants')
-          .insert([
-            { room_id: room.id, user_id: user.id },
-            { room_id: room.id, user_id: karyakar.id }
-          ]);
+        // Add participants using upsert to handle duplicates gracefully
+        const participantsToAdd = [
+          { room_id: room.id, user_id: user.id },
+          { room_id: room.id, user_id: karyakar.id }
+        ];
 
-        if (participantsError) {
-          console.error('Error adding participants:', participantsError);
-          throw participantsError;
+        for (const participant of participantsToAdd) {
+          const { error: participantError } = await supabase
+            .from('chat_participants')
+            .upsert(participant, {
+              onConflict: 'room_id,user_id'
+            });
+
+          if (participantError) {
+            console.error('Error adding participant:', participantError);
+            // Continue even if there's a duplicate key error
+            if (participantError.code !== '23505') {
+              throw participantError;
+            }
+          }
         }
       }
 
@@ -238,12 +273,8 @@ const Communication = () => {
       }
 
       setNewMessage('');
-      await fetchMessages(currentRoom.id);
+      // Messages will be updated via real-time subscription
       
-      toast({
-        title: 'Success',
-        description: 'Message sent successfully',
-      });
     } catch (error: any) {
       console.error('Error sending message:', error);
       toast({
@@ -260,6 +291,13 @@ const Communication = () => {
 
   const handleEmail = (email: string) => {
     window.open(`mailto:${email}`, '_self');
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
   };
 
   const filteredKaryakars = karyakars.filter(karyakar =>
@@ -375,7 +413,7 @@ const Communication = () => {
           </DialogHeader>
           
           <div className="flex-1 flex flex-col">
-            <ScrollArea className="flex-1 p-4 border rounded-lg">
+            <ScrollArea className="flex-1 p-4 border rounded-lg mb-4">
               {loadingMessages ? (
                 <div className="text-center">Loading messages...</div>
               ) : messages.length > 0 ? (
@@ -392,7 +430,7 @@ const Communication = () => {
                             : 'bg-gray-100 text-gray-900'
                         }`}
                       >
-                        <p className="text-sm">{message.content}</p>
+                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                         <p className="text-xs opacity-70 mt-1">
                           {format(new Date(message.created_at), 'HH:mm')}
                         </p>
@@ -401,19 +439,19 @@ const Communication = () => {
                   ))}
                 </div>
               ) : (
-                <div className="text-center text-gray-500">No messages yet</div>
+                <div className="text-center text-gray-500">No messages yet. Start the conversation!</div>
               )}
             </ScrollArea>
 
-            <div className="flex gap-2 mt-4">
+            <div className="flex gap-2">
               <Input
-                placeholder="Type your message..."
+                placeholder="Type your message... (Press Enter to send)"
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                onKeyPress={handleKeyPress}
                 className="flex-1"
               />
-              <Button onClick={sendMessage} size="sm">
+              <Button onClick={sendMessage} size="sm" disabled={!newMessage.trim()}>
                 <Send className="h-4 w-4" />
               </Button>
             </div>

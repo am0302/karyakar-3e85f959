@@ -1,3 +1,4 @@
+
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -14,9 +15,6 @@ import {
   MessageSquare,
   FileText,
   Settings,
-  Building,
-  MapPin,
-  UserPlus,
 } from "lucide-react";
 import { useAuth } from './AuthProvider';
 import { useEffect, useState } from 'react';
@@ -62,7 +60,7 @@ const adminItems = [
 ];
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, isMobile } = useSidebar();
   const location = useLocation();
   const { user } = useAuth();
   const isCollapsed = state === "collapsed";
@@ -99,7 +97,10 @@ export function AppSidebar() {
       : "hover:bg-orange-50 text-gray-700";
 
   return (
-    <Sidebar className={isCollapsed ? "w-14" : "w-64"}>
+    <Sidebar 
+      className={`${isCollapsed && !isMobile ? "w-14" : "w-64"} ${isMobile ? "fixed z-50" : ""}`}
+      collapsible="icon"
+    >
       <SidebarContent className="bg-white border-r">
         {/* Logo */}
         <div className="p-6 border-b">
@@ -107,7 +108,7 @@ export function AppSidebar() {
             <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-sm">SS</span>
             </div>
-            {!isCollapsed && (
+            {(!isCollapsed || isMobile) && (
               <div>
                 <h1 className="font-bold text-lg text-gray-900">Seva Sarthi</h1>
                 <p className="text-xs text-gray-600">Connect</p>
@@ -124,7 +125,7 @@ export function AppSidebar() {
                 <SidebarMenuButton asChild>
                   <NavLink to={item.url} className={getNavClass(item.url)}>
                     <item.icon className="h-4 w-4" />
-                    {!isCollapsed && <span>{item.title}</span>}
+                    {(!isCollapsed || isMobile) && <span>{item.title}</span>}
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -134,14 +135,14 @@ export function AppSidebar() {
 
         {/* Management Section */}
         <div className="px-4 pb-4">
-          {!isCollapsed && <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Management</p>}
+          {(!isCollapsed || isMobile) && <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Management</p>}
           <SidebarMenu>
             {managementItems.map((item) => (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton asChild>
                   <NavLink to={item.url} className={getNavClass(item.url)}>
                     <item.icon className="h-4 w-4" />
-                    {!isCollapsed && <span>{item.title}</span>}
+                    {(!isCollapsed || isMobile) && <span>{item.title}</span>}
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -152,14 +153,14 @@ export function AppSidebar() {
         {/* Admin Section - Only show for super_admin */}
         {userRole === 'super_admin' && (
           <div className="px-4 pb-4">
-            {!isCollapsed && <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Administration</p>}
+            {(!isCollapsed || isMobile) && <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Administration</p>}
             <SidebarMenu>
               {adminItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink to={item.url} className={getNavClass(item.url)}>
                       <item.icon className="h-4 w-4" />
-                      {!isCollapsed && <span>{item.title}</span>}
+                      {(!isCollapsed || isMobile) && <span>{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

@@ -52,6 +52,12 @@ const Auth = () => {
     setLoading(false);
   };
 
+  const handleKeyPress = (e: React.KeyboardEvent, action: () => void) => {
+    if (e.key === 'Enter') {
+      action();
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-amber-50 p-4">
       <Card className="w-full max-w-md">
@@ -105,6 +111,7 @@ const Auth = () => {
                     placeholder="your@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    onKeyPress={(e) => handleKeyPress(e, handleEmailSignIn)}
                     className="pl-9"
                   />
                 </div>
@@ -119,6 +126,7 @@ const Auth = () => {
                     placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    onKeyPress={(e) => handleKeyPress(e, handleEmailSignIn)}
                     className="pl-9"
                   />
                 </div>
@@ -143,6 +151,7 @@ const Auth = () => {
                     placeholder="your@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    onKeyPress={(e) => handleKeyPress(e, handleEmailSignUp)}
                     className="pl-9"
                   />
                 </div>
@@ -157,6 +166,7 @@ const Auth = () => {
                     placeholder="Create a password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    onKeyPress={(e) => handleKeyPress(e, handleEmailSignUp)}
                     className="pl-9"
                   />
                 </div>

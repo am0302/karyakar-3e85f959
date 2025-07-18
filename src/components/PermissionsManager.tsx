@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { Save, User, Shield } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Save, User, Shield, Users } from 'lucide-react';
 
 type Profile = {
   id: string;
@@ -19,6 +20,17 @@ type Profile = {
 type ModulePermission = {
   id?: string;
   user_id: string;
+  module_name: string;
+  can_view: boolean;
+  can_add: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
+  can_export: boolean;
+};
+
+type RolePermission = {
+  id?: string;
+  role: string;
   module_name: string;
   can_view: boolean;
   can_add: boolean;
@@ -43,11 +55,21 @@ const PERMISSIONS = [
   { key: 'can_export', label: 'Export' }
 ];
 
+const ROLES = [
+  'sevak',
+  'karyakar', 
+  'mandal_sanchalak',
+  'sah_nirdeshak',
+  'sant_nirdeshak'
+];
+
 const PermissionsManager = () => {
   const { toast } = useToast();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string>('');
+  const [selectedRole, setSelectedRole] = useState<string>('');
   const [permissions, setPermissions] = useState<ModulePermission[]>([]);
+  const [rolePermissions, setRolePermissions] = useState<RolePermission[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -60,6 +82,12 @@ const PermissionsManager = () => {
       fetchUserPermissions(selectedUserId);
     }
   }, [selectedUserId]);
+
+  useEffect(() => {
+    if (selectedRole) {
+      fetchRolePermissions(selectedRole);
+    }
+  }, [selectedRole]);
 
   const fetchProfiles = async () => {
     try {
@@ -119,7 +147,35 @@ const PermissionsManager = () => {
     }
   };
 
-  const updatePermission = (moduleIndex: number, permissionKey: string, value: boolean) => {
+  const fetchRolePermissions = async (role: string) => {
+    try {
+      setLoading(true);
+      // For now, we'll create a placeholder structure since role_permissions table doesn't exist yet
+      // This would be implemented once the role_permissions table is created
+      const rolePerms: RolePermission[] = MODULES.map(module => ({
+        role: role,
+        module_name: module,
+        can_view: false,
+        can_add: false,
+        can_edit: false,
+        can_delete: false,
+        can_export: false
+      }));
+
+      setRolePermissions(rolePerms);
+    } catch (error: any) {
+      console.error('Error fetching role permissions:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch role permissions',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateUserPermission = (moduleIndex: number, permissionKey: string, value: boolean) => {
     setPermissions(prev => {
       const updated = [...prev];
       updated[moduleIndex] = {
@@ -130,7 +186,18 @@ const PermissionsManager = () => {
     });
   };
 
-  const setAllPermissionsForModule = (moduleIndex: number, value: boolean) => {
+  const updateRolePermission = (moduleIndex: number, permissionKey: string, value: boolean) => {
+    setRolePermissions(prev => {
+      const updated = [...prev];
+      updated[moduleIndex] = {
+        ...updated[moduleIndex],
+        [permissionKey]: value
+      };
+      return updated;
+    });
+  };
+
+  const setAllUserPermissionsForModule = (moduleIndex: number, value: boolean) => {
     setPermissions(prev => {
       const updated = [...prev];
       updated[moduleIndex] = {
@@ -145,7 +212,22 @@ const PermissionsManager = () => {
     });
   };
 
-  const savePermissions = async () => {
+  const setAllRolePermissionsForModule = (moduleIndex: number, value: boolean) => {
+    setRolePermissions(prev => {
+      const updated = [...prev];
+      updated[moduleIndex] = {
+        ...updated[moduleIndex],
+        can_view: value,
+        can_add: value,
+        can_edit: value,
+        can_delete: value,
+        can_export: value
+      };
+      return updated;
+    });
+  };
+
+  const saveUserPermissions = async () => {
     if (!selectedUserId) return;
 
     try {
@@ -181,21 +263,29 @@ const PermissionsManager = () => {
 
       toast({
         title: 'Success',
-        description: 'Permissions updated successfully',
+        description: 'User permissions updated successfully',
       });
 
       // Refresh permissions
       fetchUserPermissions(selectedUserId);
     } catch (error: any) {
-      console.error('Error saving permissions:', error);
+      console.error('Error saving user permissions:', error);
       toast({
         title: 'Error',
-        description: 'Failed to save permissions',
+        description: 'Failed to save user permissions',
         variant: 'destructive',
       });
     } finally {
       setSaving(false);
     }
+  };
+
+  const saveRolePermissions = async () => {
+    // This would be implemented once role_permissions table is created
+    toast({
+      title: 'Info',
+      description: 'Role-based permissions will be implemented in the next update',
+    });
   };
 
   const selectedProfile = profiles.find(p => p.id === selectedUserId);
@@ -204,141 +294,212 @@ const PermissionsManager = () => {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Module Permissions</h2>
-        <p className="text-gray-600">Manage user permissions for different modules</p>
+        <p className="text-gray-600">Manage user and role-based permissions for different modules</p>
       </div>
 
-      {/* User Selection */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            Select User
-          </CardTitle>
-          <CardDescription>
-            Choose a user to manage their module permissions
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-4 items-end">
-            <div className="flex-1">
-              <label className="text-sm font-medium">User</label>
-              <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a user" />
-                </SelectTrigger>
-                <SelectContent>
-                  {profiles.map((profile) => (
-                    <SelectItem key={profile.id} value={profile.id}>
-                      <div className="flex items-center gap-2">
-                        <span>{profile.full_name}</span>
-                        <Badge variant="outline" className="text-xs">
-                          {profile.role.replace('_', ' ')}
-                        </Badge>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {selectedProfile && (
-              <div className="text-sm text-gray-600">
-                <div>Email: {selectedProfile.email || 'N/A'}</div>
-                <div>Role: {selectedProfile.role.replace('_', ' ')}</div>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="user-permissions" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="user-permissions">User Permissions</TabsTrigger>
+          <TabsTrigger value="role-permissions">Role Permissions</TabsTrigger>
+        </TabsList>
 
-      {/* Permissions Grid */}
-      {selectedUserId && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              Module Permissions
-            </CardTitle>
-            <CardDescription>
-              Configure permissions for {selectedProfile?.full_name}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="text-center py-8">Loading permissions...</div>
-            ) : (
-              <div className="space-y-6">
-                {permissions.map((permission, moduleIndex) => (
-                  <div key={permission.module_name} className="border rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h3 className="font-medium capitalize">
-                          {permission.module_name}
-                        </h3>
-                        <p className="text-sm text-gray-600">
-                          Manage access to {permission.module_name} module
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setAllPermissionsForModule(moduleIndex, true)}
-                        >
-                          Enable All
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setAllPermissionsForModule(moduleIndex, false)}
-                        >
-                          Disable All
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                      {PERMISSIONS.map((perm) => (
-                        <div key={perm.key} className="flex items-center space-x-2">
-                          <Switch
-                            id={`${permission.module_name}-${perm.key}`}
-                            checked={permission[perm.key as keyof ModulePermission] as boolean}
-                            onCheckedChange={(checked) => 
-                              updatePermission(moduleIndex, perm.key, checked)
-                            }
-                          />
-                          <label
-                            htmlFor={`${permission.module_name}-${perm.key}`}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                          >
-                            {perm.label}
-                          </label>
-                        </div>
+        <TabsContent value="user-permissions" className="space-y-6">
+          {/* User Selection */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Select User
+              </CardTitle>
+              <CardDescription>
+                Choose a user to manage their module permissions (user permissions override role permissions)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-4 items-end">
+                <div className="flex-1">
+                  <label className="text-sm font-medium">User</label>
+                  <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a user" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {profiles.map((profile) => (
+                        <SelectItem key={profile.id} value={profile.id}>
+                          <div className="flex items-center gap-2">
+                            <span>{profile.full_name}</span>
+                            <Badge variant="outline" className="text-xs">
+                              {profile.role.replace('_', ' ')}
+                            </Badge>
+                          </div>
+                        </SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {selectedProfile && (
+                  <div className="text-sm text-gray-600">
+                    <div>Email: {selectedProfile.email || 'N/A'}</div>
+                    <div>Role: {selectedProfile.role.replace('_', ' ')}</div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* User Permissions Grid */}
+          {selectedUserId && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5" />
+                  User Module Permissions
+                </CardTitle>
+                <CardDescription>
+                  Configure specific permissions for {selectedProfile?.full_name}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="text-center py-8">Loading permissions...</div>
+                ) : (
+                  <div className="space-y-6">
+                    {permissions.map((permission, moduleIndex) => (
+                      <div key={permission.module_name} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <h3 className="font-medium capitalize">
+                              {permission.module_name}
+                            </h3>
+                            <p className="text-sm text-gray-600">
+                              Manage access to {permission.module_name} module
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setAllUserPermissionsForModule(moduleIndex, true)}
+                            >
+                              Enable All
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setAllUserPermissionsForModule(moduleIndex, false)}
+                            >
+                              Disable All
+                            </Button>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                          {PERMISSIONS.map((perm) => (
+                            <div key={perm.key} className="flex items-center space-x-2">
+                              <Switch
+                                id={`${permission.module_name}-${perm.key}`}
+                                checked={permission[perm.key as keyof ModulePermission] as boolean}
+                                onCheckedChange={(checked) => 
+                                  updateUserPermission(moduleIndex, perm.key, checked)
+                                }
+                              />
+                              <label
+                                htmlFor={`${permission.module_name}-${perm.key}`}
+                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                              >
+                                {perm.label}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+
+                    <div className="flex justify-end pt-4">
+                      <Button onClick={saveUserPermissions} disabled={saving}>
+                        <Save className="h-4 w-4 mr-2" />
+                        {saving ? 'Saving...' : 'Save User Permissions'}
+                      </Button>
                     </div>
                   </div>
-                ))}
+                )}
+              </CardContent>
+            </Card>
+          )}
 
-                <div className="flex justify-end pt-4">
-                  <Button onClick={savePermissions} disabled={saving}>
-                    <Save className="h-4 w-4 mr-2" />
-                    {saving ? 'Saving...' : 'Save Permissions'}
-                  </Button>
+          {!selectedUserId && (
+            <Card>
+              <CardContent className="text-center py-12">
+                <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No User Selected</h3>
+                <p className="text-gray-600">Select a user above to manage their module permissions</p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="role-permissions" className="space-y-6">
+          {/* Role Selection */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Select Role
+              </CardTitle>
+              <CardDescription>
+                Choose a role to manage default permissions for all users with that role
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-4 items-end">
+                <div className="flex-1">
+                  <label className="text-sm font-medium">Role</label>
+                  <Select value={selectedRole} onValueChange={setSelectedRole}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ROLES.map((role) => (
+                        <SelectItem key={role} value={role}>
+                          <span className="capitalize">{role.replace('_', ' ')}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+          </Card>
 
-      {!selectedUserId && (
-        <Card>
-          <CardContent className="text-center py-12">
-            <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No User Selected</h3>
-            <p className="text-gray-600">Select a user above to manage their module permissions</p>
-          </CardContent>
-        </Card>
-      )}
+          {/* Role Permissions Preview */}
+          {selectedRole && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5" />
+                  Role Module Permissions (Preview)
+                </CardTitle>
+                <CardDescription>
+                  Default permissions for {selectedRole.replace('_', ' ')} role - Coming Soon!
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-gray-50 p-6 rounded-lg text-center">
+                  <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Role-Based Permissions</h3>
+                  <p className="text-gray-600 mb-4">
+                    This feature will allow you to set default permissions for each role, 
+                    which will be inherited by all users with that role.
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Individual user permissions will override role permissions when specified.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

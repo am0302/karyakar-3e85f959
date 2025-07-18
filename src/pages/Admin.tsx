@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,9 +13,7 @@ import {
   Building2, 
   MapPin, 
   TreePine, 
-  Download,
-  Database,
-  Shield
+  Download
 } from "lucide-react";
 import type { Database as DatabaseType } from "@/integrations/supabase/types";
 
@@ -188,7 +187,6 @@ const Admin = () => {
           <TabsTrigger value="users">User Management</TabsTrigger>
           <TabsTrigger value="permissions">User Permissions</TabsTrigger>
           <TabsTrigger value="master-data">Master Data</TabsTrigger>
-          <TabsTrigger value="settings">System Settings</TabsTrigger>
         </TabsList>
 
         <TabsContent value="users" className="space-y-4">
@@ -348,39 +346,6 @@ const Admin = () => {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
-
-        <TabsContent value="settings" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Shield className="h-5 w-5 mr-2" />
-                System Settings
-              </CardTitle>
-              <CardDescription>
-                Configure system-wide settings and security
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="p-4 border rounded-lg">
-                  <h3 className="font-medium mb-2">Database Status</h3>
-                  <div className="flex items-center space-x-2">
-                    <Database className="h-4 w-4 text-green-500" />
-                    <span className="text-sm text-green-600">Connected</span>
-                  </div>
-                </div>
-                
-                <div className="p-4 border rounded-lg">
-                  <h3 className="font-medium mb-2">Authentication</h3>
-                  <div className="flex items-center space-x-2">
-                    <Shield className="h-4 w-4 text-green-500" />
-                    <span className="text-sm text-green-600">Enabled with RLS</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
     </div>
