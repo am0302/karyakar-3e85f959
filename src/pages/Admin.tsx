@@ -13,9 +13,9 @@ import { SearchableSelect } from '@/components/SearchableSelect';
 import { MasterDataDialog } from '@/components/MasterDataDialog';
 import { useToast } from '@/hooks/use-toast';
 import { Users, Settings, Shield, Database, Plus, Edit, Trash2 } from 'lucide-react';
-import type { Database } from '@/integrations/supabase/types';
+import type { Database as DatabaseType } from '@/integrations/supabase/types';
 
-type UserRole = Database['public']['Enums']['user_role'];
+type UserRole = DatabaseType['public']['Enums']['user_role'];
 
 interface Profile {
   id: string;
