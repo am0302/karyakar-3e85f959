@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -164,6 +163,8 @@ const Karyakars = () => {
     }
     
     try {
+      console.log('Submitting form data:', formData);
+      
       const age = formData.age ? parseInt(formData.age) : null;
       const dataToSubmit = {
         full_name: formData.full_name,
@@ -182,26 +183,39 @@ const Karyakars = () => {
         role: formData.role,
         profile_photo_url: formData.profile_photo_url || null,
         is_active: true,
+        updated_at: new Date().toISOString(),
       };
 
-      let error;
+      console.log('Data to submit:', dataToSubmit);
+
+      let result;
       if (editingKaryakar) {
-        const result = await supabase
+        console.log('Updating karyakar with ID:', editingKaryakar.id);
+        result = await supabase
           .from('profiles')
           .update(dataToSubmit)
-          .eq('id', editingKaryakar.id);
-        error = result.error;
+          .eq('id', editingKaryakar.id)
+          .select();
+        
+        console.log('Update result:', result);
       } else {
-        const { data: insertData, error: insertError } = await supabase
+        console.log('Creating new karyakar');
+        result = await supabase
           .from('profiles')
           .insert([{
             ...dataToSubmit,
             id: crypto.randomUUID(),
-          }]);
-        error = insertError;
+            created_at: new Date().toISOString(),
+          }])
+          .select();
+        
+        console.log('Insert result:', result);
       }
 
-      if (error) throw error;
+      if (result.error) {
+        console.error('Database operation error:', result.error);
+        throw result.error;
+      }
 
       toast({
         title: 'Success',
@@ -211,7 +225,7 @@ const Karyakars = () => {
       setShowRegistrationForm(false);
       setEditingKaryakar(null);
       resetForm();
-      fetchKaryakars();
+      await fetchKaryakars(); // Refresh the list
     } catch (error: any) {
       console.error('Error saving karyakar:', error);
       toast({
@@ -252,23 +266,7 @@ const Karyakars = () => {
       return;
     }
 
-    setFormData({
-      full_name: karyakar.full_name,
-      email: karyakar.email || '',
-      mobile_number: karyakar.mobile_number,
-      whatsapp_number: karyakar.whatsapp_number || '',
-      is_whatsapp_same_as_mobile: karyakar.is_whatsapp_same_as_mobile || false,
-      date_of_birth: karyakar.date_of_birth || '',
-      age: karyakar.age?.toString() || '',
-      profession_id: karyakar.profession_id || '',
-      mandir_id: karyakar.mandir_id || '',
-      kshetra_id: karyakar.kshetra_id || '',
-      village_id: karyakar.village_id || '',
-      mandal_id: karyakar.mandal_id || '',
-      seva_type_id: karyakar.seva_type_id || '',
-      role: karyakar.role,
-      profile_photo_url: karyakar.profile_photo_url || ''
-    });
+    console.log('Editing karyakar:', karyakar);
     setEditingKaryakar(karyakar);
     setShowRegistrationForm(true);
   };
@@ -391,7 +389,7 @@ const Karyakars = () => {
                   <span className="hidden sm:inline">Register Karyakar</span>
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>
                     {editingKaryakar ? 'Edit Karyakar' : 'Register New Karyakar'}
@@ -405,7 +403,11 @@ const Karyakars = () => {
                   formData={formData}
                   setFormData={setFormData}
                   onSubmit={handleSubmit}
-                  onCancel={() => setShowRegistrationForm(false)}
+                  onCancel={() => {
+                    setShowRegistrationForm(false);
+                    setEditingKaryakar(null);
+                    resetForm();
+                  }}
                   editingKaryakar={editingKaryakar}
                   mandirs={mandirs}
                   kshetras={kshetras}

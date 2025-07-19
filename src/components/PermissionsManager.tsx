@@ -1,617 +1,608 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { useToast } from '@/hooks/use-toast';
-import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Save, User, Shield, Users } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { SearchableSelect } from '@/components/SearchableSelect';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import { Trash2, Save, Users, Shield } from 'lucide-react';
+import type { Database } from '@/integrations/supabase/types';
 
-type UserRole = 'super_admin' | 'sant_nirdeshak' | 'sah_nirdeshak' | 'mandal_sanchalak' | 'karyakar' | 'sevak';
+type UserRole = Database['public']['Enums']['user_role'];
 
-type Profile = {
+interface Profile {
   id: string;
   full_name: string;
-  role: string;
+  role: UserRole;
   email?: string;
-};
+}
 
-type ModulePermission = {
-  id?: string;
-  user_id: string;
-  module_name: string;
+interface PermissionSet {
   can_view: boolean;
   can_add: boolean;
   can_edit: boolean;
   can_delete: boolean;
   can_export: boolean;
-};
+}
 
-type RolePermission = {
-  id?: string;
+interface UserPermission {
+  id: string;
+  user_id: string;
+  module: string;
+  profiles?: { full_name: string };
+} & PermissionSet;
+
+interface RolePermission {
+  id: string;
   role: UserRole;
   module_name: string;
-  can_view: boolean;
-  can_add: boolean;
-  can_edit: boolean;
-  can_delete: boolean;
-  can_export: boolean;
-};
+} & PermissionSet;
 
-const MODULES = [
-  'karyakars',
-  'tasks', 
-  'communication',
-  'reports',
-  'admin'
-];
-
-const PERMISSIONS = [
-  { key: 'can_view', label: 'View' },
-  { key: 'can_add', label: 'Add' },
-  { key: 'can_edit', label: 'Edit' },
-  { key: 'can_delete', label: 'Delete' },
-  { key: 'can_export', label: 'Export' }
-];
-
-const ROLES: UserRole[] = [
-  'sevak',
-  'karyakar', 
-  'mandal_sanchalak',
-  'sah_nirdeshak',
-  'sant_nirdeshak'
-];
-
-const PermissionsManager = () => {
+export const PermissionsManager = () => {
   const { toast } = useToast();
   const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [selectedUserId, setSelectedUserId] = useState<string>('');
-  const [selectedRole, setSelectedRole] = useState<UserRole | ''>('');
-  const [permissions, setPermissions] = useState<ModulePermission[]>([]);
+  const [userPermissions, setUserPermissions] = useState<UserPermission[]>([]);
   const [rolePermissions, setRolePermissions] = useState<RolePermission[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Form states
+  const [selectedUser, setSelectedUser] = useState<string>('');
+  const [selectedRole, setSelectedRole] = useState<UserRole>('sevak');
+  const [selectedModule, setSelectedModule] = useState<string>('');
+  const [userPermissionSet, setUserPermissionSet] = useState<PermissionSet>({
+    can_view: false,
+    can_add: false,
+    can_edit: false,
+    can_delete: false,
+    can_export: false
+  });
+  const [rolePermissionSet, setRolePermissionSet] = useState<PermissionSet>({
+    can_view: false,
+    can_add: false,
+    can_edit: false,
+    can_delete: false,
+    can_export: false
+  });
+
+  const modules = [
+    { value: 'dashboard', label: 'Dashboard' },
+    { value: 'karyakars', label: 'Karyakars' },
+    { value: 'tasks', label: 'Tasks' },
+    { value: 'communication', label: 'Communication' },
+    { value: 'reports', label: 'Reports' },
+    { value: 'admin', label: 'Admin' }
+  ];
+
+  const roles: { value: UserRole; label: string }[] = [
+    { value: 'sevak', label: 'Sevak' },
+    { value: 'karyakar', label: 'Karyakar' },
+    { value: 'mandal_sanchalak', label: 'Mandal Sanchalak' },
+    { value: 'sah_nirdeshak', label: 'Sah Nirdeshak' },
+    { value: 'sant_nirdeshak', label: 'Sant Nirdeshak' },
+    { value: 'super_admin', label: 'Super Admin' },
+  ];
+
+  const permissionTypes = [
+    { key: 'can_view', label: 'View' },
+    { key: 'can_add', label: 'Add' },
+    { key: 'can_edit', label: 'Edit' },
+    { key: 'can_delete', label: 'Delete' },
+    { key: 'can_export', label: 'Export' }
+  ];
 
   useEffect(() => {
-    fetchProfiles();
+    fetchData();
   }, []);
 
-  useEffect(() => {
-    if (selectedUserId) {
-      fetchUserPermissions(selectedUserId);
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      await Promise.all([
+        fetchProfiles(),
+        fetchUserPermissions(),
+        fetchRolePermissions()
+      ]);
+    } catch (error: any) {
+      console.error('Error fetching data:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch permissions data',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
     }
-  }, [selectedUserId]);
-
-  useEffect(() => {
-    if (selectedRole) {
-      fetchRolePermissions(selectedRole);
-    }
-  }, [selectedRole]);
+  };
 
   const fetchProfiles = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, role, email')
-        .eq('is_active', true)
-        .neq('role', 'super_admin')
-        .order('full_name');
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, full_name, role, email')
+      .eq('is_active', true)
+      .order('full_name');
 
-      if (error) throw error;
-      setProfiles(data || []);
-    } catch (error: any) {
-      console.error('Error fetching profiles:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch user profiles',
-        variant: 'destructive',
-      });
-    }
+    if (error) throw error;
+    setProfiles(data || []);
   };
 
-  const fetchUserPermissions = async (userId: string) => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('module_permissions')
-        .select('*')
-        .eq('user_id', userId);
+  const fetchUserPermissions = async () => {
+    const { data, error } = await supabase
+      .from('user_permissions')
+      .select(`
+        *,
+        profiles!user_permissions_user_id_fkey(full_name)
+      `)
+      .order('created_at', { ascending: false });
 
-      if (error) throw error;
-
-      // Create a full set of permissions for all modules
-      const userPermissions: ModulePermission[] = MODULES.map(module => {
-        const existingPermission = data?.find(p => p.module_name === module);
-        return existingPermission || {
-          user_id: userId,
-          module_name: module,
-          can_view: false,
-          can_add: false,
-          can_edit: false,
-          can_delete: false,
-          can_export: false
-        };
-      });
-
-      setPermissions(userPermissions);
-    } catch (error: any) {
+    if (error) {
       console.error('Error fetching user permissions:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch user permissions',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
+      return;
     }
+    setUserPermissions(data || []);
   };
 
-  const fetchRolePermissions = async (role: UserRole) => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('role_permissions')
-        .select('*')
-        .eq('role', role);
+  const fetchRolePermissions = async () => {
+    const { data, error } = await supabase
+      .from('role_permissions')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-      if (error) throw error;
-
-      // Create a full set of permissions for all modules
-      const rolePerms: RolePermission[] = MODULES.map(module => {
-        const existingPermission = data?.find(p => p.module_name === module);
-        return existingPermission || {
-          role: role,
-          module_name: module,
-          can_view: false,
-          can_add: false,
-          can_edit: false,
-          can_delete: false,
-          can_export: false
-        };
-      });
-
-      setRolePermissions(rolePerms);
-    } catch (error: any) {
+    if (error) {
       console.error('Error fetching role permissions:', error);
+      return;
+    }
+    setRolePermissions(data || []);
+  };
+
+  const saveUserPermission = async () => {
+    if (!selectedUser || !selectedModule) {
       toast({
         title: 'Error',
-        description: 'Failed to fetch role permissions',
+        description: 'Please select a user and module',
         variant: 'destructive',
       });
-    } finally {
-      setLoading(false);
+      return;
     }
-  };
-
-  const updateUserPermission = (moduleIndex: number, permissionKey: string, value: boolean) => {
-    setPermissions(prev => {
-      const updated = [...prev];
-      updated[moduleIndex] = {
-        ...updated[moduleIndex],
-        [permissionKey]: value
-      };
-      return updated;
-    });
-  };
-
-  const updateRolePermission = (moduleIndex: number, permissionKey: string, value: boolean) => {
-    setRolePermissions(prev => {
-      const updated = [...prev];
-      updated[moduleIndex] = {
-        ...updated[moduleIndex],
-        [permissionKey]: value
-      };
-      return updated;
-    });
-  };
-
-  const setAllUserPermissionsForModule = (moduleIndex: number, value: boolean) => {
-    setPermissions(prev => {
-      const updated = [...prev];
-      updated[moduleIndex] = {
-        ...updated[moduleIndex],
-        can_view: value,
-        can_add: value,
-        can_edit: value,
-        can_delete: value,
-        can_export: value
-      };
-      return updated;
-    });
-  };
-
-  const setAllRolePermissionsForModule = (moduleIndex: number, value: boolean) => {
-    setRolePermissions(prev => {
-      const updated = [...prev];
-      updated[moduleIndex] = {
-        ...updated[moduleIndex],
-        can_view: value,
-        can_add: value,
-        can_edit: value,
-        can_delete: value,
-        can_export: value
-      };
-      return updated;
-    });
-  };
-
-  const saveUserPermissions = async () => {
-    if (!selectedUserId) return;
 
     try {
-      setSaving(true);
+      console.log('Saving user permission:', { 
+        user_id: selectedUser, 
+        module: selectedModule, 
+        ...userPermissionSet 
+      });
+      
+      // Check if permission already exists
+      const { data: existing } = await supabase
+        .from('user_permissions')
+        .select('id')
+        .eq('user_id', selectedUser)
+        .eq('module', selectedModule)
+        .single();
 
-      // Delete existing permissions for this user
-      await supabase
-        .from('module_permissions')
-        .delete()
-        .eq('user_id', selectedUserId);
-
-      // Insert new permissions (only for modules that have at least one permission enabled)
-      const permissionsToInsert = permissions.filter(permission => 
-        permission.can_view || permission.can_add || permission.can_edit || 
-        permission.can_delete || permission.can_export
-      );
-
-      if (permissionsToInsert.length > 0) {
+      if (existing) {
+        // Update existing permission
         const { error } = await supabase
-          .from('module_permissions')
-          .insert(permissionsToInsert.map(p => ({
-            user_id: p.user_id,
-            module_name: p.module_name,
-            can_view: p.can_view,
-            can_add: p.can_add,
-            can_edit: p.can_edit,
-            can_delete: p.can_delete,
-            can_export: p.can_export
-          })));
+          .from('user_permissions')
+          .update({
+            ...userPermissionSet,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existing.id);
+
+        if (error) throw error;
+      } else {
+        // Create new permission
+        const { error } = await supabase
+          .from('user_permissions')
+          .insert({
+            user_id: selectedUser,
+            module: selectedModule,
+            ...userPermissionSet
+          });
 
         if (error) throw error;
       }
 
       toast({
         title: 'Success',
-        description: 'User permissions updated successfully',
+        description: 'User permission saved successfully',
       });
 
-      // Refresh permissions
-      fetchUserPermissions(selectedUserId);
+      // Reset form
+      setSelectedUser('');
+      setSelectedModule('');
+      setUserPermissionSet({
+        can_view: false,
+        can_add: false,
+        can_edit: false,
+        can_delete: false,
+        can_export: false
+      });
+
+      fetchUserPermissions();
     } catch (error: any) {
-      console.error('Error saving user permissions:', error);
+      console.error('Error saving user permission:', error);
       toast({
         title: 'Error',
-        description: 'Failed to save user permissions',
+        description: `Failed to save user permission: ${error.message}`,
         variant: 'destructive',
       });
-    } finally {
-      setSaving(false);
     }
   };
 
-  const saveRolePermissions = async () => {
-    if (!selectedRole) return;
+  const saveRolePermission = async () => {
+    if (!selectedRole || !selectedModule) {
+      toast({
+        title: 'Error',
+        description: 'Please select a role and module',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     try {
-      setSaving(true);
-
-      // Delete existing permissions for this role
-      await supabase
+      console.log('Saving role permission:', { 
+        role: selectedRole, 
+        module_name: selectedModule, 
+        ...rolePermissionSet 
+      });
+      
+      // Check if permission already exists
+      const { data: existing } = await supabase
         .from('role_permissions')
-        .delete()
-        .eq('role', selectedRole);
+        .select('id')
+        .eq('role', selectedRole)
+        .eq('module_name', selectedModule)
+        .single();
 
-      // Insert new permissions (only for modules that have at least one permission enabled)
-      const permissionsToInsert = rolePermissions.filter(permission => 
-        permission.can_view || permission.can_add || permission.can_edit || 
-        permission.can_delete || permission.can_export
-      );
-
-      if (permissionsToInsert.length > 0) {
+      if (existing) {
+        // Update existing permission
         const { error } = await supabase
           .from('role_permissions')
-          .insert(permissionsToInsert);
+          .update({
+            ...rolePermissionSet,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existing.id);
+
+        if (error) throw error;
+      } else {
+        // Create new permission
+        const { error } = await supabase
+          .from('role_permissions')
+          .insert({
+            role: selectedRole,
+            module_name: selectedModule,
+            ...rolePermissionSet
+          });
 
         if (error) throw error;
       }
 
       toast({
         title: 'Success',
-        description: 'Role permissions updated successfully',
+        description: 'Role permission saved successfully',
       });
 
-      // Refresh permissions
-      fetchRolePermissions(selectedRole);
+      // Reset form
+      setSelectedRole('sevak');
+      setSelectedModule('');
+      setRolePermissionSet({
+        can_view: false,
+        can_add: false,
+        can_edit: false,
+        can_delete: false,
+        can_export: false
+      });
+
+      fetchRolePermissions();
     } catch (error: any) {
-      console.error('Error saving role permissions:', error);
+      console.error('Error saving role permission:', error);
       toast({
         title: 'Error',
-        description: 'Failed to save role permissions',
+        description: `Failed to save role permission: ${error.message}`,
         variant: 'destructive',
       });
-    } finally {
-      setSaving(false);
     }
   };
 
-  const selectedProfile = profiles.find(p => p.id === selectedUserId);
+  const deleteUserPermission = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this user permission?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('user_permissions')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'User permission deleted successfully',
+      });
+
+      fetchUserPermissions();
+    } catch (error: any) {
+      console.error('Error deleting user permission:', error);
+      toast({
+        title: 'Error',
+        description: `Failed to delete user permission: ${error.message}`,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const deleteRolePermission = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this role permission?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('role_permissions')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Role permission deleted successfully',
+      });
+
+      fetchRolePermissions();
+    } catch (error: any) {
+      console.error('Error deleting role permission:', error);
+      toast({
+        title: 'Error',
+        description: `Failed to delete role permission: ${error.message}`,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64">Loading permissions...</div>;
+  }
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Module Permissions</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Permissions Management</h2>
         <p className="text-gray-600">Manage user and role-based permissions for different modules</p>
       </div>
 
-      <Tabs defaultValue="user-permissions" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="user-permissions">User Permissions</TabsTrigger>
-          <TabsTrigger value="role-permissions">Role Permissions</TabsTrigger>
+      <Tabs defaultValue="user-permissions" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="user-permissions" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            User Permissions
+          </TabsTrigger>
+          <TabsTrigger value="role-permissions" className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            Role Permissions
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="user-permissions" className="space-y-6">
-          {/* User Selection */}
+          {/* User Permission Form */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Select User
-              </CardTitle>
-              <CardDescription>
-                Choose a user to manage their module permissions (user permissions override role permissions)
-              </CardDescription>
+              <CardTitle>Assign User Permissions</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="flex gap-4 items-end">
-                <div className="flex-1">
-                  <label className="text-sm font-medium">User</label>
-                  <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a user" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {profiles.map((profile) => (
-                        <SelectItem key={profile.id} value={profile.id}>
-                          <div className="flex items-center gap-2">
-                            <span>{profile.full_name}</span>
-                            <Badge variant="outline" className="text-xs">
-                              {profile.role.replace('_', ' ')}
-                            </Badge>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Select User</Label>
+                  <SearchableSelect
+                    options={profiles.map(p => ({ 
+                      value: p.id, 
+                      label: `${p.full_name} (${p.role.replace('_', ' ')})` 
+                    }))}
+                    value={selectedUser}
+                    onValueChange={setSelectedUser}
+                    placeholder="Select User"
+                  />
                 </div>
-                {selectedProfile && (
-                  <div className="text-sm text-gray-600">
-                    <div>Email: {selectedProfile.email || 'N/A'}</div>
-                    <div>Role: {selectedProfile.role.replace('_', ' ')}</div>
-                  </div>
-                )}
+                <div>
+                  <Label>Select Module</Label>
+                  <SearchableSelect
+                    options={modules}
+                    value={selectedModule}
+                    onValueChange={setSelectedModule}
+                    placeholder="Select Module"
+                  />
+                </div>
               </div>
+
+              <div className="space-y-3">
+                <Label>Permissions</Label>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  {permissionTypes.map((permission) => (
+                    <div key={permission.key} className="flex items-center space-x-2">
+                      <Switch
+                        checked={userPermissionSet[permission.key as keyof PermissionSet]}
+                        onCheckedChange={(checked) => 
+                          setUserPermissionSet({ 
+                            ...userPermissionSet, 
+                            [permission.key]: checked 
+                          })
+                        }
+                      />
+                      <Label className="text-sm">{permission.label}</Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <Button onClick={saveUserPermission} className="w-full">
+                <Save className="h-4 w-4 mr-2" />
+                Save User Permission
+              </Button>
             </CardContent>
           </Card>
 
-          {/* User Permissions Grid */}
-          {selectedUserId && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5" />
-                  User Module Permissions
-                </CardTitle>
-                <CardDescription>
-                  Configure specific permissions for {selectedProfile?.full_name}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="text-center py-8">Loading permissions...</div>
-                ) : (
-                  <div className="space-y-6">
-                    {permissions.map((permission, moduleIndex) => (
-                      <div key={permission.module_name} className="border rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-4">
-                          <div>
-                            <h3 className="font-medium capitalize">
-                              {permission.module_name}
-                            </h3>
-                            <p className="text-sm text-gray-600">
-                              Manage access to {permission.module_name} module
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setAllUserPermissionsForModule(moduleIndex, true)}
-                            >
-                              Enable All
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setAllUserPermissionsForModule(moduleIndex, false)}
-                            >
-                              Disable All
-                            </Button>
-                          </div>
+          {/* User Permissions List */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Current User Permissions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {userPermissions.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No user-specific permissions configured</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {userPermissions.map((permission) => (
+                    <div key={permission.id} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <h4 className="font-medium">
+                            {permission.profiles?.full_name || 'Unknown User'}
+                          </h4>
+                          <p className="text-sm text-gray-600 capitalize">
+                            Module: {permission.module}
+                          </p>
                         </div>
-                        
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                          {PERMISSIONS.map((perm) => (
-                            <div key={perm.key} className="flex items-center space-x-2">
-                              <Switch
-                                id={`${permission.module_name}-${perm.key}`}
-                                checked={permission[perm.key as keyof ModulePermission] as boolean}
-                                onCheckedChange={(checked) => 
-                                  updateUserPermission(moduleIndex, perm.key, checked)
-                                }
-                              />
-                              <label
-                                htmlFor={`${permission.module_name}-${perm.key}`}
-                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                              >
-                                {perm.label}
-                              </label>
-                            </div>
-                          ))}
-                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteUserPermission(permission.id)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
-                    ))}
-
-                    <div className="flex justify-end pt-4">
-                      <Button onClick={saveUserPermissions} disabled={saving}>
-                        <Save className="h-4 w-4 mr-2" />
-                        {saving ? 'Saving...' : 'Save User Permissions'}
-                      </Button>
+                      <div className="flex gap-2 flex-wrap">
+                        {permissionTypes.map((perm) => (
+                          <Badge
+                            key={perm.key}
+                            variant={permission[perm.key as keyof PermissionSet] ? "default" : "secondary"}
+                          >
+                            {perm.label}: {permission[perm.key as keyof PermissionSet] ? '✓' : '✗'}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {!selectedUserId && (
-            <Card>
-              <CardContent className="text-center py-12">
-                <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No User Selected</h3>
-                <p className="text-gray-600">Select a user above to manage their module permissions</p>
-              </CardContent>
-            </Card>
-          )}
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="role-permissions" className="space-y-6">
-          {/* Role Selection */}
+          {/* Role Permission Form */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Select Role
-              </CardTitle>
-              <CardDescription>
-                Choose a role to manage default permissions for all users with that role
-              </CardDescription>
+              <CardTitle>Configure Role Permissions</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="flex gap-4 items-end">
-                <div className="flex-1">
-                  <label className="text-sm font-medium">Role</label>
-                  <Select value={selectedRole} onValueChange={(value: UserRole) => setSelectedRole(value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ROLES.map((role) => (
-                        <SelectItem key={role} value={role}>
-                          <span className="capitalize">{role.replace('_', ' ')}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Select Role</Label>
+                  <SearchableSelect
+                    options={roles}
+                    value={selectedRole}
+                    onValueChange={(value) => setSelectedRole(value as UserRole)}
+                    placeholder="Select Role"
+                  />
+                </div>
+                <div>
+                  <Label>Select Module</Label>
+                  <SearchableSelect
+                    options={modules}
+                    value={selectedModule}
+                    onValueChange={setSelectedModule}
+                    placeholder="Select Module"
+                  />
                 </div>
               </div>
+
+              <div className="space-y-3">
+                <Label>Permissions</Label>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  {permissionTypes.map((permission) => (
+                    <div key={permission.key} className="flex items-center space-x-2">
+                      <Switch
+                        checked={rolePermissionSet[permission.key as keyof PermissionSet]}
+                        onCheckedChange={(checked) => 
+                          setRolePermissionSet({ 
+                            ...rolePermissionSet, 
+                            [permission.key]: checked 
+                          })
+                        }
+                      />
+                      <Label className="text-sm">{permission.label}</Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <Button onClick={saveRolePermission} className="w-full">
+                <Save className="h-4 w-4 mr-2" />
+                Save Role Permission
+              </Button>
             </CardContent>
           </Card>
 
-          {/* Role Permissions Grid */}
-          {selectedRole && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5" />
-                  Role Module Permissions
-                </CardTitle>
-                <CardDescription>
-                  Default permissions for {selectedRole.replace('_', ' ')} role (individual user permissions override these)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="text-center py-8">Loading permissions...</div>
-                ) : (
-                  <div className="space-y-6">
-                    {rolePermissions.map((permission, moduleIndex) => (
-                      <div key={permission.module_name} className="border rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-4">
-                          <div>
-                            <h3 className="font-medium capitalize">
-                              {permission.module_name}
-                            </h3>
-                            <p className="text-sm text-gray-600">
-                              Default access to {permission.module_name} module for {selectedRole.replace('_', ' ')} role
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setAllRolePermissionsForModule(moduleIndex, true)}
-                            >
-                              Enable All
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setAllRolePermissionsForModule(moduleIndex, false)}
-                            >
-                              Disable All
-                            </Button>
-                          </div>
+          {/* Role Permissions List */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Current Role Permissions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {rolePermissions.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No role-based permissions configured</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {rolePermissions.map((permission) => (
+                    <div key={permission.id} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <h4 className="font-medium capitalize">
+                            {permission.role.replace('_', ' ')}
+                          </h4>
+                          <p className="text-sm text-gray-600 capitalize">
+                            Module: {permission.module_name}
+                          </p>
                         </div>
-                        
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                          {PERMISSIONS.map((perm) => (
-                            <div key={perm.key} className="flex items-center space-x-2">
-                              <Switch
-                                id={`${permission.module_name}-${perm.key}-role`}
-                                checked={permission[perm.key as keyof RolePermission] as boolean}
-                                onCheckedChange={(checked) => 
-                                  updateRolePermission(moduleIndex, perm.key, checked)
-                                }
-                              />
-                              <label
-                                htmlFor={`${permission.module_name}-${perm.key}-role`}
-                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                              >
-                                {perm.label}
-                              </label>
-                            </div>
-                          ))}
-                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteRolePermission(permission.id)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
-                    ))}
-
-                    <div className="flex justify-end pt-4">
-                      <Button onClick={saveRolePermissions} disabled={saving}>
-                        <Save className="h-4 w-4 mr-2" />
-                        {saving ? 'Saving...' : 'Save Role Permissions'}
-                      </Button>
+                      <div className="flex gap-2 flex-wrap">
+                        {permissionTypes.map((perm) => (
+                          <Badge
+                            key={perm.key}
+                            variant={permission[perm.key as keyof PermissionSet] ? "default" : "secondary"}
+                          >
+                            {perm.label}: {permission[perm.key as keyof PermissionSet] ? '✓' : '✗'}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {!selectedRole && (
-            <Card>
-              <CardContent className="text-center py-12">
-                <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Role Selected</h3>
-                <p className="text-gray-600">Select a role above to manage its default module permissions</p>
-              </CardContent>
-            </Card>
-          )}
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
   );
 };
-
-export default PermissionsManager;
