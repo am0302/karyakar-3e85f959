@@ -9,7 +9,7 @@ import { SearchableSelect } from "@/components/SearchableSelect";
 interface FormField {
   name: string;
   label: string;
-  type: 'text' | 'textarea' | 'select';
+  type: 'text' | 'textarea' | 'select' | 'date' | 'number' | 'time';
   required?: boolean;
   options?: Array<{ value: string; label: string }>;
   foreignKey?: string;
@@ -60,7 +60,7 @@ export const MasterDataForm = ({
           ) : (
             <Input
               id={field.name}
-              type={field.type}
+              type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : field.type === 'time' ? 'time' : 'text'}
               value={formData[field.name] || ''}
               onChange={(e) => onFormDataChange(field.name, e.target.value)}
               required={field.required}
