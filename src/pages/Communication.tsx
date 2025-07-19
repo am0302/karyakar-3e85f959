@@ -85,8 +85,7 @@ const Communication = () => {
             filter: `room_id=eq.${selectedRoom.id}`,
           },
           (payload) => {
-            const newMessage = payload.new as any;
-            fetchMessages(selectedRoom.id); // Refresh messages to get sender info
+            fetchMessages(selectedRoom.id);
           }
         )
         .subscribe();
@@ -106,9 +105,15 @@ const Communication = () => {
         .order('full_name');
 
       if (error) throw error;
+      console.log('Fetched users for chat:', data);
       setAllUsers(data || []);
     } catch (error: any) {
       console.error('Error fetching users:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch users',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -117,8 +122,9 @@ const Communication = () => {
 
     try {
       setLoading(true);
+      console.log('Fetching chat rooms for user:', user.id);
       
-      // First get all rooms where user is a participant
+      // Get all rooms where user is a participant
       const { data: participantRooms, error: participantError } = await supabase
         .from('chat_participants')
         .select(`
@@ -133,26 +139,28 @@ const Communication = () => {
         `)
         .eq('user_id', user.id);
 
-      if (participantError) throw participantError;
+      if (participantError) {
+        console.error('Error fetching participant rooms:', participantError);
+        throw participantError;
+      }
 
-      const roomIds = participantRooms?.map(p => p.room_id) || [];
-      
-      if (roomIds.length === 0) {
+      console.log('Participant rooms:', participantRooms);
+
+      if (!participantRooms || participantRooms.length === 0) {
         setChatRooms([]);
         setLoading(false);
         return;
       }
 
-      // Get room details with participants
       const rooms: ChatRoom[] = [];
       
-      for (const roomData of participantRooms || []) {
+      for (const roomData of participantRooms) {
         if (!roomData.chat_rooms) continue;
         
         const room = roomData.chat_rooms as any;
         
         // Get participants for this room
-        const { data: participants } = await supabase
+        const { data: participants, error: participantsError } = await supabase
           .from('chat_participants')
           .select(`
             profiles (
@@ -163,6 +171,11 @@ const Communication = () => {
             )
           `)
           .eq('room_id', room.id);
+
+        if (participantsError) {
+          console.error('Error fetching participants:', participantsError);
+          continue;
+        }
 
         // Get last message
         const { data: lastMsg } = await supabase
@@ -188,12 +201,13 @@ const Communication = () => {
         });
       }
 
+      console.log('Processed chat rooms:', rooms);
       setChatRooms(rooms);
     } catch (error: any) {
       console.error('Error fetching chat rooms:', error);
       toast({
         title: 'Error',
-        description: 'Failed to fetch chat rooms',
+        description: `Failed to fetch chat rooms: ${error.message}`,
         variant: 'destructive',
       });
     } finally {
@@ -203,6 +217,7 @@ const Communication = () => {
 
   const fetchMessages = async (roomId: string) => {
     try {
+      console.log('Fetching messages for room:', roomId);
       const { data, error } = await supabase
         .from('messages')
         .select(`
@@ -213,9 +228,13 @@ const Communication = () => {
           profiles:sender_id (full_name)
         `)
         .eq('room_id', roomId)
+        .eq('is_deleted', false)
         .order('created_at', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching messages:', error);
+        throw error;
+      }
 
       const formattedMessages = data?.map(msg => ({
         id: msg.id,
@@ -225,18 +244,33 @@ const Communication = () => {
         sender_name: (msg.profiles as any)?.full_name || 'Unknown'
       })) || [];
 
+      console.log('Fetched messages:', formattedMessages);
       setMessages(formattedMessages);
     } catch (error: any) {
       console.error('Error fetching messages:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch messages',
+        variant: 'destructive',
+      });
     }
   };
 
   const createNewChat = async () => {
-    if (!user || selectedUsers.length === 0) return;
+    if (!user || selectedUsers.length === 0) {
+      toast({
+        title: 'Error',
+        description: 'Please select at least one user',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     try {
       const isGroup = selectedUsers.length > 1;
       const roomName = isGroup ? chatName || 'Group Chat' : null;
+
+      console.log('Creating new chat:', { isGroup, roomName, selectedUsers });
 
       // Create chat room
       const { data: roomData, error: roomError } = await supabase
@@ -249,20 +283,32 @@ const Communication = () => {
         .select()
         .single();
 
-      if (roomError) throw roomError;
+      if (roomError) {
+        console.error('Error creating room:', roomError);
+        throw new Error(`Failed to create chat room: ${roomError.message}`);
+      }
 
-      // Add creator as participant
+      console.log('Created room:', roomData);
+
+      // Add all participants including creator
       const participants = [user.id, ...selectedUsers];
       const participantData = participants.map(userId => ({
         room_id: roomData.id,
         user_id: userId,
       }));
 
+      console.log('Adding participants:', participantData);
+
       const { error: participantError } = await supabase
         .from('chat_participants')
         .insert(participantData);
 
-      if (participantError) throw participantError;
+      if (participantError) {
+        console.error('Error adding participants:', participantError);
+        // Try to cleanup the room if participant addition fails
+        await supabase.from('chat_rooms').delete().eq('id', roomData.id);
+        throw new Error(`Failed to add participants: ${participantError.message}`);
+      }
 
       toast({
         title: 'Success',
@@ -272,12 +318,13 @@ const Communication = () => {
       setShowNewChatDialog(false);
       setSelectedUsers([]);
       setChatName('');
+      setSearchQuery('');
       fetchChatRooms();
     } catch (error: any) {
       console.error('Error creating chat:', error);
       toast({
         title: 'Error',
-        description: `Failed to create chat: ${error.message}`,
+        description: error.message || 'Failed to create chat',
         variant: 'destructive',
       });
     }
@@ -287,22 +334,32 @@ const Communication = () => {
     if (!user || !selectedRoom || !newMessage.trim()) return;
 
     try {
+      console.log('Sending message:', { 
+        room_id: selectedRoom.id, 
+        sender_id: user.id, 
+        content: newMessage.trim() 
+      });
+
       const { error } = await supabase
         .from('messages')
         .insert({
           room_id: selectedRoom.id,
           sender_id: user.id,
           content: newMessage.trim(),
+          message_type: 'text'
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error sending message:', error);
+        throw error;
+      }
 
       setNewMessage('');
     } catch (error: any) {
       console.error('Error sending message:', error);
       toast({
         title: 'Error',
-        description: 'Failed to send message',
+        description: `Failed to send message: ${error.message}`,
         variant: 'destructive',
       });
     }
@@ -362,32 +419,35 @@ const Communication = () => {
               
               <ScrollArea className="h-48">
                 <div className="space-y-2">
-                  {filteredUsers.map((user) => (
+                  {filteredUsers.map((userProfile) => (
                     <div
-                      key={user.id}
+                      key={userProfile.id}
                       className={`flex items-center space-x-3 p-2 rounded cursor-pointer hover:bg-gray-100 ${
-                        selectedUsers.includes(user.id) ? 'bg-blue-50 border-blue-200' : ''
+                        selectedUsers.includes(userProfile.id) ? 'bg-blue-50 border border-blue-200' : ''
                       }`}
                       onClick={() => {
                         setSelectedUsers(prev => 
-                          prev.includes(user.id) 
-                            ? prev.filter(id => id !== user.id)
-                            : [...prev, user.id]
+                          prev.includes(userProfile.id) 
+                            ? prev.filter(id => id !== userProfile.id)
+                            : [...prev, userProfile.id]
                         );
                       }}
                     >
                       <Avatar className="h-8 w-8">
-                        <AvatarImage src={user.profile_photo_url} />
+                        <AvatarImage src={userProfile.profile_photo_url} />
                         <AvatarFallback>
-                          {user.full_name.charAt(0).toUpperCase()}
+                          {userProfile.full_name.charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
-                        <p className="text-sm font-medium">{user.full_name}</p>
-                        <p className="text-xs text-gray-500">{user.role}</p>
+                        <p className="text-sm font-medium">{userProfile.full_name}</p>
+                        <p className="text-xs text-gray-500 capitalize">{userProfile.role.replace('_', ' ')}</p>
                       </div>
                     </div>
                   ))}
+                  {filteredUsers.length === 0 && (
+                    <p className="text-center text-gray-500 py-4">No users found</p>
+                  )}
                 </div>
               </ScrollArea>
 
@@ -404,7 +464,7 @@ const Communication = () => {
                 disabled={selectedUsers.length === 0}
                 className="w-full"
               >
-                Create Chat
+                Create Chat ({selectedUsers.length} selected)
               </Button>
             </div>
           </DialogContent>
@@ -462,7 +522,7 @@ const Communication = () => {
                           )}
                           {room.is_group && (
                             <Badge variant="secondary" className="text-xs mt-1">
-                              Group
+                              Group ({room.participants?.length || 0})
                             </Badge>
                           )}
                         </div>

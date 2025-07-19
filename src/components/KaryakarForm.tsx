@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -57,11 +57,33 @@ export const KaryakarForm = ({
 }: KaryakarFormProps) => {
   const [photoMethod, setPhotoMethod] = useState<'upload' | 'url'>('url');
 
+  // Update form data when editing karyakar changes
+  useEffect(() => {
+    if (editingKaryakar) {
+      console.log('Setting form data for editing:', editingKaryakar);
+      setFormData({
+        full_name: editingKaryakar.full_name || '',
+        email: editingKaryakar.email || '',
+        mobile_number: editingKaryakar.mobile_number || '',
+        whatsapp_number: editingKaryakar.whatsapp_number || '',
+        is_whatsapp_same_as_mobile: editingKaryakar.is_whatsapp_same_as_mobile || false,
+        date_of_birth: editingKaryakar.date_of_birth || '',
+        age: editingKaryakar.age?.toString() || '',
+        profession_id: editingKaryakar.profession_id || '',
+        mandir_id: editingKaryakar.mandir_id || '',
+        kshetra_id: editingKaryakar.kshetra_id || '',
+        village_id: editingKaryakar.village_id || '',
+        mandal_id: editingKaryakar.mandal_id || '',
+        seva_type_id: editingKaryakar.seva_type_id || '',
+        role: editingKaryakar.role,
+        profile_photo_url: editingKaryakar.profile_photo_url || ''
+      });
+    }
+  }, [editingKaryakar, setFormData]);
+
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // For now, we'll use a simple file reader to create a preview
-      // In a real implementation, you'd upload to Supabase storage
       const reader = new FileReader();
       reader.onload = (e) => {
         const result = e.target?.result as string;
@@ -69,6 +91,11 @@ export const KaryakarForm = ({
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleInputChange = (field: string, value: any) => {
+    console.log(`Updating ${field} to:`, value);
+    setFormData({ ...formData, [field]: value });
   };
 
   return (
@@ -80,13 +107,13 @@ export const KaryakarForm = ({
           <CardDescription>Enter the karyakar's personal details</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="full_name">Full Name *</Label>
               <Input
                 id="full_name"
-                value={formData.full_name}
-                onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                value={formData.full_name || ''}
+                onChange={(e) => handleInputChange('full_name', e.target.value)}
                 required
               />
             </div>
@@ -97,7 +124,7 @@ export const KaryakarForm = ({
                 id="email"
                 type="email"
                 value={formData.email || ''}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onChange={(e) => handleInputChange('email', e.target.value)}
                 placeholder="example@email.com"
               />
             </div>
@@ -107,8 +134,8 @@ export const KaryakarForm = ({
             <Label htmlFor="mobile_number">Mobile Number *</Label>
             <Input
               id="mobile_number"
-              value={formData.mobile_number}
-              onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value })}
+              value={formData.mobile_number || ''}
+              onChange={(e) => handleInputChange('mobile_number', e.target.value)}
               required
             />
           </div>
@@ -117,7 +144,7 @@ export const KaryakarForm = ({
             <Switch
               id="is_whatsapp_same_as_mobile"
               checked={formData.is_whatsapp_same_as_mobile}
-              onCheckedChange={(checked) => setFormData({ ...formData, is_whatsapp_same_as_mobile: checked })}
+              onCheckedChange={(checked) => handleInputChange('is_whatsapp_same_as_mobile', checked)}
             />
             <Label htmlFor="is_whatsapp_same_as_mobile">WhatsApp number is same as mobile</Label>
           </div>
@@ -127,20 +154,20 @@ export const KaryakarForm = ({
               <Label htmlFor="whatsapp_number">WhatsApp Number</Label>
               <Input
                 id="whatsapp_number"
-                value={formData.whatsapp_number}
-                onChange={(e) => setFormData({ ...formData, whatsapp_number: e.target.value })}
+                value={formData.whatsapp_number || ''}
+                onChange={(e) => handleInputChange('whatsapp_number', e.target.value)}
               />
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="date_of_birth">Date of Birth</Label>
               <Input
                 id="date_of_birth"
                 type="date"
-                value={formData.date_of_birth}
-                onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
+                value={formData.date_of_birth || ''}
+                onChange={(e) => handleInputChange('date_of_birth', e.target.value)}
               />
             </div>
             
@@ -149,8 +176,8 @@ export const KaryakarForm = ({
               <Input
                 id="age"
                 type="number"
-                value={formData.age}
-                onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+                value={formData.age || ''}
+                onChange={(e) => handleInputChange('age', e.target.value)}
               />
             </div>
           </div>
@@ -198,8 +225,8 @@ export const KaryakarForm = ({
             <div>
               <Input
                 placeholder="https://example.com/photo.jpg"
-                value={formData.profile_photo_url}
-                onChange={(e) => setFormData({ ...formData, profile_photo_url: e.target.value })}
+                value={formData.profile_photo_url || ''}
+                onChange={(e) => handleInputChange('profile_photo_url', e.target.value)}
               />
             </div>
           )}
@@ -207,15 +234,15 @@ export const KaryakarForm = ({
           {formData.profile_photo_url && (
             <div className="flex justify-center">
               <div className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center overflow-hidden">
-                {formData.profile_photo_url ? (
-                  <img
-                    src={formData.profile_photo_url}
-                    alt="Profile preview"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <User className="w-8 h-8 text-gray-400" />
-                )}
+                <img
+                  src={formData.profile_photo_url}
+                  alt="Profile preview"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                  }}
+                />
               </div>
             </div>
           )}
@@ -229,13 +256,13 @@ export const KaryakarForm = ({
           <CardDescription>Select profession and seva type</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label>Profession</Label>
               <SearchableSelect
                 options={professions.map(p => ({ value: p.id, label: p.name }))}
-                value={formData.profession_id}
-                onValueChange={(value) => setFormData({ ...formData, profession_id: value })}
+                value={formData.profession_id || ''}
+                onValueChange={(value) => handleInputChange('profession_id', value)}
                 placeholder="Select Profession"
               />
             </div>
@@ -244,8 +271,8 @@ export const KaryakarForm = ({
               <Label>Seva Type</Label>
               <SearchableSelect
                 options={sevaTypes.map(s => ({ value: s.id, label: s.name }))}
-                value={formData.seva_type_id}
-                onValueChange={(value) => setFormData({ ...formData, seva_type_id: value })}
+                value={formData.seva_type_id || ''}
+                onValueChange={(value) => handleInputChange('seva_type_id', value)}
                 placeholder="Select Seva Type"
               />
             </div>
@@ -260,13 +287,13 @@ export const KaryakarForm = ({
           <CardDescription>Select mandir, kshetra, village, and mandal</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label>Mandir</Label>
               <SearchableSelect
                 options={mandirs.map(m => ({ value: m.id, label: m.name }))}
-                value={formData.mandir_id}
-                onValueChange={(value) => setFormData({ ...formData, mandir_id: value })}
+                value={formData.mandir_id || ''}
+                onValueChange={(value) => handleInputChange('mandir_id', value)}
                 placeholder="Select Mandir"
               />
             </div>
@@ -275,20 +302,20 @@ export const KaryakarForm = ({
               <Label>Kshetra</Label>
               <SearchableSelect
                 options={kshetras.map(k => ({ value: k.id, label: k.name }))}
-                value={formData.kshetra_id}
-                onValueChange={(value) => setFormData({ ...formData, kshetra_id: value })}
+                value={formData.kshetra_id || ''}
+                onValueChange={(value) => handleInputChange('kshetra_id', value)}
                 placeholder="Select Kshetra"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label>Village</Label>
               <SearchableSelect
                 options={villages.map(v => ({ value: v.id, label: v.name }))}
-                value={formData.village_id}
-                onValueChange={(value) => setFormData({ ...formData, village_id: value })}
+                value={formData.village_id || ''}
+                onValueChange={(value) => handleInputChange('village_id', value)}
                 placeholder="Select Village"
               />
             </div>
@@ -297,8 +324,8 @@ export const KaryakarForm = ({
               <Label>Mandal</Label>
               <SearchableSelect
                 options={mandals.map(m => ({ value: m.id, label: m.name }))}
-                value={formData.mandal_id}
-                onValueChange={(value) => setFormData({ ...formData, mandal_id: value })}
+                value={formData.mandal_id || ''}
+                onValueChange={(value) => handleInputChange('mandal_id', value)}
                 placeholder="Select Mandal"
               />
             </div>
@@ -324,8 +351,8 @@ export const KaryakarForm = ({
                 { value: 'sant_nirdeshak', label: 'Sant Nirdeshak' },
                 { value: 'super_admin', label: 'Super Admin' },
               ]}
-              value={formData.role}
-              onValueChange={(value) => setFormData({ ...formData, role: value as UserRole })}
+              value={formData.role || 'sevak'}
+              onValueChange={(value) => handleInputChange('role', value as UserRole)}
               placeholder="Select Role"
             />
           </div>
