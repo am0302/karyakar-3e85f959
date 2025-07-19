@@ -30,7 +30,7 @@ import type { Database } from '@/integrations/supabase/types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 type ChatRoom = Database['public']['Tables']['chat_rooms']['Row'] & {
-  participants?: Array<{
+  chat_participants?: Array<{
     user_id: string;
     profiles: {
       full_name: string;
@@ -52,6 +52,14 @@ type Message = Database['public']['Tables']['messages']['Row'] & {
   };
 };
 
+// Simple profile type for chat participants
+type ChatProfile = {
+  id: string;
+  full_name: string;
+  profile_photo_url?: string;
+  role: string;
+};
+
 const Communication = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -61,7 +69,7 @@ const Communication = () => {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [showNewChatDialog, setShowNewChatDialog] = useState(false);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [profiles, setProfiles] = useState<ChatProfile[]>([]);
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
   const [newChatName, setNewChatName] = useState('');
   const [isGroupChat, setIsGroupChat] = useState(false);
