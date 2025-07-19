@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,18 +29,18 @@ interface PermissionSet {
   can_export: boolean;
 }
 
-interface UserPermission {
+interface UserPermission extends PermissionSet {
   id: string;
   user_id: string;
   module: string;
   profiles?: { full_name: string };
-} & PermissionSet;
+}
 
-interface RolePermission {
+interface RolePermission extends PermissionSet {
   id: string;
   role: UserRole;
   module_name: string;
-} & PermissionSet;
+}
 
 export const PermissionsManager = () => {
   const { toast } = useToast();
