@@ -8,18 +8,23 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { MasterDataDialog } from "@/components/MasterDataDialog";
 import PermissionsManager from "@/components/PermissionsManager";
+import { useAuth } from "@/components/AuthProvider";
+import { usePermissions } from "@/hooks/usePermissions";
 import { 
   Users, 
   Building2, 
   MapPin, 
   TreePine, 
-  Download
+  Download,
+  Settings
 } from "lucide-react";
 import type { Database as DatabaseType } from "@/integrations/supabase/types";
 
 type UserRole = DatabaseType['public']['Enums']['user_role'];
 
 const Admin = () => {
+  const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState([]);
   const [stats, setStats] = useState({
@@ -30,13 +35,19 @@ const Admin = () => {
   });
   const { toast } = useToast();
 
+  const canViewAdmin = hasPermission('admin', 'view') || user?.role === 'super_admin';
+  const canManageUsers = hasPermission('admin', 'edit') || user?.role === 'super_admin';
+
   useEffect(() => {
-    fetchUsers();
-    fetchStats();
-  }, []);
+    if (canViewAdmin) {
+      fetchUsers();
+      fetchStats();
+    }
+  }, [canViewAdmin]);
 
   const fetchUsers = async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('profiles')
         .select(`
@@ -45,7 +56,9 @@ const Admin = () => {
           seva_type:seva_types(name),
           mandir:mandirs(name),
           village:villages(name)
-        `);
+        `)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       setUsers(data || []);
@@ -53,18 +66,20 @@ const Admin = () => {
       console.error('Error fetching users:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: `Failed to fetch users: ${error.message}`,
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchStats = async () => {
     try {
       const [usersCount, mandirsCount, villagesCount, tasksCount] = await Promise.all([
-        supabase.from('profiles').select('*', { count: 'exact', head: true }),
-        supabase.from('mandirs').select('*', { count: 'exact', head: true }),
-        supabase.from('villages').select('*', { count: 'exact', head: true }),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('is_active', true),
+        supabase.from('mandirs').select('*', { count: 'exact', head: true }).eq('is_active', true),
+        supabase.from('villages').select('*', { count: 'exact', head: true }).eq('is_active', true),
         supabase.from('tasks').select('*', { count: 'exact', head: true }),
       ]);
 
@@ -80,6 +95,15 @@ const Admin = () => {
   };
 
   const updateUserRole = async (userId: string, newRole: UserRole) => {
+    if (!canManageUsers) {
+      toast({
+        title: "Error",
+        description: "You do not have permission to manage users",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('profiles')
@@ -94,9 +118,10 @@ const Admin = () => {
       });
       fetchUsers();
     } catch (error: any) {
+      console.error('Error updating user role:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: `Failed to update user role: ${error.message}`,
         variant: "destructive",
       });
     }
@@ -107,6 +132,7 @@ const Admin = () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
+        .eq('is_active', true)
         .csv();
 
       if (error) throw error;
@@ -115,7 +141,7 @@ const Admin = () => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'karyakars-export.csv';
+      a.download = 'users-export.csv';
       a.click();
       window.URL.revokeObjectURL(url);
 
@@ -124,26 +150,42 @@ const Admin = () => {
         description: "Data exported successfully",
       });
     } catch (error: any) {
+      console.error('Error exporting data:', error);
       toast({
         title: "Export Failed",
-        description: error.message,
+        description: `Failed to export data: ${error.message}`,
         variant: "destructive",
       });
     }
   };
 
+  if (!canViewAdmin) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <Settings className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Access Denied</h3>
+          <p className="text-gray-600">You do not have permission to access the admin panel.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Admin Panel</h1>
-        <Button onClick={exportData}>
+    <div className="container mx-auto p-4 lg:p-6 space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-bold">Admin Panel</h1>
+          <p className="text-gray-600">Manage system settings and users</p>
+        </div>
+        <Button onClick={exportData} disabled={loading}>
           <Download className="h-4 w-4 mr-2" />
-          Export Data
+          <span className="hidden sm:inline">Export Data</span>
         </Button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Users</CardTitle>
@@ -183,9 +225,9 @@ const Admin = () => {
       </div>
 
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList>
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="users">User Management</TabsTrigger>
-          <TabsTrigger value="permissions">User Permissions</TabsTrigger>
+          <TabsTrigger value="permissions">Permissions</TabsTrigger>
           <TabsTrigger value="master-data">Master Data</TabsTrigger>
         </TabsList>
 
@@ -196,31 +238,47 @@ const Admin = () => {
               <CardDescription>Manage user roles and permissions</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {users.map((user: any) => (
-                  <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <h3 className="font-medium">{user.full_name}</h3>
-                      <p className="text-sm text-muted-foreground">{user.mobile_number}</p>
+              {loading ? (
+                <div className="text-center py-8">Loading users...</div>
+              ) : (
+                <div className="space-y-4">
+                  {users.map((user: any) => (
+                    <div key={user.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border rounded-lg gap-4">
+                      <div className="flex-1">
+                        <h3 className="font-medium">{user.full_name}</h3>
+                        <p className="text-sm text-muted-foreground">{user.mobile_number}</p>
+                        {user.email && (
+                          <p className="text-sm text-muted-foreground">{user.email}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Badge variant="outline">{user.role}</Badge>
+                        {canManageUsers && (
+                          <select
+                            value={user.role}
+                            onChange={(e) => updateUserRole(user.id, e.target.value as UserRole)}
+                            className="px-2 py-1 border rounded text-sm"
+                          >
+                            <option value="sevak">Sevak</option>
+                            <option value="karyakar">Karyakar</option>
+                            <option value="mandal_sanchalak">Mandal Sanchalak</option>
+                            <option value="sah_nirdeshak">Sah Nirdeshak</option>
+                            <option value="sant_nirdeshak">Sant Nirdeshak</option>
+                            <option value="super_admin">Super Admin</option>
+                          </select>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge variant="outline">{user.role}</Badge>
-                      <select
-                        value={user.role}
-                        onChange={(e) => updateUserRole(user.id, e.target.value as UserRole)}
-                        className="px-2 py-1 border rounded"
-                      >
-                        <option value="sevak">Sevak</option>
-                        <option value="karyakar">Karyakar</option>
-                        <option value="mandal_sanchalak">Mandal Sanchalak</option>
-                        <option value="sah_nirdeshak">Sah Nirdeshak</option>
-                        <option value="sant_nirdeshak">Sant Nirdeshak</option>
-                        <option value="super_admin">Super Admin</option>
-                      </select>
+                  ))}
+                  {users.length === 0 && (
+                    <div className="text-center py-8">
+                      <Users className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No users found</h3>
+                      <p className="text-gray-600">Users will appear here once they register</p>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -230,7 +288,7 @@ const Admin = () => {
         </TabsContent>
 
         <TabsContent value="master-data" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
             <Card>
               <CardHeader>
                 <CardTitle>Mandirs</CardTitle>
@@ -244,7 +302,10 @@ const Admin = () => {
                     { name: 'name', label: 'Name', type: 'text', required: true },
                     { name: 'description', label: 'Description', type: 'textarea' },
                     { name: 'address', label: 'Address', type: 'textarea' },
-                    { name: 'established_date', label: 'Established Date', type: 'text' },
+                    { name: 'contact_person', label: 'Contact Person', type: 'text' },
+                    { name: 'contact_number', label: 'Contact Number', type: 'text' },
+                    { name: 'email', label: 'Email', type: 'text' },
+                    { name: 'established_date', label: 'Established Date', type: 'date' },
                   ]}
                   onSuccess={fetchStats}
                 />
@@ -263,6 +324,7 @@ const Admin = () => {
                   fields={[
                     { name: 'name', label: 'Name', type: 'text', required: true },
                     { name: 'description', label: 'Description', type: 'textarea' },
+                    { name: 'contact_person', label: 'Contact Person', type: 'text' },
                     { name: 'contact_number', label: 'Contact Number', type: 'text' },
                     { name: 'mandir_id', label: 'Mandir', type: 'select', required: true, foreignKey: 'mandirs' },
                   ]}
@@ -283,7 +345,12 @@ const Admin = () => {
                   fields={[
                     { name: 'name', label: 'Name', type: 'text', required: true },
                     { name: 'kshetra_id', label: 'Kshetra', type: 'select', required: true, foreignKey: 'kshetras' },
-                    { name: 'population', label: 'Population', type: 'text' },
+                    { name: 'population', label: 'Population', type: 'number' },
+                    { name: 'contact_person', label: 'Contact Person', type: 'text' },
+                    { name: 'contact_number', label: 'Contact Number', type: 'text' },
+                    { name: 'district', label: 'District', type: 'text' },
+                    { name: 'state', label: 'State', type: 'text' },
+                    { name: 'pincode', label: 'Pincode', type: 'text' },
                   ]}
                   onSuccess={fetchStats}
                 />
@@ -303,7 +370,10 @@ const Admin = () => {
                     { name: 'name', label: 'Name', type: 'text', required: true },
                     { name: 'village_id', label: 'Village', type: 'select', required: true, foreignKey: 'villages' },
                     { name: 'description', label: 'Description', type: 'textarea' },
+                    { name: 'contact_person', label: 'Contact Person', type: 'text' },
+                    { name: 'contact_number', label: 'Contact Number', type: 'text' },
                     { name: 'meeting_day', label: 'Meeting Day', type: 'text' },
+                    { name: 'meeting_time', label: 'Meeting Time', type: 'time' },
                   ]}
                   onSuccess={fetchStats}
                 />

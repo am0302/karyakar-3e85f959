@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -11,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, Calendar, User, MessageSquare, Filter } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Plus, Calendar, User, MessageSquare, Filter, Grid3X3, List, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import TaskCalendar from '@/components/TaskCalendar';
@@ -59,7 +59,7 @@ const Tasks = () => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
-  const [view, setView] = useState<'list' | 'calendar'>('list');
+  const [view, setView] = useState<'list' | 'calendar' | 'table'>('list');
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -77,7 +77,7 @@ const Tasks = () => {
   }>({
     title: '',
     description: '',
-    assigned_to: 'self', // Changed from empty string to 'self'
+    assigned_to: 'self',
     priority: 'medium',
     task_type: 'delegated',
     due_date: ''
@@ -122,7 +122,6 @@ const Tasks = () => {
 
       // Apply user-based filtering
       if (!isSuperAdmin) {
-        // Regular users can only see tasks assigned by them or to them
         query = query.or(`assigned_by.eq.${user.id},assigned_to.eq.${user.id}`);
       }
 
@@ -143,7 +142,6 @@ const Tasks = () => {
         } else if (userFilter === 'assigned_to_me') {
           query = query.eq('assigned_to', user.id);
         } else {
-          // Filter by specific user (either assigned by or assigned to)
           query = query.or(`assigned_by.eq.${userFilter},assigned_to.eq.${userFilter}`);
         }
       }
@@ -175,7 +173,7 @@ const Tasks = () => {
         title: formData.title,
         description: formData.description,
         assigned_by: user.id,
-        assigned_to: formData.assigned_to === 'self' ? user.id : formData.assigned_to, // Handle 'self' value
+        assigned_to: formData.assigned_to === 'self' ? user.id : formData.assigned_to,
         priority: formData.priority,
         task_type: formData.task_type,
         due_date: formData.due_date || null,
@@ -197,7 +195,7 @@ const Tasks = () => {
       setFormData({
         title: '',
         description: '',
-        assigned_to: 'self', // Changed from empty string to 'self'
+        assigned_to: 'self',
         priority: 'medium',
         task_type: 'delegated',
         due_date: ''
@@ -233,6 +231,33 @@ const Tasks = () => {
       toast({
         title: 'Error',
         description: 'Failed to update task',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const deleteTask = async (taskId: string) => {
+    if (!confirm('Are you sure you want to delete this task?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', taskId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Task deleted successfully',
+      });
+
+      fetchTasks();
+    } catch (error: any) {
+      console.error('Error deleting task:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete task',
         variant: 'destructive',
       });
     }
@@ -293,6 +318,14 @@ const Tasks = () => {
     fetchComments(task.id);
   };
 
+  const canUpdateTaskStatus = (task: Task) => {
+    return isSuperAdmin || task.assigned_by === user?.id || task.assigned_to === user?.id;
+  };
+
+  const canDeleteTask = (task: Task) => {
+    return isSuperAdmin || task.assigned_by === user?.id;
+  };
+
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'urgent': return 'bg-red-500';
@@ -318,34 +351,45 @@ const Tasks = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Tasks</h1>
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Tasks</h1>
           <p className="text-gray-600">Manage and track your tasks</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             variant={view === 'list' ? 'default' : 'outline'}
             onClick={() => setView('list')}
+            size="sm"
           >
-            List View
+            <Grid3X3 className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">Grid</span>
+          </Button>
+          <Button
+            variant={view === 'table' ? 'default' : 'outline'}
+            onClick={() => setView('table')}
+            size="sm"
+          >
+            <List className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">Table</span>
           </Button>
           <Button
             variant={view === 'calendar' ? 'default' : 'outline'}
             onClick={() => setView('calendar')}
+            size="sm"
           >
             <Calendar className="h-4 w-4 mr-2" />
-            Calendar
+            <span className="hidden sm:inline">Calendar</span>
           </Button>
           {hasPermission('tasks', 'add') && (
             <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
-                  Create Task
+                  <span className="hidden sm:inline">Create Task</span>
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Create New Task</DialogTitle>
                   <DialogDescription>
@@ -386,7 +430,7 @@ const Tasks = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="text-sm font-medium">Priority</label>
                       <Select value={formData.priority} onValueChange={(value: TaskPriority) => setFormData({ ...formData, priority: value })}>
@@ -434,7 +478,7 @@ const Tasks = () => {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-4 items-center">
+      <div className="flex flex-wrap gap-4 items-center">
         <Filter className="h-4 w-4 text-gray-500" />
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-32">
@@ -481,8 +525,101 @@ const Tasks = () => {
       {/* Content */}
       {view === 'calendar' ? (
         <TaskCalendar />
+      ) : view === 'table' ? (
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Title</TableHead>
+                    <TableHead className="hidden sm:table-cell">Assigned By</TableHead>
+                    <TableHead className="hidden sm:table-cell">Assigned To</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="hidden md:table-cell">Priority</TableHead>
+                    <TableHead className="hidden lg:table-cell">Due Date</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {tasks.map((task) => (
+                    <TableRow key={task.id}>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{task.title}</div>
+                          <div className="text-sm text-gray-500 truncate max-w-48">
+                            {task.description}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        {task.assigned_by_profile?.full_name || 'Unknown'}
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        {task.assigned_to_profile?.full_name || 'Unknown'}
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={`${getStatusColor(task.status)} text-white`}>
+                          {task.status.replace('_', ' ')}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)}`} />
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell">
+                        {task.due_date ? format(new Date(task.due_date), 'MMM dd, yyyy') : '-'}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openTaskDetails(task)}
+                          >
+                            <MessageSquare className="h-4 w-4" />
+                          </Button>
+                          {canUpdateTaskStatus(task) && task.status !== 'completed' && (
+                            <>
+                              {task.status === 'pending' && (
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => updateTaskStatus(task.id, 'in_progress')}
+                                >
+                                  Start
+                                </Button>
+                              )}
+                              {task.status === 'in_progress' && (
+                                <Button 
+                                  size="sm"
+                                  onClick={() => updateTaskStatus(task.id, 'completed')}
+                                >
+                                  Complete
+                                </Button>
+                              )}
+                            </>
+                          )}
+                          {canDeleteTask(task) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => deleteTask(task.id)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {tasks.map((task) => (
             <Card key={task.id} className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openTaskDetails(task)}>
               <CardHeader className="pb-3">
@@ -515,7 +652,7 @@ const Tasks = () => {
                   </div>
                 )}
                 <div className="flex gap-2 mt-3">
-                  {task.status !== 'completed' && (task.assigned_to === user?.id || task.assigned_by === user?.id) && (
+                  {canUpdateTaskStatus(task) && task.status !== 'completed' && (
                     <>
                       {task.status === 'pending' && (
                         <Button size="sm" onClick={(e) => { e.stopPropagation(); updateTaskStatus(task.id, 'in_progress'); }}>
@@ -528,6 +665,16 @@ const Tasks = () => {
                         </Button>
                       )}
                     </>
+                  )}
+                  {canDeleteTask(task) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }}
+                      className="text-red-600 hover:text-red-800"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   )}
                 </div>
               </CardContent>
@@ -545,7 +692,7 @@ const Tasks = () => {
 
       {/* Task Details Dialog */}
       <Dialog open={!!selectedTask} onOpenChange={() => setSelectedTask(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{selectedTask?.title}</DialogTitle>
             <DialogDescription>
@@ -554,7 +701,7 @@ const Tasks = () => {
           </DialogHeader>
           {selectedTask && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="font-medium">Status:</span>
                   <Badge className={`ml-2 ${getStatusColor(selectedTask.status)} text-white`}>

@@ -1,14 +1,17 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { 
   Plus, 
   Download, 
   Grid3X3, 
   List,
-  User
+  User,
+  Search
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { KaryakarForm } from '@/components/KaryakarForm';
@@ -17,6 +20,7 @@ import { KaryakarStats } from '@/components/KaryakarStats';
 import { KaryakarTableView } from '@/components/KaryakarTableView';
 import { KaryakarGridView } from '@/components/KaryakarGridView';
 import { useAuth } from '@/components/AuthProvider';
+import { usePermissions } from '@/hooks/usePermissions';
 import type { Database } from '@/integrations/supabase/types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'] & {
@@ -32,6 +36,7 @@ type UserRole = Database['public']['Enums']['user_role'];
 
 const Karyakars = () => {
   const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const { toast } = useToast();
   const [karyakars, setKaryakars] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,7 +46,6 @@ const Karyakars = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
   const [editingKaryakar, setEditingKaryakar] = useState<Profile | null>(null);
-  const [userRole, setUserRole] = useState('');
   
   // Form states
   const [mandirs, setMandirs] = useState<Array<{ id: string; name: string }>>([]);
@@ -69,28 +73,17 @@ const Karyakars = () => {
     profile_photo_url: ''
   });
 
-  useEffect(() => {
-    fetchKaryakars();
-    fetchMasterData();
-    fetchUserRole();
-  }, []);
+  const canAdd = hasPermission('karyakars', 'add');
+  const canEdit = hasPermission('karyakars', 'edit');
+  const canDelete = hasPermission('karyakars', 'delete');
+  const canView = hasPermission('karyakars', 'view');
 
-  const fetchUserRole = async () => {
-    if (!user) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-        
-      if (error) throw error;
-      setUserRole(data?.role || '');
-    } catch (error: any) {
-      console.error('Error fetching user role:', error);
+  useEffect(() => {
+    if (canView) {
+      fetchKaryakars();
+      fetchMasterData();
     }
-  };
+  }, [canView]);
 
   const fetchKaryakars = async () => {
     try {
@@ -152,6 +145,24 @@ const Karyakars = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!canAdd && !editingKaryakar) {
+      toast({
+        title: 'Error',
+        description: 'You do not have permission to add karyakars',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!canEdit && editingKaryakar) {
+      toast({
+        title: 'Error',
+        description: 'You do not have permission to edit karyakars',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     try {
       const age = formData.age ? parseInt(formData.age) : null;
       const dataToSubmit = {
@@ -170,6 +181,7 @@ const Karyakars = () => {
         seva_type_id: formData.seva_type_id || null,
         role: formData.role,
         profile_photo_url: formData.profile_photo_url || null,
+        is_active: true,
       };
 
       let error;
@@ -201,9 +213,10 @@ const Karyakars = () => {
       resetForm();
       fetchKaryakars();
     } catch (error: any) {
+      console.error('Error saving karyakar:', error);
       toast({
         title: 'Error',
-        description: error.message,
+        description: `Failed to ${editingKaryakar ? 'update' : 'create'} karyakar: ${error.message}`,
         variant: 'destructive',
       });
     }
@@ -230,6 +243,15 @@ const Karyakars = () => {
   };
 
   const handleEdit = (karyakar: Profile) => {
+    if (!canEdit) {
+      toast({
+        title: 'Error',
+        description: 'You do not have permission to edit karyakars',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setFormData({
       full_name: karyakar.full_name,
       email: karyakar.email || '',
@@ -252,26 +274,36 @@ const Karyakars = () => {
   };
 
   const handleDelete = async (id: string) => {
+    if (!canDelete) {
+      toast({
+        title: 'Error',
+        description: 'You do not have permission to delete karyakars',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (!confirm('Are you sure you want to delete this karyakar?')) return;
 
     try {
       const { error } = await supabase
         .from('profiles')
-        .delete()
+        .update({ is_active: false })
         .eq('id', id);
 
       if (error) throw error;
 
       toast({
         title: 'Success',
-        description: 'Karyakar deleted successfully',
+        description: 'Karyakar deactivated successfully',
       });
 
       fetchKaryakars();
     } catch (error: any) {
+      console.error('Error deleting karyakar:', error);
       toast({
         title: 'Error',
-        description: error.message,
+        description: `Failed to delete karyakar: ${error.message}`,
         variant: 'destructive',
       });
     }
@@ -280,10 +312,11 @@ const Karyakars = () => {
   const exportData = async () => {
     try {
       const csvContent = [
-        ['Name', 'Mobile', 'Role', 'Profession', 'Mandir', 'Status'].join(','),
+        ['Name', 'Mobile', 'Email', 'Role', 'Profession', 'Mandir', 'Status'].join(','),
         ...filteredKaryakars.map(k => [
           k.full_name,
           k.mobile_number,
+          k.email || '',
           k.role,
           k.professions?.name || '',
           k.mandirs?.name || '',
@@ -327,58 +360,71 @@ const Karyakars = () => {
     return <div className="flex items-center justify-center h-64">Loading karyakars...</div>;
   }
 
+  if (!canView) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Access Denied</h3>
+          <p className="text-gray-600">You do not have permission to view karyakars.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Karyakars</h1>
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Karyakars</h1>
           <p className="text-gray-600">Manage karyakar registrations and profiles</p>
         </div>
         
-        {userRole === 'super_admin' && (
-          <Dialog open={showRegistrationForm} onOpenChange={setShowRegistrationForm}>
-            <DialogTrigger asChild>
-              <Button onClick={() => {
-                resetForm();
-                setEditingKaryakar(null);
-              }}>
-                <Plus className="h-4 w-4 mr-2" />
-                Register Karyakar
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingKaryakar ? 'Edit Karyakar' : 'Register New Karyakar'}
-                </DialogTitle>
-                <DialogDescription>
-                  Fill in the details to {editingKaryakar ? 'update' : 'register'} a karyakar
-                </DialogDescription>
-              </DialogHeader>
+        <div className="flex flex-wrap gap-2">
+          {canAdd && (
+            <Dialog open={showRegistrationForm} onOpenChange={setShowRegistrationForm}>
+              <DialogTrigger asChild>
+                <Button onClick={() => {
+                  resetForm();
+                  setEditingKaryakar(null);
+                }}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  <span className="hidden sm:inline">Register Karyakar</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingKaryakar ? 'Edit Karyakar' : 'Register New Karyakar'}
+                  </DialogTitle>
+                  <DialogDescription>
+                    Fill in the details to {editingKaryakar ? 'update' : 'register'} a karyakar
+                  </DialogDescription>
+                </DialogHeader>
 
-              <KaryakarForm
-                formData={formData}
-                setFormData={setFormData}
-                onSubmit={handleSubmit}
-                onCancel={() => setShowRegistrationForm(false)}
-                editingKaryakar={editingKaryakar}
-                mandirs={mandirs}
-                kshetras={kshetras}
-                villages={villages}
-                mandals={mandals}
-                professions={professions}
-                sevaTypes={sevaTypes}
-              />
-            </DialogContent>
-          </Dialog>
-        )}
+                <KaryakarForm
+                  formData={formData}
+                  setFormData={setFormData}
+                  onSubmit={handleSubmit}
+                  onCancel={() => setShowRegistrationForm(false)}
+                  editingKaryakar={editingKaryakar}
+                  mandirs={mandirs}
+                  kshetras={kshetras}
+                  villages={villages}
+                  mandals={mandals}
+                  professions={professions}
+                  sevaTypes={sevaTypes}
+                />
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
       </div>
 
       <Card>
         <KaryakarStats totalCount={filteredKaryakars.length} />
         
         <CardContent>
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -386,11 +432,27 @@ const Karyakars = () => {
                 onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
               >
                 {viewMode === 'grid' ? <List className="h-4 w-4" /> : <Grid3X3 className="h-4 w-4" />}
+                <span className="hidden sm:inline ml-2">
+                  {viewMode === 'grid' ? 'List View' : 'Grid View'}
+                </span>
               </Button>
               <Button variant="outline" size="sm" onClick={exportData}>
                 <Download className="h-4 w-4 mr-2" />
-                Export
+                <span className="hidden sm:inline">Export</span>
               </Button>
+            </div>
+
+            {/* Quick search */}
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-64">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search karyakars..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
             </div>
           </div>
 
@@ -424,7 +486,7 @@ const Karyakars = () => {
               <p className="text-gray-600">
                 {searchTerm || selectedRole || selectedStatus
                   ? 'Try adjusting your search filters'
-                  : userRole === 'super_admin' 
+                  : canAdd 
                     ? 'Get started by registering your first karyakar'
                     : 'No karyakars available to view'}
               </p>
