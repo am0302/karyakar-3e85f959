@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -76,7 +77,7 @@ const Tasks = () => {
   }>({
     title: '',
     description: '',
-    assigned_to: '',
+    assigned_to: 'self', // Changed from empty string to 'self'
     priority: 'medium',
     task_type: 'delegated',
     due_date: ''
@@ -174,7 +175,7 @@ const Tasks = () => {
         title: formData.title,
         description: formData.description,
         assigned_by: user.id,
-        assigned_to: formData.assigned_to || user.id,
+        assigned_to: formData.assigned_to === 'self' ? user.id : formData.assigned_to, // Handle 'self' value
         priority: formData.priority,
         task_type: formData.task_type,
         due_date: formData.due_date || null,
@@ -196,7 +197,7 @@ const Tasks = () => {
       setFormData({
         title: '',
         description: '',
-        assigned_to: '',
+        assigned_to: 'self', // Changed from empty string to 'self'
         priority: 'medium',
         task_type: 'delegated',
         due_date: ''
@@ -376,7 +377,7 @@ const Tasks = () => {
                         <SelectValue placeholder="Select assignee" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Assign to myself</SelectItem>
+                        <SelectItem value="self">Assign to myself</SelectItem>
                         {profiles.map((profile) => (
                           <SelectItem key={profile.id} value={profile.id}>
                             {profile.full_name} ({profile.role})
