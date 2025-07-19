@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +22,7 @@ interface MasterDataDialogProps {
   fields: Array<{
     name: string;
     label: string;
-    type: 'text' | 'textarea' | 'select';
+    type: 'text' | 'textarea' | 'select' | 'date' | 'number' | 'time';
     required?: boolean;
     options?: Array<{ value: string; label: string }>;
     foreignKey?: string;
