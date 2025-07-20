@@ -11,6 +11,8 @@ export const usePermissions = () => {
   useEffect(() => {
     if (user) {
       fetchPermissions();
+    } else {
+      setLoading(false);
     }
   }, [user]);
 
@@ -46,28 +48,28 @@ export const usePermissions = () => {
       // First apply role permissions
       rolePermissions?.forEach((perm) => {
         permissionsMap[perm.module_name] = {
-          view: perm.can_view,
-          add: perm.can_add,
-          edit: perm.can_edit,
-          delete: perm.can_delete,
-          export: perm.can_export,
+          view: perm.can_view || false,
+          add: perm.can_add || false,
+          edit: perm.can_edit || false,
+          delete: perm.can_delete || false,
+          export: perm.can_export || false,
         };
       });
 
       // Then override with user-specific permissions
       userPermissions?.forEach((perm) => {
         permissionsMap[perm.module_name] = {
-          view: perm.can_view,
-          add: perm.can_add,
-          edit: perm.can_edit,
-          delete: perm.can_delete,
-          export: perm.can_export,
+          view: perm.can_view || false,
+          add: perm.can_add || false,
+          edit: perm.can_edit || false,
+          delete: perm.can_delete || false,
+          export: perm.can_export || false,
         };
       });
 
       // Super admin has all permissions
       if (userProfile?.role === 'super_admin') {
-        const modules = ['karyakars', 'tasks', 'communication', 'reports', 'admin'];
+        const modules = ['dashboard', 'karyakars', 'tasks', 'communication', 'reports', 'admin'];
         modules.forEach(module => {
           permissionsMap[module] = {
             view: true,
@@ -79,6 +81,7 @@ export const usePermissions = () => {
         });
       }
 
+      console.log('Final permissions map:', permissionsMap);
       setPermissions(permissionsMap);
     } catch (error) {
       console.error('Error fetching permissions:', error);
@@ -88,7 +91,14 @@ export const usePermissions = () => {
   };
 
   const hasPermission = (module: string, action: string): boolean => {
-    return permissions[module]?.[action] || false;
+    const modulePermissions = permissions[module];
+    if (!modulePermissions) {
+      console.log(`No permissions found for module: ${module}`);
+      return false;
+    }
+    const hasAccess = modulePermissions[action] || false;
+    console.log(`Permission check - Module: ${module}, Action: ${action}, Access: ${hasAccess}`);
+    return hasAccess;
   };
 
   const refreshPermissions = () => {
