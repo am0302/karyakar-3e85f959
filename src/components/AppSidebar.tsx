@@ -103,7 +103,7 @@ export function AppSidebar() {
   };
 
   return (
-  <Sidebar showCloseIcon={false}
+  <Sidebar 
     className={`${isCollapsed && !isMobile ? "w-14" : "w-64"} ${isMobile ? "fixed z-50" : ""}`}
     collapsible="icon"
   >
@@ -134,9 +134,7 @@ export function AppSidebar() {
                   to={item.url} 
                   className={getNavClass(item.url)}
                   onClick={() => {
-                    if (isMobile) {
-                      setOpen(false);
-                    }
+                    if (isMobile) setOpen(false);
                     window.scrollTo(0, 0);
                   }}
                 >
@@ -162,9 +160,7 @@ export function AppSidebar() {
                   to={item.url} 
                   className={getNavClass(item.url)}
                   onClick={() => {
-                    if (isMobile) {
-                      setOpen(false);
-                    }
+                    if (isMobile) setOpen(false);
                     window.scrollTo(0, 0);
                   }}
                 >
@@ -191,10 +187,8 @@ export function AppSidebar() {
                     to={item.url} 
                     className={getNavClass(item.url)}
                     onClick={() => {
-                      if (isMobile) {
-                        setOpen(false);
-                      }
-                      window.scrollTo(0, 0);
+                    if (isMobile) setOpen(false);
+                    window.scrollTo(0, 0);
                     }}
                   >
                     <item.icon className="h-4 w-4" />
