@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -5,11 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2, Save, Users, Shield } from 'lucide-react';
+import { Trash2, Save, Users, Shield, RefreshCw } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
 
 type UserRole = Database['public']['Enums']['user_role'];
@@ -48,6 +48,7 @@ export const PermissionsManager = () => {
   const [userPermissions, setUserPermissions] = useState<UserPermission[]>([]);
   const [rolePermissions, setRolePermissions] = useState<RolePermission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   // Form states
   const [selectedUser, setSelectedUser] = useState<string>('');
@@ -101,16 +102,20 @@ export const PermissionsManager = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
+      console.log('Fetching permissions data...');
+      
       await Promise.all([
         fetchProfiles(),
         fetchUserPermissions(),
         fetchRolePermissions()
       ]);
+      
+      console.log('All data fetched successfully');
     } catch (error: any) {
       console.error('Error fetching data:', error);
       toast({
         title: 'Error',
-        description: 'Failed to fetch permissions data',
+        description: `Failed to fetch permissions data: ${error.message}`,
         variant: 'destructive',
       });
     } finally {
@@ -119,17 +124,24 @@ export const PermissionsManager = () => {
   };
 
   const fetchProfiles = async () => {
+    console.log('Fetching profiles...');
     const { data, error } = await supabase
       .from('profiles')
       .select('id, full_name, role, email')
       .eq('is_active', true)
       .order('full_name');
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching profiles:', error);
+      throw error;
+    }
+    
+    console.log('Profiles fetched:', data?.length || 0);
     setProfiles(data || []);
   };
 
   const fetchUserPermissions = async () => {
+    console.log('Fetching user permissions...');
     const { data, error } = await supabase
       .from('user_permissions')
       .select(`
@@ -140,12 +152,17 @@ export const PermissionsManager = () => {
 
     if (error) {
       console.error('Error fetching user permissions:', error);
+      // Don't throw error here, just log it and continue
+      setUserPermissions([]);
       return;
     }
+    
+    console.log('User permissions fetched:', data?.length || 0);
     setUserPermissions(data || []);
   };
 
   const fetchRolePermissions = async () => {
+    console.log('Fetching role permissions...');
     const { data, error } = await supabase
       .from('role_permissions')
       .select('*')
@@ -153,8 +170,12 @@ export const PermissionsManager = () => {
 
     if (error) {
       console.error('Error fetching role permissions:', error);
+      // Don't throw error here, just log it and continue
+      setRolePermissions([]);
       return;
     }
+    
+    console.log('Role permissions fetched:', data?.length || 0);
     setRolePermissions(data || []);
   };
 
@@ -169,6 +190,7 @@ export const PermissionsManager = () => {
     }
 
     try {
+      setSaving(true);
       console.log('Saving user permission:', { 
         user_id: selectedUser, 
         module: selectedModule, 
@@ -176,12 +198,16 @@ export const PermissionsManager = () => {
       });
       
       // Check if permission already exists
-      const { data: existing } = await supabase
+      const { data: existing, error: checkError } = await supabase
         .from('user_permissions')
         .select('id')
         .eq('user_id', selectedUser)
         .eq('module', selectedModule)
-        .single();
+        .maybeSingle();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        throw checkError;
+      }
 
       if (existing) {
         // Update existing permission
@@ -194,6 +220,7 @@ export const PermissionsManager = () => {
           .eq('id', existing.id);
 
         if (error) throw error;
+        console.log('User permission updated successfully');
       } else {
         // Create new permission
         const { error } = await supabase
@@ -205,6 +232,7 @@ export const PermissionsManager = () => {
           });
 
         if (error) throw error;
+        console.log('User permission created successfully');
       }
 
       toast({
@@ -223,7 +251,7 @@ export const PermissionsManager = () => {
         can_export: false
       });
 
-      fetchUserPermissions();
+      await fetchUserPermissions();
     } catch (error: any) {
       console.error('Error saving user permission:', error);
       toast({
@@ -231,6 +259,8 @@ export const PermissionsManager = () => {
         description: `Failed to save user permission: ${error.message}`,
         variant: 'destructive',
       });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -245,6 +275,7 @@ export const PermissionsManager = () => {
     }
 
     try {
+      setSaving(true);
       console.log('Saving role permission:', { 
         role: selectedRole, 
         module_name: selectedModule, 
@@ -252,12 +283,16 @@ export const PermissionsManager = () => {
       });
       
       // Check if permission already exists
-      const { data: existing } = await supabase
+      const { data: existing, error: checkError } = await supabase
         .from('role_permissions')
         .select('id')
         .eq('role', selectedRole)
         .eq('module_name', selectedModule)
-        .single();
+        .maybeSingle();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        throw checkError;
+      }
 
       if (existing) {
         // Update existing permission
@@ -270,6 +305,7 @@ export const PermissionsManager = () => {
           .eq('id', existing.id);
 
         if (error) throw error;
+        console.log('Role permission updated successfully');
       } else {
         // Create new permission
         const { error } = await supabase
@@ -281,6 +317,7 @@ export const PermissionsManager = () => {
           });
 
         if (error) throw error;
+        console.log('Role permission created successfully');
       }
 
       toast({
@@ -299,7 +336,7 @@ export const PermissionsManager = () => {
         can_export: false
       });
 
-      fetchRolePermissions();
+      await fetchRolePermissions();
     } catch (error: any) {
       console.error('Error saving role permission:', error);
       toast({
@@ -307,6 +344,8 @@ export const PermissionsManager = () => {
         description: `Failed to save role permission: ${error.message}`,
         variant: 'destructive',
       });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -326,7 +365,7 @@ export const PermissionsManager = () => {
         description: 'User permission deleted successfully',
       });
 
-      fetchUserPermissions();
+      await fetchUserPermissions();
     } catch (error: any) {
       console.error('Error deleting user permission:', error);
       toast({
@@ -353,7 +392,7 @@ export const PermissionsManager = () => {
         description: 'Role permission deleted successfully',
       });
 
-      fetchRolePermissions();
+      await fetchRolePermissions();
     } catch (error: any) {
       console.error('Error deleting role permission:', error);
       toast({
@@ -365,14 +404,27 @@ export const PermissionsManager = () => {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64">Loading permissions...</div>;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="flex items-center gap-2">
+          <RefreshCw className="h-4 w-4 animate-spin" />
+          Loading permissions...
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">Permissions Management</h2>
-        <p className="text-gray-600">Manage user and role-based permissions for different modules</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Permissions Management</h2>
+          <p className="text-gray-600">Manage user and role-based permissions for different modules</p>
+        </div>
+        <Button onClick={fetchData} variant="outline" size="sm">
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Refresh
+        </Button>
       </div>
 
       <Tabs defaultValue="user-permissions" className="space-y-6">
@@ -438,9 +490,18 @@ export const PermissionsManager = () => {
                 </div>
               </div>
 
-              <Button onClick={saveUserPermission} className="w-full">
-                <Save className="h-4 w-4 mr-2" />
-                Save User Permission
+              <Button onClick={saveUserPermission} className="w-full" disabled={saving}>
+                {saving ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Save User Permission
+                  </>
+                )}
               </Button>
             </CardContent>
           </Card>
@@ -544,9 +605,18 @@ export const PermissionsManager = () => {
                 </div>
               </div>
 
-              <Button onClick={saveRolePermission} className="w-full">
-                <Save className="h-4 w-4 mr-2" />
-                Save Role Permission
+              <Button onClick={saveRolePermission} className="w-full" disabled={saving}>
+                {saving ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Save Role Permission
+                  </>
+                )}
               </Button>
             </CardContent>
           </Card>
