@@ -61,9 +61,12 @@ const KaryakarCard: React.FC<KaryakarCardProps> = ({ karyakar, onEdit, onDelete 
               className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
             />
           ) : (
-            <div className="w-24 h-24 bg-orange-500 rounded-full flex items-center justify-center border-4 border-white shadow-lg">
+           /* <div className="w-24 h-24 bg-orange-500 rounded-full flex items-center justify-center border-4 border-white shadow-lg">
               <User className="h-12 w-12 text-white" />
-            </div>
+            </div> */
+              <div className="w-32 h-24 bg-orange-500 rounded-lg flex items-center justify-center border-4 border-white shadow-lg">
+              <User className="h-12 w-12 text-white" />
+              </div>
           )}
         </div>
         <Badge 
