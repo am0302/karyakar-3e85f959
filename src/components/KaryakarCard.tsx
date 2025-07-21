@@ -58,7 +58,7 @@ const KaryakarCard: React.FC<KaryakarCardProps> = ({ karyakar, onEdit, onDelete 
             <img
               src={karyakar.profile_photo_url}
               alt={karyakar.full_name}
-              className="w-25 h-25 rounded-full object-cover border-4 border-white shadow-lg"
+              className="w-35 h-35 rounded-full object-cover border-4 border-white shadow-lg"
             />
           ) : (
            /* <div className="w-24 h-24 bg-orange-500 rounded-full flex items-center justify-center border-4 border-white shadow-lg">
