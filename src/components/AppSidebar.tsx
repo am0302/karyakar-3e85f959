@@ -119,7 +119,7 @@ export function AppSidebar() {
 
         {/* Main Navigation */}
         <div className="p-4">
-          <SidebarMenu>
+          {/* <SidebarMenu>
             {navigationItems.map((item) => (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton asChild>
@@ -130,7 +130,24 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
-          </SidebarMenu>
+          </SidebarMenu>*/}
+<SidebarMenu>
+  {navigationItems.map((item) => (
+    <SidebarMenuItem key={item.title}>
+      <SidebarMenuButton asChild>
+        <NavLink 
+          to={item.url} 
+          className={getNavClass(item.url)}
+          onClick={() => !isMobile && setIsCollapsed(true)}
+        >
+          <item.icon className="h-4 w-4" />
+          {(!isCollapsed || isMobile) && <span>{item.title}</span>}
+        </NavLink>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  ))}
+</SidebarMenu>
+
         </div>
 
         {/* Management Section */}
