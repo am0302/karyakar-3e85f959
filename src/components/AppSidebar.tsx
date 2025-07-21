@@ -60,7 +60,7 @@ const adminItems = [
 ];
 
 export function AppSidebar() {
-  const { state, isMobile } = useSidebar();
+  const { state, isMobile, setOpen } = useSidebar();
   const location = useLocation();
   const { user } = useAuth();
   const isCollapsed = state === "collapsed";
@@ -96,6 +96,12 @@ export function AppSidebar() {
       ? "bg-orange-500 text-white hover:bg-orange-600" 
       : "hover:bg-orange-50 text-gray-700";
 
+  const handleNavClick = () => {
+    if (isMobile) {
+      setOpen(false);
+    }
+  };
+
   return (
     <Sidebar 
       className={`${isCollapsed && !isMobile ? "w-14" : "w-64"} ${isMobile ? "fixed z-50" : ""}`}
@@ -119,35 +125,22 @@ export function AppSidebar() {
 
         {/* Main Navigation */}
         <div className="p-4">
-          {/* <SidebarMenu>
+          <SidebarMenu>
             {navigationItems.map((item) => (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton asChild>
-                  <NavLink to={item.url} className={getNavClass(item.url)}>
+                  <NavLink 
+                    to={item.url} 
+                    className={getNavClass(item.url)}
+                    onClick={handleNavClick}
+                  >
                     <item.icon className="h-4 w-4" />
                     {(!isCollapsed || isMobile) && <span>{item.title}</span>}
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
-          </SidebarMenu>*/}
-<SidebarMenu>
-  {navigationItems.map((item) => (
-    <SidebarMenuItem key={item.title}>
-      <SidebarMenuButton asChild>
-        <NavLink 
-          to={item.url} 
-          className={getNavClass(item.url)}
-          onClick={() => !isMobile && setIsCollapsed(true)}
-        >
-          <item.icon className="h-4 w-4" />
-          {(!isCollapsed || isMobile) && <span>{item.title}</span>}
-        </NavLink>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
-  ))}
-</SidebarMenu>
-
+          </SidebarMenu>
         </div>
 
         {/* Management Section */}
@@ -157,13 +150,11 @@ export function AppSidebar() {
             {managementItems.map((item) => (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton asChild>
-                  {/* <NavLink to={item.url} className={getNavClass(item.url)}>
-                */}
-                    <NavLink 
-          to={item.url} 
-          className={getNavClass(item.url)}
-          onClick={() => !isMobile && setIsCollapsed(true)}
-        >
+                  <NavLink 
+                    to={item.url} 
+                    className={getNavClass(item.url)}
+                    onClick={handleNavClick}
+                  >
                     <item.icon className="h-4 w-4" />
                     {(!isCollapsed || isMobile) && <span>{item.title}</span>}
                   </NavLink>
@@ -181,13 +172,11 @@ export function AppSidebar() {
               {adminItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    {/*<NavLink to={item.url} className={getNavClass(item.url)}>
-                     */}
                     <NavLink 
-          to={item.url} 
-          className={getNavClass(item.url)}
-          onClick={() => !isMobile && setIsCollapsed(true)}
-        >
+                      to={item.url} 
+                      className={getNavClass(item.url)}
+                      onClick={handleNavClick}
+                    >
                       <item.icon className="h-4 w-4" />
                       {(!isCollapsed || isMobile) && <span>{item.title}</span>}
                     </NavLink>
