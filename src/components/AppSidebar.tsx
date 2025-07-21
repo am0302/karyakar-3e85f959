@@ -105,8 +105,10 @@ export function AppSidebar() {
   return (
   <Sidebar 
     className={`${isCollapsed && !isMobile ? "w-14" : "w-64"} ${isMobile ? "fixed z-50" : ""}`}
-  collapsible={false} // Consider removing "icon" if it's triggering built-in toggles
-  hideToggle // If supported by the component you're using
+  collapsible={false} // Avoid default toggle logic
+  hideCloseButton={true}
+  showHeader={false} // For header-based buttons
+
    >
     <SidebarContent className="bg-white border-r">
       
