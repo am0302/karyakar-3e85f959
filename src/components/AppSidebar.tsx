@@ -157,7 +157,13 @@ export function AppSidebar() {
             {managementItems.map((item) => (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton asChild>
-                  <NavLink to={item.url} className={getNavClass(item.url)}>
+                  {/* <NavLink to={item.url} className={getNavClass(item.url)}>
+                  }*/
+                    <NavLink 
+          to={item.url} 
+          className={getNavClass(item.url)}
+          onClick={() => !isMobile && setIsCollapsed(true)}
+        >
                     <item.icon className="h-4 w-4" />
                     {(!isCollapsed || isMobile) && <span>{item.title}</span>}
                   </NavLink>
@@ -175,7 +181,13 @@ export function AppSidebar() {
               {adminItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={getNavClass(item.url)}>
+                    {/*<NavLink to={item.url} className={getNavClass(item.url)}>
+                     }*/
+                    <NavLink 
+          to={item.url} 
+          className={getNavClass(item.url)}
+          onClick={() => !isMobile && setIsCollapsed(true)}
+        >
                       <item.icon className="h-4 w-4" />
                       {(!isCollapsed || isMobile) && <span>{item.title}</span>}
                     </NavLink>
