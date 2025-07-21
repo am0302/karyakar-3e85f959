@@ -158,7 +158,7 @@ export function AppSidebar() {
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton asChild>
                   {/* <NavLink to={item.url} className={getNavClass(item.url)}>
-                  }*/
+                */}
                     <NavLink 
           to={item.url} 
           className={getNavClass(item.url)}
@@ -182,7 +182,7 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     {/*<NavLink to={item.url} className={getNavClass(item.url)}>
-                     }*/
+                     */}
                     <NavLink 
           to={item.url} 
           className={getNavClass(item.url)}
