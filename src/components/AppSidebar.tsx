@@ -134,7 +134,9 @@ export function AppSidebar() {
                   to={item.url} 
                   className={getNavClass(item.url)}
                   onClick={() => {
-                    !isMobile && setIsCollapsed(true);
+                    if (isMobile) {
+                      setOpen(false);
+                    }
                     window.scrollTo(0, 0);
                   }}
                 >
@@ -160,7 +162,9 @@ export function AppSidebar() {
                   to={item.url} 
                   className={getNavClass(item.url)}
                   onClick={() => {
-                    !isMobile && setIsCollapsed(true);
+                    if (isMobile) {
+                      setOpen(false);
+                    }
                     window.scrollTo(0, 0);
                   }}
                 >
@@ -187,7 +191,9 @@ export function AppSidebar() {
                     to={item.url} 
                     className={getNavClass(item.url)}
                     onClick={() => {
-                      !isMobile && setIsCollapsed(true);
+                      if (isMobile) {
+                        setOpen(false);
+                      }
                       window.scrollTo(0, 0);
                     }}
                   >
