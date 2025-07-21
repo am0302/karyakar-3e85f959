@@ -107,10 +107,7 @@ export function AppSidebar() {
 className={`${isCollapsed && !isMobile ? "w-14" : "w-64"} ${isMobile ? "fixed z-50" : ""}`}
   collapsible="icon"
   hideCloseButton={true}
-    
-  /*  className={`${isCollapsed && !isMobile ? "w-14" : "w-64"} ${isMobile ? "fixed z-50" : ""}`}
-    collapsible="icon"*/
-  >
+   >
     <SidebarContent className="bg-white border-r">
       
       {/* Logo */}
