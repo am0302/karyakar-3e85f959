@@ -28,16 +28,16 @@ const Header = () => {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-14 items-center justify-between px-4">
-        <div className="flex items-center space-x-4">
+      <div className="container flex h-12 lg:h-14 items-center justify-between px-3 lg:px-4">
+        <div className="flex items-center space-x-2 lg:space-x-4">
           <SlideOutMenu />
           <Link to="/" className="flex items-center space-x-2">
-            <h1 className="text-xl font-bold">Karyakar Portal</h1>
+            <h1 className="text-lg lg:text-xl font-bold">Karyakar Portal</h1>
           </Link>
         </div>
 
         {user && (
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 lg:space-x-4">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
@@ -49,7 +49,7 @@ const Header = () => {
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
+              <DropdownMenuContent className="w-56 z-50 bg-white" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">

@@ -44,7 +44,6 @@ const Admin = () => {
     try {
       console.log('Checking database connectivity...');
       
-      // Test basic connection
       const { data: testData, error: testError } = await supabase
         .from('profiles')
         .select('id')
@@ -125,13 +124,13 @@ const Admin = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 lg:space-y-6 p-4 lg:p-0">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Admin Panel</h1>
-          <p className="text-gray-600">Manage users, permissions, and system settings</p>
+          <h1 className="text-xl lg:text-2xl xl:text-3xl font-bold text-gray-900">Admin Panel</h1>
+          <p className="text-sm lg:text-base text-gray-600">Manage users, permissions, and system settings</p>
         </div>
-        <Button onClick={refreshData} variant="outline" size="sm">
+        <Button onClick={refreshData} variant="outline" size="sm" className="self-start lg:self-auto">
           <RefreshCw className="h-4 w-4 mr-2" />
           Refresh All
         </Button>
@@ -140,7 +139,7 @@ const Admin = () => {
       {/* Database Status Card */}
       <Card className={`${dbStatus.connected ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-sm">
+          <CardTitle className="flex items-center gap-2 text-sm lg:text-base">
             <Database className="h-4 w-4" />
             Database Status
           </CardTitle>
@@ -150,63 +149,63 @@ const Admin = () => {
             {dbStatus.connected ? (
               <div className="flex items-center gap-2 text-green-700">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm">Connected and accessible</span>
+                <span className="text-xs lg:text-sm">Connected and accessible</span>
               </div>
             ) : (
               <div className="flex items-center gap-2 text-red-700">
                 <AlertCircle className="h-4 w-4" />
-                <span className="text-sm">Connection issues: {dbStatus.error}</span>
+                <span className="text-xs lg:text-sm">Connection issues: {dbStatus.error}</span>
               </div>
             )}
           </div>
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="permissions" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="permissions">Permissions</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="master-data">Master Data</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
+      <Tabs defaultValue="permissions" className="space-y-4 lg:space-y-6">
+        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 h-auto">
+          <TabsTrigger value="permissions" className="text-xs lg:text-sm p-2 lg:p-3">Permissions</TabsTrigger>
+          <TabsTrigger value="users" className="text-xs lg:text-sm p-2 lg:p-3">Users</TabsTrigger>
+          <TabsTrigger value="master-data" className="text-xs lg:text-sm p-2 lg:p-3">Master Data</TabsTrigger>
+          <TabsTrigger value="settings" className="text-xs lg:text-sm p-2 lg:p-3">Settings</TabsTrigger>
         </TabsList>
 
         <TabsContent value="permissions">
           <PermissionsManager />
         </TabsContent>
 
-        <TabsContent value="users" className="space-y-6">
+        <TabsContent value="users" className="space-y-4 lg:space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-lg lg:text-xl">
                 <Users className="h-5 w-5" />
                 User Management
               </CardTitle>
-              <CardDescription>Manage user accounts and their basic information</CardDescription>
+              <CardDescription className="text-sm lg:text-base">Manage user accounts and their basic information</CardDescription>
             </CardHeader>
             <CardContent>
               {profiles.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No users found</p>
+                  <p className="text-sm lg:text-base">No users found</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Mobile</TableHead>
-                        <TableHead>Role</TableHead>
+                        <TableHead className="text-xs lg:text-sm">Name</TableHead>
+                        <TableHead className="text-xs lg:text-sm">Email</TableHead>
+                        <TableHead className="text-xs lg:text-sm">Mobile</TableHead>
+                        <TableHead className="text-xs lg:text-sm">Role</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {profiles.map((profile) => (
                         <TableRow key={profile.id}>
-                          <TableCell className="font-medium">{profile.full_name}</TableCell>
-                          <TableCell>{profile.email || 'N/A'}</TableCell>
-                          <TableCell>{profile.mobile_number}</TableCell>
-                          <TableCell className="capitalize">{profile.role.replace('_', ' ')}</TableCell>
+                          <TableCell className="font-medium text-xs lg:text-sm">{profile.full_name}</TableCell>
+                          <TableCell className="text-xs lg:text-sm">{profile.email || 'N/A'}</TableCell>
+                          <TableCell className="text-xs lg:text-sm">{profile.mobile_number}</TableCell>
+                          <TableCell className="capitalize text-xs lg:text-sm">{profile.role.replace('_', ' ')}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -217,8 +216,8 @@ const Admin = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="master-data" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <TabsContent value="master-data" className="space-y-4 lg:space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             <MasterDataDialog
               title="Mandir"
               table="mandirs"
@@ -300,17 +299,17 @@ const Admin = () => {
           </div>
         </TabsContent>
 
-        <TabsContent value="settings" className="space-y-6">
+        <TabsContent value="settings" className="space-y-4 lg:space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-lg lg:text-xl">
                 <Settings className="h-5 w-5" />
                 System Settings
               </CardTitle>
-              <CardDescription>Configure application settings and preferences</CardDescription>
+              <CardDescription className="text-sm lg:text-base">Configure application settings and preferences</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600">System settings will be available in future updates.</p>
+              <p className="text-sm lg:text-base text-gray-600">System settings will be available in future updates.</p>
             </CardContent>
           </Card>
         </TabsContent>

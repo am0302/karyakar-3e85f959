@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -152,7 +151,6 @@ export const PermissionsManager = () => {
 
     if (error) {
       console.error('Error fetching user permissions:', error);
-      // Don't throw error here, just log it and continue
       setUserPermissions([]);
       return;
     }
@@ -170,7 +168,6 @@ export const PermissionsManager = () => {
 
     if (error) {
       console.error('Error fetching role permissions:', error);
-      // Don't throw error here, just log it and continue
       setRolePermissions([]);
       return;
     }
@@ -197,7 +194,6 @@ export const PermissionsManager = () => {
         ...userPermissionSet 
       });
       
-      // Check if permission already exists
       const { data: existing, error: checkError } = await supabase
         .from('user_permissions')
         .select('id')
@@ -210,7 +206,6 @@ export const PermissionsManager = () => {
       }
 
       if (existing) {
-        // Update existing permission
         const { error } = await supabase
           .from('user_permissions')
           .update({
@@ -222,7 +217,6 @@ export const PermissionsManager = () => {
         if (error) throw error;
         console.log('User permission updated successfully');
       } else {
-        // Create new permission
         const { error } = await supabase
           .from('user_permissions')
           .insert({
@@ -282,7 +276,6 @@ export const PermissionsManager = () => {
         ...rolePermissionSet 
       });
       
-      // Check if permission already exists
       const { data: existing, error: checkError } = await supabase
         .from('role_permissions')
         .select('id')
@@ -295,7 +288,6 @@ export const PermissionsManager = () => {
       }
 
       if (existing) {
-        // Update existing permission
         const { error } = await supabase
           .from('role_permissions')
           .update({
@@ -307,7 +299,6 @@ export const PermissionsManager = () => {
         if (error) throw error;
         console.log('Role permission updated successfully');
       } else {
-        // Create new permission
         const { error } = await supabase
           .from('role_permissions')
           .insert({
@@ -415,40 +406,42 @@ export const PermissionsManager = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 lg:space-y-6 p-4 lg:p-0">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Permissions Management</h2>
-          <p className="text-gray-600">Manage user and role-based permissions for different modules</p>
+          <h2 className="text-xl lg:text-2xl font-bold text-gray-900">Permissions Management</h2>
+          <p className="text-sm lg:text-base text-gray-600">Manage user and role-based permissions for different modules</p>
         </div>
-        <Button onClick={fetchData} variant="outline" size="sm">
+        <Button onClick={fetchData} variant="outline" size="sm" className="self-start lg:self-auto">
           <RefreshCw className="h-4 w-4 mr-2" />
           Refresh
         </Button>
       </div>
 
-      <Tabs defaultValue="user-permissions" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="user-permissions" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            User Permissions
+      <Tabs defaultValue="user-permissions" className="space-y-4 lg:space-y-6">
+        <TabsList className="grid w-full grid-cols-2 h-auto">
+          <TabsTrigger value="user-permissions" className="flex items-center gap-2 text-xs lg:text-sm p-2 lg:p-3">
+            <Users className="h-3 w-3 lg:h-4 lg:w-4" />
+            <span className="hidden sm:inline">User Permissions</span>
+            <span className="sm:hidden">Users</span>
           </TabsTrigger>
-          <TabsTrigger value="role-permissions" className="flex items-center gap-2">
-            <Shield className="h-4 w-4" />
-            Role Permissions
+          <TabsTrigger value="role-permissions" className="flex items-center gap-2 text-xs lg:text-sm p-2 lg:p-3">
+            <Shield className="h-3 w-3 lg:h-4 lg:w-4" />
+            <span className="hidden sm:inline">Role Permissions</span>
+            <span className="sm:hidden">Roles</span>
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="user-permissions" className="space-y-6">
+        <TabsContent value="user-permissions" className="space-y-4 lg:space-y-6">
           {/* User Permission Form */}
           <Card>
             <CardHeader>
-              <CardTitle>Assign User Permissions</CardTitle>
+              <CardTitle className="text-lg lg:text-xl">Assign User Permissions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Select User</Label>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm lg:text-base">Select User</Label>
                   <SearchableSelect
                     options={profiles.map(p => ({ 
                       value: p.id, 
@@ -459,8 +452,8 @@ export const PermissionsManager = () => {
                     placeholder="Select User"
                   />
                 </div>
-                <div>
-                  <Label>Select Module</Label>
+                <div className="space-y-2">
+                  <Label className="text-sm lg:text-base">Select Module</Label>
                   <SearchableSelect
                     options={modules}
                     value={selectedModule}
@@ -471,8 +464,8 @@ export const PermissionsManager = () => {
               </div>
 
               <div className="space-y-3">
-                <Label>Permissions</Label>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <Label className="text-sm lg:text-base">Permissions</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-4">
                   {permissionTypes.map((permission) => (
                     <div key={permission.key} className="flex items-center space-x-2">
                       <Switch
@@ -484,7 +477,7 @@ export const PermissionsManager = () => {
                           })
                         }
                       />
-                      <Label className="text-sm">{permission.label}</Label>
+                      <Label className="text-xs lg:text-sm">{permission.label}</Label>
                     </div>
                   ))}
                 </div>
@@ -509,24 +502,24 @@ export const PermissionsManager = () => {
           {/* User Permissions List */}
           <Card>
             <CardHeader>
-              <CardTitle>Current User Permissions</CardTitle>
+              <CardTitle className="text-lg lg:text-xl">Current User Permissions</CardTitle>
             </CardHeader>
             <CardContent>
               {userPermissions.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No user-specific permissions configured</p>
+                  <p className="text-sm lg:text-base">No user-specific permissions configured</p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   {userPermissions.map((permission) => (
-                    <div key={permission.id} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-3">
+                    <div key={permission.id} className="border rounded-lg p-3 lg:p-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
                         <div>
-                          <h4 className="font-medium">
+                          <h4 className="font-medium text-sm lg:text-base">
                             {permission.profiles?.full_name || 'Unknown User'}
                           </h4>
-                          <p className="text-sm text-gray-600 capitalize">
+                          <p className="text-xs lg:text-sm text-gray-600 capitalize">
                             Module: {permission.module}
                           </p>
                         </div>
@@ -534,7 +527,7 @@ export const PermissionsManager = () => {
                           variant="ghost"
                           size="sm"
                           onClick={() => deleteUserPermission(permission.id)}
-                          className="text-red-600 hover:text-red-800"
+                          className="text-red-600 hover:text-red-800 self-start sm:self-auto"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -544,6 +537,7 @@ export const PermissionsManager = () => {
                           <Badge
                             key={perm.key}
                             variant={permission[perm.key as keyof PermissionSet] ? "default" : "secondary"}
+                            className="text-xs"
                           >
                             {perm.label}: {permission[perm.key as keyof PermissionSet] ? '✓' : '✗'}
                           </Badge>
@@ -557,16 +551,16 @@ export const PermissionsManager = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="role-permissions" className="space-y-6">
+        <TabsContent value="role-permissions" className="space-y-4 lg:space-y-6">
           {/* Role Permission Form */}
           <Card>
             <CardHeader>
-              <CardTitle>Configure Role Permissions</CardTitle>
+              <CardTitle className="text-lg lg:text-xl">Configure Role Permissions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Select Role</Label>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm lg:text-base">Select Role</Label>
                   <SearchableSelect
                     options={roles}
                     value={selectedRole}
@@ -574,8 +568,8 @@ export const PermissionsManager = () => {
                     placeholder="Select Role"
                   />
                 </div>
-                <div>
-                  <Label>Select Module</Label>
+                <div className="space-y-2">
+                  <Label className="text-sm lg:text-base">Select Module</Label>
                   <SearchableSelect
                     options={modules}
                     value={selectedModule}
@@ -586,8 +580,8 @@ export const PermissionsManager = () => {
               </div>
 
               <div className="space-y-3">
-                <Label>Permissions</Label>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <Label className="text-sm lg:text-base">Permissions</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-4">
                   {permissionTypes.map((permission) => (
                     <div key={permission.key} className="flex items-center space-x-2">
                       <Switch
@@ -599,7 +593,7 @@ export const PermissionsManager = () => {
                           })
                         }
                       />
-                      <Label className="text-sm">{permission.label}</Label>
+                      <Label className="text-xs lg:text-sm">{permission.label}</Label>
                     </div>
                   ))}
                 </div>
@@ -624,24 +618,24 @@ export const PermissionsManager = () => {
           {/* Role Permissions List */}
           <Card>
             <CardHeader>
-              <CardTitle>Current Role Permissions</CardTitle>
+              <CardTitle className="text-lg lg:text-xl">Current Role Permissions</CardTitle>
             </CardHeader>
             <CardContent>
               {rolePermissions.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No role-based permissions configured</p>
+                  <p className="text-sm lg:text-base">No role-based permissions configured</p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   {rolePermissions.map((permission) => (
-                    <div key={permission.id} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-3">
+                    <div key={permission.id} className="border rounded-lg p-3 lg:p-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
                         <div>
-                          <h4 className="font-medium capitalize">
+                          <h4 className="font-medium text-sm lg:text-base capitalize">
                             {permission.role.replace('_', ' ')}
                           </h4>
-                          <p className="text-sm text-gray-600 capitalize">
+                          <p className="text-xs lg:text-sm text-gray-600 capitalize">
                             Module: {permission.module_name}
                           </p>
                         </div>
@@ -649,7 +643,7 @@ export const PermissionsManager = () => {
                           variant="ghost"
                           size="sm"
                           onClick={() => deleteRolePermission(permission.id)}
-                          className="text-red-600 hover:text-red-800"
+                          className="text-red-600 hover:text-red-800 self-start sm:self-auto"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -659,6 +653,7 @@ export const PermissionsManager = () => {
                           <Badge
                             key={perm.key}
                             variant={permission[perm.key as keyof PermissionSet] ? "default" : "secondary"}
+                            className="text-xs"
                           >
                             {perm.label}: {permission[perm.key as keyof PermissionSet] ? '✓' : '✗'}
                           </Badge>
