@@ -19,27 +19,32 @@ import {
 import { useAuth } from './AuthProvider';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { usePermissions } from '@/hooks/usePermissions';
 
 const navigationItems = [
   {
     title: "Dashboard",
     url: "/dashboard",
     icon: Home,
+    module: "dashboard",
   },
   {
     title: "Karyakars",
     url: "/karyakars",
     icon: Users,
+    module: "karyakars",
   },
   {
     title: "Tasks",
     url: "/tasks",
     icon: CheckSquare,
+    module: "tasks",
   },
   {
     title: "Communication",
     url: "/communication",
     icon: MessageSquare,
+    module: "communication",
   },
 ];
 
@@ -48,6 +53,7 @@ const managementItems = [
     title: "Reports",
     url: "/reports",
     icon: FileText,
+    module: "reports",
   },
 ];
 
@@ -56,6 +62,7 @@ const adminItems = [
     title: "Admin Panel",
     url: "/admin",
     icon: Settings,
+    module: "admin",
   },
 ];
 
@@ -63,6 +70,7 @@ export function AppSidebar() {
   const { state, isMobile, setOpen } = useSidebar();
   const location = useLocation();
   const { user } = useAuth();
+  const { hasPermission, loading: permissionsLoading } = usePermissions();
   const isCollapsed = state === "collapsed";
   const [userRole, setUserRole] = useState('');
 
@@ -102,96 +110,53 @@ export function AppSidebar() {
     }
   };
 
+  // Filter navigation items based on permissions
+  const filteredNavigationItems = navigationItems.filter(item => 
+    !permissionsLoading && hasPermission(item.module, 'view')
+  );
+
+  const filteredManagementItems = managementItems.filter(item => 
+    !permissionsLoading && hasPermission(item.module, 'view')
+  );
+
+  const filteredAdminItems = adminItems.filter(item => 
+    !permissionsLoading && hasPermission(item.module, 'view')
+  );
+
   return (
-  <Sidebar 
-    className={`${isCollapsed && !isMobile ? "w-14" : "w-64"} ${isMobile ? "fixed z-50" : ""}`}
-  collapsible={false} // Avoid default toggle logic
-  hideCloseButton={true}
-  showHeader={false} // For header-based buttons
-
-   >
-    <SidebarContent className="bg-white border-r">
-      
-      {/* Logo */}
-      <div className="p-6 border-b">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">SS</span>
-          </div>
-          {(!isCollapsed || isMobile) && (
-            <div>
-              <h1 className="font-bold text-lg text-gray-900">Seva Sarthi</h1>
-              <p className="text-xs text-gray-600">Connect</p>
+    <Sidebar 
+      className={`${isCollapsed && !isMobile ? "w-14" : "w-64"} ${isMobile ? "fixed z-50" : ""}`}
+      collapsible="none"
+    >
+      <SidebarContent className="bg-white border-r">
+        
+        {/* Logo */}
+        <div className="p-4 md:p-6 border-b">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">SS</span>
             </div>
-          )}
+            {(!isCollapsed || isMobile) && (
+              <div>
+                <h1 className="font-bold text-lg text-gray-900">Seva Sarthi</h1>
+                <p className="text-xs text-gray-600">Connect</p>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Main Navigation */}
-      <div className="p-4">
-        <SidebarMenu>
-          {navigationItems.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton asChild>
-                <NavLink 
-                  to={item.url} 
-                  className={getNavClass(item.url)}
-                  onClick={() => {
-                    if (isMobile) setOpen(false);
-                    window.scrollTo(0, 0);
-                  }}
-                >
-                  <item.icon className="h-4 w-4" />
-                  {(!isCollapsed || isMobile) && <span>{item.title}</span>}
-                </NavLink>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
-      </div>
-
-      {/* Management Section */}
-      <div className="px-4 pb-4">
-        {(!isCollapsed || isMobile) && (
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Management</p>
-        )}
-        <SidebarMenu>
-          {managementItems.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton asChild>
-                <NavLink 
-                  to={item.url} 
-                  className={getNavClass(item.url)}
-                  onClick={() => {
-                    if (isMobile) setOpen(false);
-                    window.scrollTo(0, 0);
-                  }}
-                >
-                  <item.icon className="h-4 w-4" />
-                  {(!isCollapsed || isMobile) && <span>{item.title}</span>}
-                </NavLink>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
-      </div>
-
-      {/* Admin Section */}
-      {userRole === 'super_admin' && (
-        <div className="px-4 pb-4">
-          {(!isCollapsed || isMobile) && (
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Administration</p>
-          )}
+        {/* Main Navigation */}
+        <div className="p-2 md:p-4">
           <SidebarMenu>
-            {adminItems.map((item) => (
+            {filteredNavigationItems.map((item) => (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton asChild>
                   <NavLink 
                     to={item.url} 
                     className={getNavClass(item.url)}
                     onClick={() => {
-                    if (isMobile) setOpen(false);
-                    window.scrollTo(0, 0);
+                      if (isMobile) setOpen(false);
+                      window.scrollTo(0, 0);
                     }}
                   >
                     <item.icon className="h-4 w-4" />
@@ -202,9 +167,64 @@ export function AppSidebar() {
             ))}
           </SidebarMenu>
         </div>
-      )}
 
-    </SidebarContent>
-  </Sidebar>
-);
+        {/* Management Section */}
+        {filteredManagementItems.length > 0 && (
+          <div className="px-2 md:px-4 pb-2 md:pb-4">
+            {(!isCollapsed || isMobile) && (
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Management</p>
+            )}
+            <SidebarMenu>
+              {filteredManagementItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <NavLink 
+                      to={item.url} 
+                      className={getNavClass(item.url)}
+                      onClick={() => {
+                        if (isMobile) setOpen(false);
+                        window.scrollTo(0, 0);
+                      }}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      {(!isCollapsed || isMobile) && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </div>
+        )}
+
+        {/* Admin Section */}
+        {filteredAdminItems.length > 0 && (
+          <div className="px-2 md:px-4 pb-2 md:pb-4">
+            {(!isCollapsed || isMobile) && (
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Administration</p>
+            )}
+            <SidebarMenu>
+              {filteredAdminItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <NavLink 
+                      to={item.url} 
+                      className={getNavClass(item.url)}
+                      onClick={() => {
+                        if (isMobile) setOpen(false);
+                        window.scrollTo(0, 0);
+                      }}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      {(!isCollapsed || isMobile) && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </div>
+        )}
+
+      </SidebarContent>
+    </Sidebar>
+  );
 }
