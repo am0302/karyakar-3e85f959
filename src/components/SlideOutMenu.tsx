@@ -46,13 +46,13 @@ export const SlideOutMenu = () => {
         <div className="flex flex-col h-full">
           <div className="flex items-center justify-between p-4 border-b">
             <h2 className="text-lg font-semibold">Menu</h2>
-            <Button 
+            {/*}  <Button 
               variant="ghost" 
               size="sm" 
               onClick={() => setOpen(false)}
             >
               <X className="h-4 w-4" />
-            </Button>
+            </Button> */}
           </div>
           
           <nav className="flex-1 py-4">
