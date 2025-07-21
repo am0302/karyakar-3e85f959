@@ -138,7 +138,10 @@ export function AppSidebar() {
         <NavLink 
           to={item.url} 
           className={getNavClass(item.url)}
-          onClick={() => !isMobile && setIsCollapsed(true)}
+        //  onClick={() => !isMobile && setIsCollapsed(true)
+          onClick={() => {!isMobile && setIsCollapsed(true);
+          window.scrollTo(0, 0);}}
+}
         >
           <item.icon className="h-4 w-4" />
           {(!isCollapsed || isMobile) && <span>{item.title}</span>}
