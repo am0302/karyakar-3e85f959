@@ -134,11 +134,13 @@ export function AppSidebar() {
                   to={item.url} 
                   className={getNavClass(item.url)}
                   onClick={() => {
-                    if (isMobile) {
-                      setOpen(false);
-                    }
-                    window.scrollTo(0, 0);
-                  }}
+  if (isMobile) {
+    setOpen(false); // closes mobile sidebar/drawer
+  } else {
+    setIsCollapsed(true); // collapses on desktop
+  }
+  window.scrollTo(0, 0);
+}}
                 >
                   <item.icon className="h-4 w-4" />
                   {(!isCollapsed || isMobile) && <span>{item.title}</span>}
@@ -162,11 +164,13 @@ export function AppSidebar() {
                   to={item.url} 
                   className={getNavClass(item.url)}
                   onClick={() => {
-                    if (isMobile) {
-                      setOpen(false);
-                    }
-                    window.scrollTo(0, 0);
-                  }}
+  if (isMobile) {
+    setOpen(false); // closes mobile sidebar/drawer
+  } else {
+    setIsCollapsed(true); // collapses on desktop
+  }
+  window.scrollTo(0, 0);
+}}
                 >
                   <item.icon className="h-4 w-4" />
                   {(!isCollapsed || isMobile) && <span>{item.title}</span>}
@@ -191,11 +195,13 @@ export function AppSidebar() {
                     to={item.url} 
                     className={getNavClass(item.url)}
                     onClick={() => {
-                      if (isMobile) {
-                        setOpen(false);
-                      }
-                      window.scrollTo(0, 0);
-                    }}
+  if (isMobile) {
+    setOpen(false); // closes mobile sidebar/drawer
+  } else {
+    setIsCollapsed(true); // collapses on desktop
+  }
+  window.scrollTo(0, 0);
+}}
                   >
                     <item.icon className="h-4 w-4" />
                     {(!isCollapsed || isMobile) && <span>{item.title}</span>}
