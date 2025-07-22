@@ -359,10 +359,26 @@ export const RoleHierarchyManager = () => {
     return role ? role.display_name : roleName.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
-  const getAvailableRolesForHierarchy = () => {
+    const getAvailableRolesForHierarchy = () => {
     const existingRoles = roleHierarchy.map(r => r.role);
     return availableRoles.filter(role => !existingRoles.includes(role.role_name));
   };
+const [availableRoles, setAvailableRoles] = useState([]);
+
+useEffect(() => {
+  supabase.from('custom_roles').select('*').then(({ data, error }) => {
+    if (error) console.error(error);
+    else setAvailableRoles(data);
+  });
+}, []);
+const [roleHierarchy, setRoleHierarchy] = useState([]);
+
+useEffect(() => {
+  supabase.from('role_hierarchy').select('*').then(({ data, error }) => {
+    if (error) console.error(error);
+    else setRoleHierarchy(data);
+  });
+}, []);
 
   if (loading) {
     return (
