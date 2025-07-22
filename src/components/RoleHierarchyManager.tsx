@@ -158,8 +158,14 @@ export const RoleHierarchyManager = () => {
       
       // Safely process the data with proper type checking
       if (Array.isArray(response.data)) {
-        // Filter and cast to the correct type
-        const validItems = response.data.filter(isValidCustomRoleData) as ValidCustomRoleData[];
+        // Filter items and manually build the valid items array
+        const validItems: ValidCustomRoleData[] = [];
+        
+        for (const item of response.data) {
+          if (isValidCustomRoleData(item)) {
+            validItems.push(item);
+          }
+        }
         
         if (validItems.length > 0) {
           const customRoleData: CustomRole[] = validItems.map(item => ({
