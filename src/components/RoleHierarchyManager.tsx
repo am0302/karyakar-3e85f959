@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -422,6 +421,17 @@ export const RoleHierarchyManager = () => {
                   <div className="space-y-4">
                     <div>
                       <Label>Role</Label>
+                   
+                  {/*     <div>
+  <Label>Role</Label>
+  <Input
+    placeholder="Enter Role Name"
+    type="user_role"
+    value={newRole}
+    onChange={(e) => setSelectedRole(e.target.value as UserRole)}
+  />
+</div>*/}
+
                       <SearchableSelect
                         options={getAvailableRolesForHierarchy().map(role => ({
                           value: role.role_name,
