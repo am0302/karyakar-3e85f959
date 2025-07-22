@@ -105,7 +105,7 @@ export function AppSidebar() {
   return (
   <Sidebar 
     className={`${isCollapsed && !isMobile ? "w-14" : "w-64"} ${isMobile ? "fixed z-50" : ""}`}
-  collapsible={false} // Avoid default toggle logic
+ // collapsible={false} // Avoid default toggle logic
   hideCloseButton={true}
   showHeader={false} // For header-based buttons
 
