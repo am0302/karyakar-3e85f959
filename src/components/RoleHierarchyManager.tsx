@@ -271,22 +271,37 @@ export const RoleHierarchyManager = () => {
         
         // Fall back to manual insertion
         try {
-          await (supabase as any).from('custom_roles').insert({
+               await supabase.from('custom_roles').insert({
+  role_name: roleNameFormatted,
+  display_name: newRoleDisplayName,
+  description: newRoleDescription || null,
+  is_system_role: false,
+  created_at: new Date().toISOString(),
+});
+        /*  await (supabase as any).from('custom_roles').insert({
             role_name: roleNameFormatted,
             display_name: newRoleDisplayName,
             description: newRoleDescription || null,
             is_system_role: false
-          });
+          }); */
         } catch (customRoleError) {
           console.log('Custom roles table not available');
         }
 
         // Insert into role_hierarchy with proper type casting
-        await (supabase as any).from('role_hierarchy').insert({
+   
+await supabase.from('role_hierarchy').insert({
+  role: roleNameFormatted,
+  level: newRoleLevel,
+  parent_role: newRoleParent || null,
+  created_at: new Date().toISOString(),
+});
+
+      /*  await (supabase as any).from('role_hierarchy').insert({
           role: roleNameFormatted as UserRole,
           level: newRoleLevel,
           parent_role: newRoleParent ? newRoleParent as UserRole : null
-        });
+        });*/
       }
 
       toast({
