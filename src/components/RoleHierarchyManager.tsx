@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,11 +17,9 @@ import type { Database } from '@/integrations/supabase/types';
 // Define types based on the expected database structure
 type UserRole = Database['public']['Enums']['user_role'];
 
-interface CustomRole {
-  id: string;
-  role_name: string;
+interface RoleInfo {
+  role_name: UserRole;
   display_name: string;
-  description: string | null;
   is_system_role: boolean;
 }
 
@@ -42,41 +41,18 @@ interface HierarchyPermission {
   can_assign_locations: boolean;
 }
 
-// Type for valid custom role data from database
-interface ValidCustomRoleData {
-  id: string;
-  role_name: string;
-  display_name: string;
-  description?: string | null;
-  is_system_role?: boolean;
-}
-
-// Type guard to check if an object has the expected custom role properties
-function isValidCustomRoleData(obj: any): obj is ValidCustomRoleData {
-  return (
-    obj &&
-    typeof obj === 'object' &&
-    typeof obj.id === 'string' &&
-    typeof obj.role_name === 'string' &&
-    typeof obj.display_name === 'string' &&
-    !obj.error // Ensure it's not an error object
-  );
-}
-
 export const RoleHierarchyManager = () => {
   const { toast } = useToast();
-  const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
+  const [availableRoles, setAvailableRoles] = useState<RoleInfo[]>([]);
   const [roleHierarchy, setRoleHierarchy] = useState<RoleHierarchy[]>([]);
   const [hierarchyPermissions, setHierarchyPermissions] = useState<HierarchyPermission[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   // New role form states
-  const [newRoleName, setNewRoleName] = useState('');
-  const [newRoleDisplayName, setNewRoleDisplayName] = useState('');
-  const [newRoleDescription, setNewRoleDescription] = useState('');
   const [newRoleLevel, setNewRoleLevel] = useState(1);
   const [newRoleParent, setNewRoleParent] = useState('');
+  const [selectedRole, setSelectedRole] = useState<UserRole>('sevak');
   const [showAddRoleDialog, setShowAddRoleDialog] = useState(false);
 
   // Edit hierarchy states
@@ -85,8 +61,8 @@ export const RoleHierarchyManager = () => {
   const [editParent, setEditParent] = useState('');
 
   // Permission form states
-  const [selectedHigherRole, setSelectedHigherRole] = useState('super_admin');
-  const [selectedLowerRole, setSelectedLowerRole] = useState('sevak');
+  const [selectedHigherRole, setSelectedHigherRole] = useState<UserRole>('super_admin');
+  const [selectedLowerRole, setSelectedLowerRole] = useState<UserRole>('sevak');
   const [permissionSet, setPermissionSet] = useState({
     can_view: false,
     can_edit: false,
@@ -103,8 +79,8 @@ export const RoleHierarchyManager = () => {
     { key: 'can_assign_locations', label: 'Assign Locations' }
   ];
 
-  // Default system roles for fallback
-  const defaultRoles = [
+  // System roles with display names
+  const systemRoles: RoleInfo[] = [
     { role_name: 'super_admin', display_name: 'Super Admin', is_system_role: true },
     { role_name: 'sant_nirdeshak', display_name: 'Sant Nirdeshak', is_system_role: true },
     { role_name: 'sah_nirdeshak', display_name: 'Sah Nirdeshak', is_system_role: true },
@@ -120,8 +96,8 @@ export const RoleHierarchyManager = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
+      setAvailableRoles(systemRoles);
       await Promise.all([
-        fetchCustomRoles(),
         fetchRoleHierarchy(),
         fetchHierarchyPermissions()
       ]);
@@ -134,71 +110,6 @@ export const RoleHierarchyManager = () => {
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchCustomRoles = async () => {
-    try {
-      // Try to fetch from custom_roles table, fall back to default roles
-      const response = await supabase
-        .from('custom_roles' as any)
-        .select('*')
-        .order('role_name');
-
-      // Check if the query was successful and we have valid data
-      if (response.error || !response.data) {
-        console.log('Custom roles table not available, using default roles');
-        setCustomRoles(defaultRoles.map((role, index) => ({
-          id: `default-${index}`,
-          ...role,
-          description: null
-        })));
-        return;
-      }
-      
-      // Safely process the data with proper type checking
-      if (Array.isArray(response.data)) {
-        // Filter items and manually build the valid items array
-        const validItems: ValidCustomRoleData[] = [];
-        
-        for (const item of response.data) {
-          if (isValidCustomRoleData(item)) {
-            validItems.push(item);
-          }
-        }
-        
-        if (validItems.length > 0) {
-          const customRoleData: CustomRole[] = validItems.map(item => ({
-            id: item.id,
-            role_name: item.role_name,
-            display_name: item.display_name,
-            description: item.description || null,
-            is_system_role: item.is_system_role || false
-          }));
-          
-          setCustomRoles(customRoleData);
-        } else {
-          // Fall back to default roles if no valid data
-          setCustomRoles(defaultRoles.map((role, index) => ({
-            id: `default-${index}`,
-            ...role,
-            description: null
-          })));
-        }
-      } else {
-        setCustomRoles(defaultRoles.map((role, index) => ({
-          id: `default-${index}`,
-          ...role,
-          description: null
-        })));
-      }
-    } catch (error) {
-      console.log('Using default roles due to error:', error);
-      setCustomRoles(defaultRoles.map((role, index) => ({
-        id: `default-${index}`,
-        ...role,
-        description: null
-      })));
     }
   };
 
@@ -242,11 +153,11 @@ export const RoleHierarchyManager = () => {
     }
   };
 
-  const addNewRole = async () => {
-    if (!newRoleName || !newRoleDisplayName) {
+  const addRoleToHierarchy = async () => {
+    if (!selectedRole) {
       toast({
         title: 'Error',
-        description: 'Role name and display name are required',
+        description: 'Please select a role',
         variant: 'destructive',
       });
       return;
@@ -254,75 +165,45 @@ export const RoleHierarchyManager = () => {
 
     try {
       setSaving(true);
-      const roleNameFormatted = newRoleName.toLowerCase().replace(/\s+/g, '_');
       
-      // Try to use the RPC function first
-      try {
-        const { error } = await (supabase as any).rpc('add_role_to_hierarchy', {
-          _role_name: roleNameFormatted,
-          _display_name: newRoleDisplayName,
-          _level: newRoleLevel,
-          _parent_role: newRoleParent || null
+      // Check if role already exists in hierarchy
+      const existingRole = roleHierarchy.find(r => r.role === selectedRole);
+      if (existingRole) {
+        toast({
+          title: 'Error',
+          description: 'Role already exists in hierarchy',
+          variant: 'destructive',
         });
+        return;
+      }
 
-        if (error) throw error;
-      } catch (rpcError) {
-        console.log('RPC function not available, using manual insertion');
-        
-        // Fall back to manual insertion
-        try {
-               await supabase.from('custom_roles').insert({
-  role_name: roleNameFormatted,
-  display_name: newRoleDisplayName,
-  description: newRoleDescription || null,
-  is_system_role: false,
-  created_at: new Date().toISOString(),
-});
-        /*  await (supabase as any).from('custom_roles').insert({
-            role_name: roleNameFormatted,
-            display_name: newRoleDisplayName,
-            description: newRoleDescription || null,
-            is_system_role: false
-          }); */
-        } catch (customRoleError) {
-          console.log('Custom roles table not available');
-        }
-
-        // Insert into role_hierarchy with proper type casting
-   
-await supabase.from('role_hierarchy').insert({
-  role: roleNameFormatted,
-  level: newRoleLevel,
-  parent_role: newRoleParent || null,
-  created_at: new Date().toISOString(),
-});
-
-      /*  await (supabase as any).from('role_hierarchy').insert({
-          role: roleNameFormatted as UserRole,
+      const { error } = await supabase
+        .from('role_hierarchy')
+        .insert({
+          role: selectedRole,
           level: newRoleLevel,
           parent_role: newRoleParent ? newRoleParent as UserRole : null
-        });*/
-      }
+        });
+
+      if (error) throw error;
 
       toast({
         title: 'Success',
-        description: 'New role added successfully',
+        description: 'Role added to hierarchy successfully',
       });
 
       // Reset form
-      setNewRoleName('');
-      setNewRoleDisplayName('');
-      setNewRoleDescription('');
+      setSelectedRole('sevak');
       setNewRoleLevel(1);
       setNewRoleParent('');
       setShowAddRoleDialog(false);
 
-      await fetchData();
+      await fetchRoleHierarchy();
     } catch (error: any) {
-      console.error('Error adding new role:', error);
+      console.error('Error adding role to hierarchy:', error);
       toast({
         title: 'Error',
-        description: `Failed to add new role: ${error.message}`,
+        description: `Failed to add role to hierarchy: ${error.message}`,
         variant: 'destructive',
       });
     } finally {
@@ -334,30 +215,16 @@ await supabase.from('role_hierarchy').insert({
     try {
       setSaving(true);
       
-      // Try to use the RPC function first
-      try {
-        const { error } = await (supabase as any).rpc('update_role_hierarchy', {
-          _role_name: roleName,
-          _new_level: editLevel,
-          _new_parent_role: editParent || null
-        });
+      const { error } = await supabase
+        .from('role_hierarchy')
+        .update({
+          level: editLevel,
+          parent_role: editParent ? editParent as UserRole : null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('role', roleName as UserRole);
 
-        if (error) throw error;
-      } catch (rpcError) {
-        console.log('RPC function not available, using direct update');
-        
-        // Fall back to direct update
-        const { error } = await (supabase as any)
-          .from('role_hierarchy')
-          .update({
-            level: editLevel,
-            parent_role: editParent ? editParent as UserRole : null,
-            updated_at: new Date().toISOString()
-          })
-          .eq('role', roleName as UserRole);
-
-        if (error) throw error;
-      }
+      if (error) throw error;
 
       toast({
         title: 'Success',
@@ -394,8 +261,8 @@ await supabase.from('role_hierarchy').insert({
       const { data: existing, error: checkError } = await supabase
         .from('hierarchy_permissions')
         .select('id')
-        .eq('higher_role', selectedHigherRole as UserRole)
-        .eq('lower_role', selectedLowerRole as UserRole)
+        .eq('higher_role', selectedHigherRole)
+        .eq('lower_role', selectedLowerRole)
         .maybeSingle();
 
       if (checkError && checkError.code !== 'PGRST116') {
@@ -403,7 +270,7 @@ await supabase.from('role_hierarchy').insert({
       }
 
       if (existing) {
-        const { error } = await (supabase as any)
+        const { error } = await supabase
           .from('hierarchy_permissions')
           .update({
             ...permissionSet,
@@ -413,11 +280,11 @@ await supabase.from('role_hierarchy').insert({
 
         if (error) throw error;
       } else {
-        const { error } = await (supabase as any)
+        const { error } = await supabase
           .from('hierarchy_permissions')
           .insert({
-            higher_role: selectedHigherRole as UserRole,
-            lower_role: selectedLowerRole as UserRole,
+            higher_role: selectedHigherRole,
+            lower_role: selectedLowerRole,
             ...permissionSet
           });
 
@@ -481,15 +348,20 @@ await supabase.from('role_hierarchy').insert({
   };
 
   const getRoleOptions = () => {
-    return customRoles.map(role => ({
+    return availableRoles.map(role => ({
       value: role.role_name,
       label: role.display_name
     }));
   };
 
   const getRoleDisplayName = (roleName: string) => {
-    const role = customRoles.find(r => r.role_name === roleName);
+    const role = availableRoles.find(r => r.role_name === roleName);
     return role ? role.display_name : roleName.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  const getAvailableRolesForHierarchy = () => {
+    const existingRoles = roleHierarchy.map(r => r.role);
+    return availableRoles.filter(role => !existingRoles.includes(role.role_name));
   };
 
   if (loading) {
@@ -534,8 +406,69 @@ await supabase.from('role_hierarchy').insert({
 
         <TabsContent value="hierarchy-view" className="space-y-6">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Current Role Hierarchy</CardTitle>
+              <Dialog open={showAddRoleDialog} onOpenChange={setShowAddRoleDialog}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Role to Hierarchy
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add Role to Hierarchy</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Role</Label>
+                      <SearchableSelect
+                        options={getAvailableRolesForHierarchy().map(role => ({
+                          value: role.role_name,
+                          label: role.display_name
+                        }))}
+                        value={selectedRole}
+                        onValueChange={(value) => setSelectedRole(value as UserRole)}
+                        placeholder="Select Role"
+                      />
+                    </div>
+                    <div>
+                      <Label>Hierarchy Level</Label>
+                      <Input
+                        type="number"
+                        value={newRoleLevel}
+                        onChange={(e) => setNewRoleLevel(parseInt(e.target.value))}
+                        min="1"
+                      />
+                    </div>
+                    <div>
+                      <Label>Parent Role (Optional)</Label>
+                      <SearchableSelect
+                        options={[
+                          { value: '', label: 'No Parent' },
+                          ...getRoleOptions().filter(r => r.value !== selectedRole)
+                        ]}
+                        value={newRoleParent}
+                        onValueChange={setNewRoleParent}
+                        placeholder="Select Parent Role"
+                      />
+                    </div>
+                    <Button onClick={addRoleToHierarchy} className="w-full" disabled={saving}>
+                      {saving ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Adding Role...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Role
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -613,94 +546,18 @@ await supabase.from('role_hierarchy').insert({
 
         <TabsContent value="manage-roles" className="space-y-6">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Manage Roles</CardTitle>
-              <Dialog open={showAddRoleDialog} onOpenChange={setShowAddRoleDialog}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add New Role
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Add New Role</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label>Role Name</Label>
-                      <Input
-                        value={newRoleName}
-                        onChange={(e) => setNewRoleName(e.target.value)}
-                        placeholder="e.g. regional_coordinator"
-                      />
-                    </div>
-                    <div>
-                      <Label>Display Name</Label>
-                      <Input
-                        value={newRoleDisplayName}
-                        onChange={(e) => setNewRoleDisplayName(e.target.value)}
-                        placeholder="e.g. Regional Coordinator"
-                      />
-                    </div>
-                    <div>
-                      <Label>Description</Label>
-                      <Input
-                        value={newRoleDescription}
-                        onChange={(e) => setNewRoleDescription(e.target.value)}
-                        placeholder="Role description (optional)"
-                      />
-                    </div>
-                    <div>
-                      <Label>Hierarchy Level</Label>
-                      <Input
-                        type="number"
-                        value={newRoleLevel}
-                        onChange={(e) => setNewRoleLevel(parseInt(e.target.value))}
-                        min="1"
-                      />
-                    </div>
-                    <div>
-                      <Label>Parent Role (Optional)</Label>
-                      <SearchableSelect
-                        options={[
-                          { value: '', label: 'No Parent' },
-                          ...getRoleOptions()
-                        ]}
-                        value={newRoleParent}
-                        onValueChange={setNewRoleParent}
-                        placeholder="Select Parent Role"
-                      />
-                    </div>
-                    <Button onClick={addNewRole} className="w-full" disabled={saving}>
-                      {saving ? (
-                        <>
-                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                          Adding Role...
-                        </>
-                      ) : (
-                        <>
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Role
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+            <CardHeader>
+              <CardTitle>Available System Roles</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {customRoles.map((role) => (
-                  <div key={role.id} className="flex items-center justify-between p-4 border rounded-lg">
+                {availableRoles.map((role) => (
+                  <div key={role.role_name} className="flex items-center justify-between p-4 border rounded-lg">
                     <div>
                       <h4 className="font-medium">{role.display_name}</h4>
                       <p className="text-sm text-gray-600">
                         {role.role_name} {role.is_system_role && '(System Role)'}
                       </p>
-                      {role.description && (
-                        <p className="text-sm text-gray-500">{role.description}</p>
-                      )}
                     </div>
                     <Badge variant={role.is_system_role ? "secondary" : "default"}>
                       {role.is_system_role ? 'System' : 'Custom'}
@@ -725,7 +582,7 @@ await supabase.from('role_hierarchy').insert({
                   <SearchableSelect
                     options={getRoleOptions()}
                     value={selectedHigherRole}
-                    onValueChange={setSelectedHigherRole}
+                    onValueChange={(value) => setSelectedHigherRole(value as UserRole)}
                     placeholder="Select Higher Role"
                   />
                 </div>
@@ -734,7 +591,7 @@ await supabase.from('role_hierarchy').insert({
                   <SearchableSelect
                     options={getRoleOptions()}
                     value={selectedLowerRole}
-                    onValueChange={setSelectedLowerRole}
+                    onValueChange={(value) => setSelectedLowerRole(value as UserRole)}
                     placeholder="Select Lower Role"
                   />
                 </div>
