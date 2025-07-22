@@ -11,6 +11,10 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Trash2, Save, Shield, RefreshCw, Users, Network, Plus, Edit2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import type { Database } from '@/integrations/supabase/types';
+
+// Define types based on the expected database structure
+type UserRole = Database['public']['Enums']['user_role'];
 
 interface CustomRole {
   id: string;
@@ -22,15 +26,15 @@ interface CustomRole {
 
 interface RoleHierarchy {
   id: string;
-  role: string;
+  role: UserRole;
   level: number;
-  parent_role: string | null;
+  parent_role: UserRole | null;
 }
 
 interface HierarchyPermission {
   id: string;
-  higher_role: string;
-  lower_role: string;
+  higher_role: UserRole;
+  lower_role: UserRole;
   can_view: boolean;
   can_edit: boolean;
   can_delete: boolean;
@@ -132,23 +136,23 @@ export const RoleHierarchyManager = () => {
       
       // Properly handle the data with type checking and null safety
       if (data && Array.isArray(data)) {
-        // Check if the data has the expected structure with proper null checks
-        const validData = data.filter((item): item is any => 
-          item !== null && 
-          typeof item === 'object' && 
-          'role_name' in item && 
-          'display_name' in item
-        );
-        
-        if (validData.length > 0) {
-          // Convert to CustomRole[] safely
-          const customRoleData: CustomRole[] = validData.map(item => ({
+        // Filter and map data safely, ensuring proper type checking
+        const customRoleData: CustomRole[] = data
+          .filter((item): item is NonNullable<typeof item> => 
+            item !== null && 
+            typeof item === 'object' && 
+            'role_name' in item && 
+            'display_name' in item
+          )
+          .map(item => ({
             id: item.id || `generated-${Math.random()}`,
             role_name: item.role_name,
             display_name: item.display_name,
             description: item.description || null,
             is_system_role: item.is_system_role || false
           }));
+        
+        if (customRoleData.length > 0) {
           setCustomRoles(customRoleData);
         } else {
           // Fall back to default roles if data structure is invalid
@@ -256,9 +260,9 @@ export const RoleHierarchyManager = () => {
 
         // Insert into role_hierarchy with proper type casting
         await (supabase as any).from('role_hierarchy').insert({
-          role: roleNameFormatted as any,
+          role: roleNameFormatted as UserRole,
           level: newRoleLevel,
-          parent_role: newRoleParent || null
+          parent_role: newRoleParent ? newRoleParent as UserRole : null
         });
       }
 
@@ -309,10 +313,10 @@ export const RoleHierarchyManager = () => {
           .from('role_hierarchy')
           .update({
             level: editLevel,
-            parent_role: editParent || null,
+            parent_role: editParent ? editParent as UserRole : null,
             updated_at: new Date().toISOString()
           })
-          .eq('role', roleName as any);
+          .eq('role', roleName as UserRole);
 
         if (error) throw error;
       }
@@ -352,8 +356,8 @@ export const RoleHierarchyManager = () => {
       const { data: existing, error: checkError } = await supabase
         .from('hierarchy_permissions')
         .select('id')
-        .eq('higher_role', selectedHigherRole as any)
-        .eq('lower_role', selectedLowerRole as any)
+        .eq('higher_role', selectedHigherRole as UserRole)
+        .eq('lower_role', selectedLowerRole as UserRole)
         .maybeSingle();
 
       if (checkError && checkError.code !== 'PGRST116') {
@@ -374,8 +378,8 @@ export const RoleHierarchyManager = () => {
         const { error } = await (supabase as any)
           .from('hierarchy_permissions')
           .insert({
-            higher_role: selectedHigherRole as any,
-            lower_role: selectedLowerRole as any,
+            higher_role: selectedHigherRole as UserRole,
+            lower_role: selectedLowerRole as UserRole,
             ...permissionSet
           });
 
