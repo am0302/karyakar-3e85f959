@@ -125,6 +125,45 @@ export type Database = {
           },
         ]
       }
+      hierarchy_permissions: {
+        Row: {
+          can_assign_locations: boolean | null
+          can_delete: boolean | null
+          can_edit: boolean | null
+          can_export: boolean | null
+          can_view: boolean | null
+          created_at: string
+          higher_role: Database["public"]["Enums"]["user_role"]
+          id: string
+          lower_role: Database["public"]["Enums"]["user_role"]
+          updated_at: string
+        }
+        Insert: {
+          can_assign_locations?: boolean | null
+          can_delete?: boolean | null
+          can_edit?: boolean | null
+          can_export?: boolean | null
+          can_view?: boolean | null
+          created_at?: string
+          higher_role: Database["public"]["Enums"]["user_role"]
+          id?: string
+          lower_role: Database["public"]["Enums"]["user_role"]
+          updated_at?: string
+        }
+        Update: {
+          can_assign_locations?: boolean | null
+          can_delete?: boolean | null
+          can_edit?: boolean | null
+          can_export?: boolean | null
+          can_view?: boolean | null
+          created_at?: string
+          higher_role?: Database["public"]["Enums"]["user_role"]
+          id?: string
+          lower_role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       kshetras: {
         Row: {
           contact_number: string | null
@@ -538,6 +577,41 @@ export type Database = {
           },
         ]
       }
+      role_hierarchy: {
+        Row: {
+          created_at: string
+          id: string
+          level: number
+          parent_role: Database["public"]["Enums"]["user_role"] | null
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          level: number
+          parent_role?: Database["public"]["Enums"]["user_role"] | null
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          level?: number
+          parent_role?: Database["public"]["Enums"]["user_role"] | null
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_hierarchy_parent_role_fkey"
+            columns: ["parent_role"]
+            isOneToOne: false
+            referencedRelation: "role_hierarchy"
+            referencedColumns: ["role"]
+          },
+        ]
+      }
       role_permissions: {
         Row: {
           can_add: boolean | null
@@ -737,6 +811,57 @@ export type Database = {
           },
         ]
       }
+      user_location_assignments: {
+        Row: {
+          assigned_by: string
+          created_at: string
+          id: string
+          kshetra_ids: string[] | null
+          mandal_ids: string[] | null
+          mandir_ids: string[] | null
+          updated_at: string
+          user_id: string
+          village_ids: string[] | null
+        }
+        Insert: {
+          assigned_by: string
+          created_at?: string
+          id?: string
+          kshetra_ids?: string[] | null
+          mandal_ids?: string[] | null
+          mandir_ids?: string[] | null
+          updated_at?: string
+          user_id: string
+          village_ids?: string[] | null
+        }
+        Update: {
+          assigned_by?: string
+          created_at?: string
+          id?: string
+          kshetra_ids?: string[] | null
+          mandal_ids?: string[] | null
+          mandir_ids?: string[] | null
+          updated_at?: string
+          user_id?: string
+          village_ids?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_location_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_location_assignments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_permissions: {
         Row: {
           can_add: boolean | null
@@ -882,6 +1007,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_hierarchy_permission: {
+        Args: {
+          _user_id: string
+          _target_user_id: string
+          _permission_type: string
+        }
+        Returns: boolean
+      }
       check_user_permission: {
         Args: {
           _user_id: string
@@ -893,6 +1026,10 @@ export type Database = {
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["user_role"]
+      }
+      get_user_hierarchy_level: {
+        Args: { _user_id: string }
+        Returns: number
       }
       is_user_participant_in_room: {
         Args: { room_id: string; user_id: string }

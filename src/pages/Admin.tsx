@@ -1,320 +1,50 @@
 
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/components/AuthProvider';
-import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { MasterDataDialog } from '@/components/MasterDataDialog';
-import { PermissionsManager } from '@/components/PermissionsManager';
-import { useToast } from '@/hooks/use-toast';
-import { Users, Settings, Shield, Database, RefreshCw, AlertCircle } from 'lucide-react';
-import type { Database as DatabaseType } from '@/integrations/supabase/types';
-
-type UserRole = DatabaseType['public']['Enums']['user_role'];
-
-interface Profile {
-  id: string;
-  full_name: string;
-  role: UserRole;
-  email?: string;
-  mobile_number: string;
-}
-
-interface DatabaseStatus {
-  connected: boolean;
-  tablesAccessible: boolean;
-  error?: string;
-}
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PermissionsManager } from "@/components/PermissionsManager";
+import { RoleHierarchyManager } from "@/components/RoleHierarchyManager";
+import { UserLocationAssignment } from "@/components/UserLocationAssignment";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { Shield, Network, MapPin } from "lucide-react";
 
 const Admin = () => {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [dbStatus, setDbStatus] = useState<DatabaseStatus>({ connected: false, tablesAccessible: false });
-
-  useEffect(() => {
-    fetchData();
-    checkDatabaseConnectivity();
-  }, []);
-
-  const checkDatabaseConnectivity = async () => {
-    try {
-      console.log('Checking database connectivity...');
-      
-      const { data: testData, error: testError } = await supabase
-        .from('profiles')
-        .select('id')
-        .limit(1);
-
-      if (testError) {
-        console.error('Database connectivity test failed:', testError);
-        setDbStatus({ 
-          connected: false, 
-          tablesAccessible: false, 
-          error: testError.message 
-        });
-        return;
-      }
-
-      console.log('Database connectivity test passed');
-      setDbStatus({ connected: true, tablesAccessible: true });
-    } catch (error: any) {
-      console.error('Database connectivity check failed:', error);
-      setDbStatus({ 
-        connected: false, 
-        tablesAccessible: false, 
-        error: error.message 
-      });
-    }
-  };
-
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      await fetchProfiles();
-    } catch (error: any) {
-      console.error('Error fetching data:', error);
-      toast({
-        title: 'Error',
-        description: `Failed to fetch admin data: ${error.message}`,
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchProfiles = async () => {
-    console.log('Fetching profiles...');
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, full_name, role, email, mobile_number')
-      .eq('is_active', true)
-      .order('full_name');
-
-    if (error) {
-      console.error('Error fetching profiles:', error);
-      throw error;
-    }
-    
-    console.log('Profiles fetched:', data?.length || 0);
-    setProfiles(data || []);
-  };
-
-  const refreshData = async () => {
-    await Promise.all([fetchData(), checkDatabaseConnectivity()]);
-    toast({
-      title: 'Success',
-      description: 'Data refreshed successfully',
-    });
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="flex items-center gap-2">
-          <RefreshCw className="h-4 w-4 animate-spin" />
-          Loading admin panel...
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-4 lg:space-y-6 p-4 lg:p-0">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+    <ProtectedRoute module="admin" action="view">
+      <div className="space-y-6 p-6">
         <div>
-          <h1 className="text-xl lg:text-2xl xl:text-3xl font-bold text-gray-900">Admin Panel</h1>
-          <p className="text-sm lg:text-base text-gray-600">Manage users, permissions, and system settings</p>
+          <h1 className="text-3xl font-bold text-gray-900">Admin Panel</h1>
+          <p className="text-gray-600">Manage system settings, permissions, and user roles</p>
         </div>
-        <Button onClick={refreshData} variant="outline" size="sm" className="self-start lg:self-auto">
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh All
-        </Button>
+
+        <Tabs defaultValue="permissions" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="permissions" className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              <span className="hidden sm:inline">Permissions</span>
+            </TabsTrigger>
+            <TabsTrigger value="hierarchy" className="flex items-center gap-2">
+              <Network className="h-4 w-4" />
+              <span className="hidden sm:inline">Role Hierarchy</span>
+            </TabsTrigger>
+            <TabsTrigger value="locations" className="flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              <span className="hidden sm:inline">Location Assignments</span>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="permissions" className="space-y-6">
+            <PermissionsManager />
+          </TabsContent>
+
+          <TabsContent value="hierarchy" className="space-y-6">
+            <RoleHierarchyManager />
+          </TabsContent>
+
+          <TabsContent value="locations" className="space-y-6">
+            <UserLocationAssignment />
+          </TabsContent>
+        </Tabs>
       </div>
-
-      {/* Database Status Card */}
-      <Card className={`${dbStatus.connected ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-sm lg:text-base">
-            <Database className="h-4 w-4" />
-            Database Status
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2">
-            {dbStatus.connected ? (
-              <div className="flex items-center gap-2 text-green-700">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-xs lg:text-sm">Connected and accessible</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 text-red-700">
-                <AlertCircle className="h-4 w-4" />
-                <span className="text-xs lg:text-sm">Connection issues: {dbStatus.error}</span>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Tabs defaultValue="permissions" className="space-y-4 lg:space-y-6">
-        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 h-auto">
-          <TabsTrigger value="permissions" className="text-xs lg:text-sm p-2 lg:p-3">Permissions</TabsTrigger>
-          <TabsTrigger value="users" className="text-xs lg:text-sm p-2 lg:p-3">Users</TabsTrigger>
-          <TabsTrigger value="master-data" className="text-xs lg:text-sm p-2 lg:p-3">Master Data</TabsTrigger>
-          <TabsTrigger value="settings" className="text-xs lg:text-sm p-2 lg:p-3">Settings</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="permissions">
-          <PermissionsManager />
-        </TabsContent>
-
-        <TabsContent value="users" className="space-y-4 lg:space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg lg:text-xl">
-                <Users className="h-5 w-5" />
-                User Management
-              </CardTitle>
-              <CardDescription className="text-sm lg:text-base">Manage user accounts and their basic information</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {profiles.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p className="text-sm lg:text-base">No users found</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-xs lg:text-sm">Name</TableHead>
-                        <TableHead className="text-xs lg:text-sm">Email</TableHead>
-                        <TableHead className="text-xs lg:text-sm">Mobile</TableHead>
-                        <TableHead className="text-xs lg:text-sm">Role</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {profiles.map((profile) => (
-                        <TableRow key={profile.id}>
-                          <TableCell className="font-medium text-xs lg:text-sm">{profile.full_name}</TableCell>
-                          <TableCell className="text-xs lg:text-sm">{profile.email || 'N/A'}</TableCell>
-                          <TableCell className="text-xs lg:text-sm">{profile.mobile_number}</TableCell>
-                          <TableCell className="capitalize text-xs lg:text-sm">{profile.role.replace('_', ' ')}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="master-data" className="space-y-4 lg:space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            <MasterDataDialog
-              title="Mandir"
-              table="mandirs"
-              fields={[
-                { name: 'name', label: 'Name', type: 'text', required: true },
-                { name: 'address', label: 'Address', type: 'textarea' },
-                { name: 'contact_person', label: 'Contact Person', type: 'text' },
-                { name: 'contact_number', label: 'Contact Number', type: 'text' },
-                { name: 'email', label: 'Email', type: 'text' },
-                { name: 'established_date', label: 'Established Date', type: 'date' },
-                { name: 'description', label: 'Description', type: 'textarea' }
-              ]}
-              onSuccess={fetchData}
-            />
-
-            <MasterDataDialog
-              title="Kshetra"
-              table="kshetras"
-              fields={[
-                { name: 'name', label: 'Name', type: 'text', required: true },
-                { name: 'mandir_id', label: 'Mandir', type: 'select', foreignKey: 'mandirs' },
-                { name: 'contact_person', label: 'Contact Person', type: 'text' },
-                { name: 'contact_number', label: 'Contact Number', type: 'text' },
-                { name: 'description', label: 'Description', type: 'textarea' }
-              ]}
-              onSuccess={fetchData}
-            />
-
-            <MasterDataDialog
-              title="Village"
-              table="villages"
-              fields={[
-                { name: 'name', label: 'Name', type: 'text', required: true },
-                { name: 'kshetra_id', label: 'Kshetra', type: 'select', foreignKey: 'kshetras' },
-                { name: 'district', label: 'District', type: 'text' },
-                { name: 'state', label: 'State', type: 'text' },
-                { name: 'pincode', label: 'Pincode', type: 'text' },
-                { name: 'population', label: 'Population', type: 'number' },
-                { name: 'contact_person', label: 'Contact Person', type: 'text' },
-                { name: 'contact_number', label: 'Contact Number', type: 'text' }
-              ]}
-              onSuccess={fetchData}
-            />
-
-            <MasterDataDialog
-              title="Mandal"
-              table="mandals"
-              fields={[
-                { name: 'name', label: 'Name', type: 'text', required: true },
-                { name: 'village_id', label: 'Village', type: 'select', foreignKey: 'villages' },
-                { name: 'meeting_day', label: 'Meeting Day', type: 'text' },
-                { name: 'meeting_time', label: 'Meeting Time', type: 'time' },
-                { name: 'contact_person', label: 'Contact Person', type: 'text' },
-                { name: 'contact_number', label: 'Contact Number', type: 'text' },
-                { name: 'description', label: 'Description', type: 'textarea' }
-              ]}
-              onSuccess={fetchData}
-            />
-
-            <MasterDataDialog
-              title="Profession"
-              table="professions"
-              fields={[
-                { name: 'name', label: 'Name', type: 'text', required: true },
-                { name: 'description', label: 'Description', type: 'textarea' }
-              ]}
-              onSuccess={fetchData}
-            />
-
-            <MasterDataDialog
-              title="Seva Type"
-              table="seva_types"
-              fields={[
-                { name: 'name', label: 'Name', type: 'text', required: true },
-                { name: 'description', label: 'Description', type: 'textarea' }
-              ]}
-              onSuccess={fetchData}
-            />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="settings" className="space-y-4 lg:space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg lg:text-xl">
-                <Settings className="h-5 w-5" />
-                System Settings
-              </CardTitle>
-              <CardDescription className="text-sm lg:text-base">Configure application settings and preferences</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm lg:text-base text-gray-600">System settings will be available in future updates.</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+    </ProtectedRoute>
   );
 };
 
