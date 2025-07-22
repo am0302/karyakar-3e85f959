@@ -79,7 +79,7 @@ export const RoleHierarchyManager = () => {
     { key: 'can_assign_locations', label: 'Assign Locations' }
   ];
 
-  // Default system roles for now
+  // Default system roles for fallback
   const defaultRoles = [
     { role_name: 'super_admin', display_name: 'Super Admin', is_system_role: true },
     { role_name: 'sant_nirdeshak', display_name: 'Sant Nirdeshak', is_system_role: true },
@@ -131,9 +131,17 @@ export const RoleHierarchyManager = () => {
         return;
       }
       
-      setCustomRoles(data || []);
+      if (data && Array.isArray(data)) {
+        setCustomRoles(data as CustomRole[]);
+      } else {
+        setCustomRoles(defaultRoles.map((role, index) => ({
+          id: `default-${index}`,
+          ...role,
+          description: null
+        })));
+      }
     } catch (error) {
-      console.log('Using default roles');
+      console.log('Using default roles due to error:', error);
       setCustomRoles(defaultRoles.map((role, index) => ({
         id: `default-${index}`,
         ...role,
@@ -143,28 +151,43 @@ export const RoleHierarchyManager = () => {
   };
 
   const fetchRoleHierarchy = async () => {
-    const { data, error } = await supabase
-      .from('role_hierarchy')
-      .select('*')
-      .order('level');
+    try {
+      const { data, error } = await supabase
+        .from('role_hierarchy')
+        .select('*')
+        .order('level');
 
-    if (error) throw error;
-    setRoleHierarchy(data || []);
+      if (error) {
+        console.error('Error fetching role hierarchy:', error);
+        setRoleHierarchy([]);
+        return;
+      }
+      
+      setRoleHierarchy(data || []);
+    } catch (error) {
+      console.error('Error fetching role hierarchy:', error);
+      setRoleHierarchy([]);
+    }
   };
 
   const fetchHierarchyPermissions = async () => {
-    const { data, error } = await supabase
-      .from('hierarchy_permissions')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('hierarchy_permissions')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    if (error) {
+      if (error) {
+        console.error('Error fetching hierarchy permissions:', error);
+        setHierarchyPermissions([]);
+        return;
+      }
+      
+      setHierarchyPermissions(data || []);
+    } catch (error) {
       console.error('Error fetching hierarchy permissions:', error);
       setHierarchyPermissions([]);
-      return;
     }
-    
-    setHierarchyPermissions(data || []);
   };
 
   const addNewRole = async () => {
@@ -179,11 +202,12 @@ export const RoleHierarchyManager = () => {
 
     try {
       setSaving(true);
+      const roleNameFormatted = newRoleName.toLowerCase().replace(/\s+/g, '_');
       
-      // Try to use the RPC function, fall back to manual insertion
+      // Try to use the RPC function first
       try {
-        const { error } = await supabase.rpc('add_role_to_hierarchy' as any, {
-          _role_name: newRoleName.toLowerCase().replace(/\s+/g, '_'),
+        const { error } = await (supabase as any).rpc('add_role_to_hierarchy', {
+          _role_name: roleNameFormatted,
           _display_name: newRoleDisplayName,
           _level: newRoleLevel,
           _parent_role: newRoleParent || null
@@ -191,13 +215,12 @@ export const RoleHierarchyManager = () => {
 
         if (error) throw error;
       } catch (rpcError) {
-        // Fall back to manual insertion
         console.log('RPC function not available, using manual insertion');
         
-        // Insert into custom_roles table if available
+        // Fall back to manual insertion
         try {
-          await supabase.from('custom_roles' as any).insert({
-            role_name: newRoleName.toLowerCase().replace(/\s+/g, '_'),
+          await (supabase as any).from('custom_roles').insert({
+            role_name: roleNameFormatted,
             display_name: newRoleDisplayName,
             description: newRoleDescription || null,
             is_system_role: false
@@ -206,9 +229,9 @@ export const RoleHierarchyManager = () => {
           console.log('Custom roles table not available');
         }
 
-        // Insert into role_hierarchy
-        await supabase.from('role_hierarchy').insert({
-          role: newRoleName.toLowerCase().replace(/\s+/g, '_'),
+        // Insert into role_hierarchy - cast the values to work with existing types
+        await (supabase as any).from('role_hierarchy').insert({
+          role: roleNameFormatted,
           level: newRoleLevel,
           parent_role: newRoleParent || null
         });
@@ -244,9 +267,9 @@ export const RoleHierarchyManager = () => {
     try {
       setSaving(true);
       
-      // Try to use the RPC function, fall back to direct update
+      // Try to use the RPC function first
       try {
-        const { error } = await supabase.rpc('update_role_hierarchy' as any, {
+        const { error } = await (supabase as any).rpc('update_role_hierarchy', {
           _role_name: roleName,
           _new_level: editLevel,
           _new_parent_role: editParent || null
@@ -254,10 +277,10 @@ export const RoleHierarchyManager = () => {
 
         if (error) throw error;
       } catch (rpcError) {
-        // Fall back to direct update
         console.log('RPC function not available, using direct update');
         
-        const { error } = await supabase
+        // Fall back to direct update
+        const { error } = await (supabase as any)
           .from('role_hierarchy')
           .update({
             level: editLevel,
@@ -313,7 +336,7 @@ export const RoleHierarchyManager = () => {
       }
 
       if (existing) {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('hierarchy_permissions')
           .update({
             ...permissionSet,
@@ -323,7 +346,7 @@ export const RoleHierarchyManager = () => {
 
         if (error) throw error;
       } else {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('hierarchy_permissions')
           .insert({
             higher_role: selectedHigherRole,
