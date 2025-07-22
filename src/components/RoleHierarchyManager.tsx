@@ -54,7 +54,8 @@ function isValidCustomRoleData(obj: any): obj is {
     obj &&
     typeof obj === 'object' &&
     typeof obj.role_name === 'string' &&
-    typeof obj.display_name === 'string'
+    typeof obj.display_name === 'string' &&
+    !obj.error // Ensure it's not an error object
   );
 }
 
@@ -153,17 +154,17 @@ export const RoleHierarchyManager = () => {
       
       // Safely process the data with proper type checking
       if (Array.isArray(response.data)) {
-        const customRoleData: CustomRole[] = response.data
-          .filter(isValidCustomRoleData)
-          .map(item => ({
+        const validItems = response.data.filter(isValidCustomRoleData);
+        
+        if (validItems.length > 0) {
+          const customRoleData: CustomRole[] = validItems.map(item => ({
             id: item.id || `generated-${Math.random()}`,
             role_name: item.role_name,
             display_name: item.display_name,
             description: item.description || null,
             is_system_role: item.is_system_role || false
           }));
-        
-        if (customRoleData.length > 0) {
+          
           setCustomRoles(customRoleData);
         } else {
           // Fall back to default roles if no valid data
