@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -160,11 +161,6 @@ export const RoleHierarchyManager = () => {
         variant: 'destructive',
       });
       return;
-      console.log("Adding role with data:", {
-  role: selectedRole,
-  level: newRoleLevel,
-  parent_role: newRoleParent || null
-});
     }
 
     try {
@@ -181,21 +177,13 @@ export const RoleHierarchyManager = () => {
         return;
       }
 
-     /* const { error } = await supabase
+      const { error } = await supabase
         .from('role_hierarchy')
         .insert({
           role: selectedRole,
           level: newRoleLevel,
           parent_role: newRoleParent ? newRoleParent as UserRole : null
-        });*/
-const { error } = await supabase.from('role_hierarchy').insert({
-  role: selectedRole,
-  level: newRoleLevel,
-  parent_role: newRoleParent || null
-});
-if (error) {
-  console.error("Failed to add role:", error.message);
-}
+        });
 
       if (error) throw error;
 
@@ -434,17 +422,7 @@ if (error) {
                   <div className="space-y-4">
                     <div>
                       <Label>Role</Label>
-                   
-                      <div>
-  <Label>Role</Label>
-  <Input
-    placeholder="Enter Role Name"
-    value={selectedRole}
-    onChange={(e) => setSelectedRole(e.target.value as UserRole)}
-  />
-</div>
-
-                      {/* <SearchableSelect
+                      <SearchableSelect
                         options={getAvailableRolesForHierarchy().map(role => ({
                           value: role.role_name,
                           label: role.display_name
@@ -452,7 +430,7 @@ if (error) {
                         value={selectedRole}
                         onValueChange={(value) => setSelectedRole(value as UserRole)}
                         placeholder="Select Role"
-                      />*/}
+                      />
                     </div>
                     <div>
                       <Label>Hierarchy Level</Label>
