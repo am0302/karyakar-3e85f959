@@ -160,6 +160,11 @@ export const RoleHierarchyManager = () => {
         variant: 'destructive',
       });
       return;
+      console.log("Adding role with data:", {
+  role: selectedRole,
+  level: newRoleLevel,
+  parent_role: newRoleParent || null
+});
     }
 
     try {
@@ -176,13 +181,21 @@ export const RoleHierarchyManager = () => {
         return;
       }
 
-      const { error } = await supabase
+     /* const { error } = await supabase
         .from('role_hierarchy')
         .insert({
           role: selectedRole,
           level: newRoleLevel,
           parent_role: newRoleParent ? newRoleParent as UserRole : null
-        });
+        });*/
+const { error } = await supabase.from('role_hierarchy').insert({
+  role: selectedRole,
+  level: newRoleLevel,
+  parent_role: newRoleParent || null
+});
+if (error) {
+  console.error("Failed to add role:", error.message);
+}
 
       if (error) throw error;
 
