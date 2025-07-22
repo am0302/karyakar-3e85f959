@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +16,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
 
 interface Option {
   value: string;
@@ -30,6 +31,7 @@ interface SearchableSelectProps {
   searchPlaceholder?: string;
   emptyText?: string;
   className?: string;
+  multiple?: boolean;
 }
 
 export const SearchableSelect = ({
@@ -40,52 +42,100 @@ export const SearchableSelect = ({
   searchPlaceholder = "Search...",
   emptyText = "No option found.",
   className,
+  multiple = false,
 }: SearchableSelectProps) => {
   const [open, setOpen] = useState(false);
 
+  const selectedValues = multiple && value ? value.split(',').filter(Boolean) : [];
+  const selectedOptions = multiple 
+    ? options.filter(option => selectedValues.includes(option.value))
+    : [];
+
+  const handleSelect = (currentValue: string) => {
+    if (multiple) {
+      const newSelectedValues = selectedValues.includes(currentValue)
+        ? selectedValues.filter(val => val !== currentValue)
+        : [...selectedValues, currentValue];
+      onValueChange(newSelectedValues.join(','));
+    } else {
+      onValueChange(currentValue === value ? "" : currentValue);
+      setOpen(false);
+    }
+  };
+
+  const removeSelection = (valueToRemove: string) => {
+    if (multiple) {
+      const newSelectedValues = selectedValues.filter(val => val !== valueToRemove);
+      onValueChange(newSelectedValues.join(','));
+    }
+  };
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className={cn("w-full justify-between", className)}
-        >
-          {value
-            ? options.find((option) => option.value === value)?.label
-            : placeholder}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-full p-0">
-        <Command>
-          <CommandInput placeholder={searchPlaceholder} />
-          <CommandList>
-            <CommandEmpty>{emptyText}</CommandEmpty>
-            <CommandGroup>
-              {options.map((option) => (
-                <CommandItem
-                  key={option.value}
-                  value={option.value}
-                  onSelect={(currentValue) => {
-                    onValueChange(currentValue === value ? "" : currentValue);
-                    setOpen(false);
-                  }}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      value === option.value ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  {option.label}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+    <div className="space-y-2">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className={cn("w-full justify-between", className)}
+          >
+            {multiple ? (
+              selectedOptions.length > 0 ? (
+                `${selectedOptions.length} selected`
+              ) : (
+                placeholder
+              )
+            ) : (
+              value
+                ? options.find((option) => option.value === value)?.label
+                : placeholder
+            )}
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-full p-0">
+          <Command>
+            <CommandInput placeholder={searchPlaceholder} />
+            <CommandList>
+              <CommandEmpty>{emptyText}</CommandEmpty>
+              <CommandGroup>
+                {options.map((option) => (
+                  <CommandItem
+                    key={option.value}
+                    value={option.value}
+                    onSelect={() => handleSelect(option.value)}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        (multiple ? selectedValues.includes(option.value) : value === option.value) 
+                          ? "opacity-100" 
+                          : "opacity-0"
+                      )}
+                    />
+                    {option.label}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      
+      {multiple && selectedOptions.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {selectedOptions.map((option) => (
+            <Badge key={option.value} variant="secondary" className="text-xs">
+              {option.label}
+              <X 
+                className="ml-1 h-3 w-3 cursor-pointer" 
+                onClick={() => removeSelection(option.value)}
+              />
+            </Badge>
+          ))}
+        </div>
+      )}
+    </div>
   );
 };

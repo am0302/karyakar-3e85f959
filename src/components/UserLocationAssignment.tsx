@@ -26,6 +26,7 @@ interface LocationOption {
 interface UserLocationAssignment {
   id: string;
   user_id: string;
+  assigned_by: string;
   mandir_ids: string[];
   kshetra_ids: string[];
   village_ids: string[];
@@ -43,6 +44,7 @@ export const UserLocationAssignment = () => {
   const [mandals, setMandals] = useState<LocationOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [currentUser, setCurrentUser] = useState<Profile | null>(null);
 
   // Form states
   const [selectedUser, setSelectedUser] = useState<string>('');
@@ -59,6 +61,7 @@ export const UserLocationAssignment = () => {
     try {
       setLoading(true);
       await Promise.all([
+        fetchCurrentUser(),
         fetchProfiles(),
         fetchLocations(),
         fetchAssignments()
@@ -72,6 +75,21 @@ export const UserLocationAssignment = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCurrentUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id, full_name, role')
+        .eq('id', user.id)
+        .single();
+      
+      if (profile) {
+        setCurrentUser(profile);
+      }
     }
   };
 
@@ -128,6 +146,15 @@ export const UserLocationAssignment = () => {
       return;
     }
 
+    if (!currentUser) {
+      toast({
+        title: 'Error',
+        description: 'Unable to identify current user',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       setSaving(true);
       
@@ -143,6 +170,7 @@ export const UserLocationAssignment = () => {
 
       const assignmentData = {
         user_id: selectedUser,
+        assigned_by: currentUser.id,
         mandir_ids: selectedMandirs,
         kshetra_ids: selectedKshetras,
         village_ids: selectedVillages,
