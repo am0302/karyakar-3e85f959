@@ -422,7 +422,17 @@ export const RoleHierarchyManager = () => {
                   <div className="space-y-4">
                     <div>
                       <Label>Role</Label>
-                      <SearchableSelect
+                   
+                      <div>
+  <Label>Role</Label>
+  <Input
+    placeholder="Enter Role Name"
+    value={selectedRole}
+    onChange={(e) => setSelectedRole(e.target.value)}
+  />
+</div>
+
+                      {/* <SearchableSelect
                         options={getAvailableRolesForHierarchy().map(role => ({
                           value: role.role_name,
                           label: role.display_name
@@ -430,7 +440,7 @@ export const RoleHierarchyManager = () => {
                         value={selectedRole}
                         onValueChange={(value) => setSelectedRole(value as UserRole)}
                         placeholder="Select Role"
-                      />
+                      />*/}
                     </div>
                     <div>
                       <Label>Hierarchy Level</Label>
