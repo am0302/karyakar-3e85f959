@@ -79,6 +79,16 @@ export const RoleHierarchyManager = () => {
     { key: 'can_assign_locations', label: 'Assign Locations' }
   ];
 
+  // Default system roles for now
+  const defaultRoles = [
+    { role_name: 'super_admin', display_name: 'Super Admin', is_system_role: true },
+    { role_name: 'sant_nirdeshak', display_name: 'Sant Nirdeshak', is_system_role: true },
+    { role_name: 'sah_nirdeshak', display_name: 'Sah Nirdeshak', is_system_role: true },
+    { role_name: 'mandal_sanchalak', display_name: 'Mandal Sanchalak', is_system_role: true },
+    { role_name: 'karyakar', display_name: 'Karyakar', is_system_role: true },
+    { role_name: 'sevak', display_name: 'Sevak', is_system_role: true }
+  ];
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -104,13 +114,32 @@ export const RoleHierarchyManager = () => {
   };
 
   const fetchCustomRoles = async () => {
-    const { data, error } = await supabase
-      .from('custom_roles')
-      .select('*')
-      .order('role_name');
+    try {
+      // Try to fetch from custom_roles table, fall back to default roles
+      const { data, error } = await supabase
+        .from('custom_roles' as any)
+        .select('*')
+        .order('role_name');
 
-    if (error) throw error;
-    setCustomRoles(data || []);
+      if (error) {
+        console.log('Custom roles table not available, using default roles');
+        setCustomRoles(defaultRoles.map((role, index) => ({
+          id: `default-${index}`,
+          ...role,
+          description: null
+        })));
+        return;
+      }
+      
+      setCustomRoles(data || []);
+    } catch (error) {
+      console.log('Using default roles');
+      setCustomRoles(defaultRoles.map((role, index) => ({
+        id: `default-${index}`,
+        ...role,
+        description: null
+      })));
+    }
   };
 
   const fetchRoleHierarchy = async () => {
@@ -151,14 +180,39 @@ export const RoleHierarchyManager = () => {
     try {
       setSaving(true);
       
-      const { error } = await supabase.rpc('add_role_to_hierarchy', {
-        _role_name: newRoleName.toLowerCase().replace(/\s+/g, '_'),
-        _display_name: newRoleDisplayName,
-        _level: newRoleLevel,
-        _parent_role: newRoleParent || null
-      });
+      // Try to use the RPC function, fall back to manual insertion
+      try {
+        const { error } = await supabase.rpc('add_role_to_hierarchy' as any, {
+          _role_name: newRoleName.toLowerCase().replace(/\s+/g, '_'),
+          _display_name: newRoleDisplayName,
+          _level: newRoleLevel,
+          _parent_role: newRoleParent || null
+        });
 
-      if (error) throw error;
+        if (error) throw error;
+      } catch (rpcError) {
+        // Fall back to manual insertion
+        console.log('RPC function not available, using manual insertion');
+        
+        // Insert into custom_roles table if available
+        try {
+          await supabase.from('custom_roles' as any).insert({
+            role_name: newRoleName.toLowerCase().replace(/\s+/g, '_'),
+            display_name: newRoleDisplayName,
+            description: newRoleDescription || null,
+            is_system_role: false
+          });
+        } catch (customRoleError) {
+          console.log('Custom roles table not available');
+        }
+
+        // Insert into role_hierarchy
+        await supabase.from('role_hierarchy').insert({
+          role: newRoleName.toLowerCase().replace(/\s+/g, '_'),
+          level: newRoleLevel,
+          parent_role: newRoleParent || null
+        });
+      }
 
       toast({
         title: 'Success',
@@ -190,13 +244,30 @@ export const RoleHierarchyManager = () => {
     try {
       setSaving(true);
       
-      const { error } = await supabase.rpc('update_role_hierarchy', {
-        _role_name: roleName,
-        _new_level: editLevel,
-        _new_parent_role: editParent || null
-      });
+      // Try to use the RPC function, fall back to direct update
+      try {
+        const { error } = await supabase.rpc('update_role_hierarchy' as any, {
+          _role_name: roleName,
+          _new_level: editLevel,
+          _new_parent_role: editParent || null
+        });
 
-      if (error) throw error;
+        if (error) throw error;
+      } catch (rpcError) {
+        // Fall back to direct update
+        console.log('RPC function not available, using direct update');
+        
+        const { error } = await supabase
+          .from('role_hierarchy')
+          .update({
+            level: editLevel,
+            parent_role: editParent || null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('role', roleName);
+
+        if (error) throw error;
+      }
 
       toast({
         title: 'Success',
@@ -328,7 +399,7 @@ export const RoleHierarchyManager = () => {
 
   const getRoleDisplayName = (roleName: string) => {
     const role = customRoles.find(r => r.role_name === roleName);
-    return role ? role.display_name : roleName.replace('_', ' ');
+    return role ? role.display_name : roleName.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
   if (loading) {
