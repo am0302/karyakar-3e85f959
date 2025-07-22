@@ -56,6 +56,7 @@ function isValidCustomRoleData(obj: any): obj is ValidCustomRoleData {
   return (
     obj &&
     typeof obj === 'object' &&
+    typeof obj.id === 'string' &&
     typeof obj.role_name === 'string' &&
     typeof obj.display_name === 'string' &&
     !obj.error // Ensure it's not an error object
@@ -157,8 +158,8 @@ export const RoleHierarchyManager = () => {
       
       // Safely process the data with proper type checking
       if (Array.isArray(response.data)) {
-        // Filter out invalid items and assert the correct type
-        const validItems: ValidCustomRoleData[] = response.data.filter(isValidCustomRoleData);
+        // Filter and cast to the correct type
+        const validItems = response.data.filter(isValidCustomRoleData) as ValidCustomRoleData[];
         
         if (validItems.length > 0) {
           const customRoleData: CustomRole[] = validItems.map(item => ({
