@@ -130,18 +130,26 @@ export const RoleHierarchyManager = () => {
         return;
       }
       
-      // Properly handle the data with type checking
+      // Properly handle the data with type checking and null safety
       if (data && Array.isArray(data)) {
-        // Check if the data has the expected structure
-        const validData = data.filter(item => 
-          item && 
+        // Check if the data has the expected structure with proper null checks
+        const validData = data.filter((item): item is any => 
+          item !== null && 
           typeof item === 'object' && 
           'role_name' in item && 
           'display_name' in item
         );
         
         if (validData.length > 0) {
-          setCustomRoles(validData as CustomRole[]);
+          // Convert to CustomRole[] safely
+          const customRoleData: CustomRole[] = validData.map(item => ({
+            id: item.id || `generated-${Math.random()}`,
+            role_name: item.role_name,
+            display_name: item.display_name,
+            description: item.description || null,
+            is_system_role: item.is_system_role || false
+          }));
+          setCustomRoles(customRoleData);
         } else {
           // Fall back to default roles if data structure is invalid
           setCustomRoles(defaultRoles.map((role, index) => ({
