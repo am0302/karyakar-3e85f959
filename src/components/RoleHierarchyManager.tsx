@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -131,8 +130,26 @@ export const RoleHierarchyManager = () => {
         return;
       }
       
+      // Properly handle the data with type checking
       if (data && Array.isArray(data)) {
-        setCustomRoles(data as CustomRole[]);
+        // Check if the data has the expected structure
+        const validData = data.filter(item => 
+          item && 
+          typeof item === 'object' && 
+          'role_name' in item && 
+          'display_name' in item
+        );
+        
+        if (validData.length > 0) {
+          setCustomRoles(validData as CustomRole[]);
+        } else {
+          // Fall back to default roles if data structure is invalid
+          setCustomRoles(defaultRoles.map((role, index) => ({
+            id: `default-${index}`,
+            ...role,
+            description: null
+          })));
+        }
       } else {
         setCustomRoles(defaultRoles.map((role, index) => ({
           id: `default-${index}`,
@@ -229,9 +246,9 @@ export const RoleHierarchyManager = () => {
           console.log('Custom roles table not available');
         }
 
-        // Insert into role_hierarchy - cast the values to work with existing types
+        // Insert into role_hierarchy with proper type casting
         await (supabase as any).from('role_hierarchy').insert({
-          role: roleNameFormatted,
+          role: roleNameFormatted as any,
           level: newRoleLevel,
           parent_role: newRoleParent || null
         });
@@ -287,7 +304,7 @@ export const RoleHierarchyManager = () => {
             parent_role: editParent || null,
             updated_at: new Date().toISOString()
           })
-          .eq('role', roleName);
+          .eq('role', roleName as any);
 
         if (error) throw error;
       }
@@ -327,8 +344,8 @@ export const RoleHierarchyManager = () => {
       const { data: existing, error: checkError } = await supabase
         .from('hierarchy_permissions')
         .select('id')
-        .eq('higher_role', selectedHigherRole)
-        .eq('lower_role', selectedLowerRole)
+        .eq('higher_role', selectedHigherRole as any)
+        .eq('lower_role', selectedLowerRole as any)
         .maybeSingle();
 
       if (checkError && checkError.code !== 'PGRST116') {
@@ -349,8 +366,8 @@ export const RoleHierarchyManager = () => {
         const { error } = await (supabase as any)
           .from('hierarchy_permissions')
           .insert({
-            higher_role: selectedHigherRole,
-            lower_role: selectedLowerRole,
+            higher_role: selectedHigherRole as any,
+            lower_role: selectedLowerRole as any,
             ...permissionSet
           });
 
