@@ -42,14 +42,17 @@ interface HierarchyPermission {
   can_assign_locations: boolean;
 }
 
-// Type guard to check if an object has the expected custom role properties
-function isValidCustomRoleData(obj: any): obj is {
+// Type for valid custom role data from database
+interface ValidCustomRoleData {
   id: string;
   role_name: string;
   display_name: string;
   description?: string | null;
   is_system_role?: boolean;
-} {
+}
+
+// Type guard to check if an object has the expected custom role properties
+function isValidCustomRoleData(obj: any): obj is ValidCustomRoleData {
   return (
     obj &&
     typeof obj === 'object' &&
@@ -154,11 +157,12 @@ export const RoleHierarchyManager = () => {
       
       // Safely process the data with proper type checking
       if (Array.isArray(response.data)) {
-        const validItems = response.data.filter(isValidCustomRoleData);
+        // Filter out invalid items and assert the correct type
+        const validItems: ValidCustomRoleData[] = response.data.filter(isValidCustomRoleData);
         
         if (validItems.length > 0) {
           const customRoleData: CustomRole[] = validItems.map(item => ({
-            id: item.id || `generated-${Math.random()}`,
+            id: item.id,
             role_name: item.role_name,
             display_name: item.display_name,
             description: item.description || null,
