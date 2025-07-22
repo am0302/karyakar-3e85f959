@@ -42,6 +42,22 @@ interface HierarchyPermission {
   can_assign_locations: boolean;
 }
 
+// Type guard to check if an object has the expected custom role properties
+function isValidCustomRoleData(obj: any): obj is {
+  id: string;
+  role_name: string;
+  display_name: string;
+  description?: string | null;
+  is_system_role?: boolean;
+} {
+  return (
+    obj &&
+    typeof obj === 'object' &&
+    typeof obj.role_name === 'string' &&
+    typeof obj.display_name === 'string'
+  );
+}
+
 export const RoleHierarchyManager = () => {
   const { toast } = useToast();
   const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
@@ -119,12 +135,13 @@ export const RoleHierarchyManager = () => {
   const fetchCustomRoles = async () => {
     try {
       // Try to fetch from custom_roles table, fall back to default roles
-      const { data, error } = await supabase
+      const response = await supabase
         .from('custom_roles' as any)
         .select('*')
         .order('role_name');
 
-      if (error) {
+      // Check if the query was successful and we have valid data
+      if (response.error || !response.data) {
         console.log('Custom roles table not available, using default roles');
         setCustomRoles(defaultRoles.map((role, index) => ({
           id: `default-${index}`,
@@ -134,16 +151,10 @@ export const RoleHierarchyManager = () => {
         return;
       }
       
-      // Properly handle the data with type checking and null safety
-      if (data && Array.isArray(data)) {
-        // Filter and map data safely, ensuring proper type checking
-        const customRoleData: CustomRole[] = data
-          .filter((item): item is NonNullable<typeof item> => 
-            item !== null && 
-            typeof item === 'object' && 
-            'role_name' in item && 
-            'display_name' in item
-          )
+      // Safely process the data with proper type checking
+      if (Array.isArray(response.data)) {
+        const customRoleData: CustomRole[] = response.data
+          .filter(isValidCustomRoleData)
           .map(item => ({
             id: item.id || `generated-${Math.random()}`,
             role_name: item.role_name,
@@ -155,7 +166,7 @@ export const RoleHierarchyManager = () => {
         if (customRoleData.length > 0) {
           setCustomRoles(customRoleData);
         } else {
-          // Fall back to default roles if data structure is invalid
+          // Fall back to default roles if no valid data
           setCustomRoles(defaultRoles.map((role, index) => ({
             id: `default-${index}`,
             ...role,
