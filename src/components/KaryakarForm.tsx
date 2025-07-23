@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -98,27 +97,6 @@ export const KaryakarForm = ({
   const handleInputChange = (field: string, value: any) => {
     console.log(`Updating ${field} to:`, value);
     setFormData({ ...formData, [field]: value });
-  };
-
-  // Filter function to ensure all options are valid
-  const getValidOptions = (options: Array<{ id: string; name: string }>) => {
-    return options
-      .filter(option => 
-        option && 
-        option.id && 
-        option.name && 
-        option.id.toString().trim() !== '' && 
-        option.name.toString().trim() !== ''
-      )
-      .map(option => ({ 
-        value: option.id, 
-        label: option.name 
-      }));
-  };
-
-  // Safe value getter to avoid empty strings
-  const getSafeValue = (value: string | undefined) => {
-    return value && value !== '' && value.trim() !== '' ? value : '';
   };
 
   return (
@@ -283,8 +261,8 @@ export const KaryakarForm = ({
             <div>
               <Label>Profession</Label>
               <SearchableSelect
-                options={getValidOptions(professions)}
-                value={getSafeValue(formData.profession_id)}
+                options={professions.map(p => ({ value: p.id, label: p.name }))}
+                value={formData.profession_id || ''}
                 onValueChange={(value) => handleInputChange('profession_id', value)}
                 placeholder="Select Profession"
               />
@@ -293,8 +271,8 @@ export const KaryakarForm = ({
             <div>
               <Label>Seva Type</Label>
               <SearchableSelect
-                options={getValidOptions(sevaTypes)}
-                value={getSafeValue(formData.seva_type_id)}
+                options={sevaTypes.map(s => ({ value: s.id, label: s.name }))}
+                value={formData.seva_type_id || ''}
                 onValueChange={(value) => handleInputChange('seva_type_id', value)}
                 placeholder="Select Seva Type"
               />
@@ -314,8 +292,8 @@ export const KaryakarForm = ({
             <div>
               <Label>Mandir</Label>
               <SearchableSelect
-                options={getValidOptions(mandirs)}
-                value={getSafeValue(formData.mandir_id)}
+                options={mandirs.map(m => ({ value: m.id, label: m.name }))}
+                value={formData.mandir_id || ''}
                 onValueChange={(value) => handleInputChange('mandir_id', value)}
                 placeholder="Select Mandir"
               />
@@ -324,8 +302,8 @@ export const KaryakarForm = ({
             <div>
               <Label>Kshetra</Label>
               <SearchableSelect
-                options={getValidOptions(kshetras)}
-                value={getSafeValue(formData.kshetra_id)}
+                options={kshetras.map(k => ({ value: k.id, label: k.name }))}
+                value={formData.kshetra_id || ''}
                 onValueChange={(value) => handleInputChange('kshetra_id', value)}
                 placeholder="Select Kshetra"
               />
@@ -336,8 +314,8 @@ export const KaryakarForm = ({
             <div>
               <Label>Village</Label>
               <SearchableSelect
-                options={getValidOptions(villages)}
-                value={getSafeValue(formData.village_id)}
+                options={villages.map(v => ({ value: v.id, label: v.name }))}
+                value={formData.village_id || ''}
                 onValueChange={(value) => handleInputChange('village_id', value)}
                 placeholder="Select Village"
               />
@@ -346,8 +324,8 @@ export const KaryakarForm = ({
             <div>
               <Label>Mandal</Label>
               <SearchableSelect
-                options={getValidOptions(mandals)}
-                value={getSafeValue(formData.mandal_id)}
+                options={mandals.map(m => ({ value: m.id, label: m.name }))}
+                value={formData.mandal_id || ''}
                 onValueChange={(value) => handleInputChange('mandal_id', value)}
                 placeholder="Select Mandal"
               />
@@ -367,7 +345,7 @@ export const KaryakarForm = ({
             <Label>Role</Label>
             <SearchableSelect
               options={getRoleOptions()}
-              value={getSafeValue(formData.role) || 'sevak'}
+              value={formData.role || 'sevak'}
               onValueChange={(value) => handleInputChange('role', value as UserRole)}
               placeholder="Select Role"
             />

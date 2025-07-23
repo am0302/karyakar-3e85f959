@@ -22,7 +22,7 @@ interface MasterDataDialogProps {
   fields: Array<{
     name: string;
     label: string;
-    type: 'text' | 'textarea' | 'select' | 'date' | 'number' | 'time' | 'boolean';
+    type: 'text' | 'textarea' | 'select' | 'date' | 'number' | 'time';
     required?: boolean;
     options?: Array<{ value: string; label: string }>;
     foreignKey?: string;
@@ -44,17 +44,7 @@ export const MasterDataDialog = ({ title, table, fields, onSuccess }: MasterData
     handleDelete,
     updateFormData,
     resetForm,
-  } = useMasterData(table, title, () => {
-    onSuccess();
-    // Don't close dialog or reload page, just refresh the data
-    loadExistingData();
-  });
-
-  // Load existing data when component mounts
-  useEffect(() => {
-    loadForeignKeyOptions();
-    loadExistingData();
-  }, []);
+  } = useMasterData(table, title, onSuccess);
 
   useEffect(() => {
     if (open) {
@@ -89,11 +79,8 @@ export const MasterDataDialog = ({ title, table, fields, onSuccess }: MasterData
               editingItem={editingItem}
               loading={loading}
               onFormDataChange={updateFormData}
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSubmit(e);
-              }}
-              onCancel={() => resetForm()}
+              onSubmit={handleSubmit}
+              onCancel={() => setOpen(false)}
             />
           </div>
 

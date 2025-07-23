@@ -46,45 +46,19 @@ export const SearchableSelect = ({
 }: SearchableSelectProps) => {
   const [open, setOpen] = useState(false);
 
-  // Filter out any invalid options - be very strict about what we allow
-  const validOptions = options.filter(option => 
-    option && 
-    typeof option === 'object' &&
-    option.value && 
-    typeof option.value === 'string' &&
-    option.value !== '' && 
-    option.value.trim() !== '' &&
-    option.label && 
-    typeof option.label === 'string' &&
-    option.label.trim() !== ''
-  );
-
-  // Ensure we never work with empty or invalid values
-  const safeValue = value && value !== '' && value.trim() !== '' ? value : '';
-  
-  const selectedValues = multiple && safeValue ? safeValue.split(',').filter(v => v && v.trim() !== '') : [];
+  const selectedValues = multiple && value ? value.split(',').filter(Boolean) : [];
   const selectedOptions = multiple 
-    ? validOptions.filter(option => selectedValues.includes(option.value))
+    ? options.filter(option => selectedValues.includes(option.value))
     : [];
 
   const handleSelect = (currentValue: string) => {
-    // Ensure we don't pass empty values
-    if (!currentValue || currentValue === '' || currentValue.trim() === '') {
-      return;
-    }
-
     if (multiple) {
       const newSelectedValues = selectedValues.includes(currentValue)
         ? selectedValues.filter(val => val !== currentValue)
         : [...selectedValues, currentValue];
       onValueChange(newSelectedValues.join(','));
     } else {
-      // For single select, if clicking the same value, clear it
-      if (currentValue === safeValue) {
-        onValueChange('');
-      } else {
-        onValueChange(currentValue);
-      }
+      onValueChange(currentValue === value ? "" : currentValue);
       setOpen(false);
     }
   };
@@ -93,19 +67,6 @@ export const SearchableSelect = ({
     if (multiple) {
       const newSelectedValues = selectedValues.filter(val => val !== valueToRemove);
       onValueChange(newSelectedValues.join(','));
-    }
-  };
-
-  const getDisplayValue = () => {
-    if (multiple) {
-      return selectedOptions.length > 0 ? `${selectedOptions.length} selected` : placeholder;
-    } else {
-      // Handle empty string or placeholder values properly
-      if (!safeValue || safeValue === 'placeholder') {
-        return placeholder;
-      }
-      const selectedOption = validOptions.find((option) => option.value === safeValue);
-      return selectedOption ? selectedOption.label : placeholder;
     }
   };
 
@@ -119,7 +80,17 @@ export const SearchableSelect = ({
             aria-expanded={open}
             className={cn("w-full justify-between", className)}
           >
-            {getDisplayValue()}
+            {multiple ? (
+              selectedOptions.length > 0 ? (
+                `${selectedOptions.length} selected`
+              ) : (
+                placeholder
+              )
+            ) : (
+              value
+                ? options.find((option) => option.value === value)?.label
+                : placeholder
+            )}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
@@ -129,7 +100,7 @@ export const SearchableSelect = ({
             <CommandList>
               <CommandEmpty>{emptyText}</CommandEmpty>
               <CommandGroup>
-                {validOptions.map((option) => (
+                {options.map((option) => (
                   <CommandItem
                     key={option.value}
                     value={option.value}
@@ -138,7 +109,7 @@ export const SearchableSelect = ({
                     <Check
                       className={cn(
                         "mr-2 h-4 w-4",
-                        (multiple ? selectedValues.includes(option.value) : safeValue === option.value) 
+                        (multiple ? selectedValues.includes(option.value) : value === option.value) 
                           ? "opacity-100" 
                           : "opacity-0"
                       )}

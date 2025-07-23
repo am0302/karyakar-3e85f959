@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -136,7 +137,7 @@ export const UserLocationAssignment = () => {
   };
 
   const saveAssignment = async () => {
-    if (!selectedUser || selectedUser === 'placeholder') {
+    if (!selectedUser) {
       toast({
         title: 'Error',
         description: 'Please select a user',
@@ -217,10 +218,6 @@ export const UserLocationAssignment = () => {
     }
   };
 
-  const handleUserChange = (value: string) => {
-    setSelectedUser(value);
-  };
-
   const getLocationNames = (ids: string[], locations: LocationOption[]) => {
     return ids.map(id => locations.find(loc => loc.id === id)?.name || 'Unknown').join(', ');
   };
@@ -235,13 +232,6 @@ export const UserLocationAssignment = () => {
       </div>
     );
   }
-
-  const userOptions = [
-    ...profiles.map(p => ({ 
-      value: p.id, 
-      label: `${p.full_name} (${p.role.replace('_', ' ')})` 
-    }))
-  ];
 
   return (
     <div className="space-y-6">
@@ -265,9 +255,12 @@ export const UserLocationAssignment = () => {
           <div className="space-y-2">
             <Label>Select User</Label>
             <SearchableSelect
-              options={userOptions}
+              options={profiles.map(p => ({ 
+                value: p.id, 
+                label: `${p.full_name} (${p.role.replace('_', ' ')})` 
+              }))}
               value={selectedUser}
-              onValueChange={handleUserChange}
+              onValueChange={setSelectedUser}
               placeholder="Select User"
             />
           </div>
