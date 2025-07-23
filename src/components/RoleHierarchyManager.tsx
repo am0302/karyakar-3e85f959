@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,19 +11,28 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Trash2, Save, Shield, RefreshCw, Users, Network, Plus, Edit2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { useDynamicRoles } from '@/hooks/useDynamicRoles';
+import type { Database } from '@/integrations/supabase/types';
+
+// Define types based on the expected database structure
+type UserRole = Database['public']['Enums']['user_role'];
+
+interface RoleInfo {
+  role_name: UserRole;
+  display_name: string;
+  is_system_role: boolean;
+}
 
 interface RoleHierarchy {
   id: string;
-  role: string;
+  role: UserRole;
   level: number;
-  parent_role: string | null;
+  parent_role: UserRole | null;
 }
 
 interface HierarchyPermission {
   id: string;
-  higher_role: string;
-  lower_role: string;
+  higher_role: UserRole;
+  lower_role: UserRole;
   can_view: boolean;
   can_edit: boolean;
   can_delete: boolean;
@@ -34,7 +42,7 @@ interface HierarchyPermission {
 
 export const RoleHierarchyManager = () => {
   const { toast } = useToast();
-  const { roles, loading: rolesLoading, getRoleOptions, getRoleDisplayName } = useDynamicRoles();
+  const [availableRoles, setAvailableRoles] = useState<RoleInfo[]>([]);
   const [roleHierarchy, setRoleHierarchy] = useState<RoleHierarchy[]>([]);
   const [hierarchyPermissions, setHierarchyPermissions] = useState<HierarchyPermission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +51,7 @@ export const RoleHierarchyManager = () => {
   // New role form states
   const [newRoleLevel, setNewRoleLevel] = useState(1);
   const [newRoleParent, setNewRoleParent] = useState('');
-  const [selectedRole, setSelectedRole] = useState('');
+  const [selectedRole, setSelectedRole] = useState<UserRole>('sevak');
   const [showAddRoleDialog, setShowAddRoleDialog] = useState(false);
 
   // Edit hierarchy states
@@ -52,14 +60,14 @@ export const RoleHierarchyManager = () => {
   const [editParent, setEditParent] = useState('');
 
   // Permission form states
-  const [selectedHigherRole, setSelectedHigherRole] = useState('');
-  const [selectedLowerRole, setSelectedLowerRole] = useState('');
+  const [selectedHigherRole, setSelectedHigherRole] = useState<UserRole>('super_admin');
+  const [selectedLowerRole, setSelectedLowerRole] = useState<UserRole>('sevak');
   const [permissionSet, setPermissionSet] = useState({
-    can_view: true,
-    can_edit: true,
-    can_delete: true,
-    can_export: true,
-    can_assign_locations: true
+    can_view: false,
+    can_edit: false,
+    can_delete: false,
+    can_export: false,
+    can_assign_locations: false
   });
 
   const permissionTypes = [
@@ -70,6 +78,16 @@ export const RoleHierarchyManager = () => {
     { key: 'can_assign_locations', label: 'Assign Locations' }
   ];
 
+  // System roles with display names
+  const systemRoles: RoleInfo[] = [
+    { role_name: 'super_admin', display_name: 'Super Admin', is_system_role: true },
+    { role_name: 'sant_nirdeshak', display_name: 'Sant Nirdeshak', is_system_role: true },
+    { role_name: 'sah_nirdeshak', display_name: 'Sah Nirdeshak', is_system_role: true },
+    { role_name: 'mandal_sanchalak', display_name: 'Mandal Sanchalak', is_system_role: true },
+    { role_name: 'karyakar', display_name: 'Karyakar', is_system_role: true },
+    { role_name: 'sevak', display_name: 'Sevak', is_system_role: true }
+  ];
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -77,6 +95,7 @@ export const RoleHierarchyManager = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
+      setAvailableRoles(systemRoles);
       await Promise.all([
         fetchRoleHierarchy(),
         fetchHierarchyPermissions()
@@ -162,7 +181,7 @@ export const RoleHierarchyManager = () => {
         .insert({
           role: selectedRole,
           level: newRoleLevel,
-          parent_role: newRoleParent || null
+          parent_role: newRoleParent ? newRoleParent as UserRole : null
         });
 
       if (error) throw error;
@@ -173,7 +192,7 @@ export const RoleHierarchyManager = () => {
       });
 
       // Reset form
-      setSelectedRole('');
+      setSelectedRole('sevak');
       setNewRoleLevel(1);
       setNewRoleParent('');
       setShowAddRoleDialog(false);
@@ -199,10 +218,10 @@ export const RoleHierarchyManager = () => {
         .from('role_hierarchy')
         .update({
           level: editLevel,
-          parent_role: editParent || null,
+          parent_role: editParent ? editParent as UserRole : null,
           updated_at: new Date().toISOString()
         })
-        .eq('role', roleName);
+        .eq('role', roleName as UserRole);
 
       if (error) throw error;
 
@@ -277,14 +296,14 @@ export const RoleHierarchyManager = () => {
       });
 
       // Reset form
-      setSelectedHigherRole('');
-      setSelectedLowerRole('');
+      setSelectedHigherRole('super_admin');
+      setSelectedLowerRole('sevak');
       setPermissionSet({
-        can_view: true,
-        can_edit: true,
-        can_delete: true,
-        can_export: true,
-        can_assign_locations: true
+        can_view: false,
+        can_edit: false,
+        can_delete: false,
+        can_export: false,
+        can_assign_locations: false
       });
 
       await fetchHierarchyPermissions();
@@ -327,12 +346,24 @@ export const RoleHierarchyManager = () => {
     }
   };
 
-  const getAvailableRolesForHierarchy = () => {
-    const existingRoles = roleHierarchy.map(r => r.role);
-    return roles.filter(role => !existingRoles.includes(role.role_name));
+  const getRoleOptions = () => {
+    return availableRoles.map(role => ({
+      value: role.role_name,
+      label: role.display_name
+    }));
   };
 
-  if (loading || rolesLoading) {
+  const getRoleDisplayName = (roleName: string) => {
+    const role = availableRoles.find(r => r.role_name === roleName);
+    return role ? role.display_name : roleName.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  const getAvailableRolesForHierarchy = () => {
+    const existingRoles = roleHierarchy.map(r => r.role);
+    return availableRoles.filter(role => !existingRoles.includes(role.role_name));
+  };
+
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="flex items-center gap-2">
@@ -345,10 +376,10 @@ export const RoleHierarchyManager = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl md:text-2xl font-bold text-gray-900">Role Hierarchy Management</h2>
-          <p className="text-sm md:text-base text-gray-600">Manage role hierarchy and permissions between roles</p>
+          <h2 className="text-2xl font-bold text-gray-900">Role Hierarchy Management</h2>
+          <p className="text-gray-600">Manage role hierarchy and permissions between roles</p>
         </div>
         <Button onClick={fetchData} variant="outline" size="sm">
           <RefreshCw className="h-4 w-4 mr-2" />
@@ -357,51 +388,47 @@ export const RoleHierarchyManager = () => {
       </div>
 
       <Tabs defaultValue="hierarchy-view" className="space-y-6">
-        <div className="w-full overflow-x-auto">
-          <TabsList className="grid w-full grid-cols-3 min-w-[400px]">
-            <TabsTrigger value="hierarchy-view" className="flex items-center gap-2 text-xs md:text-sm">
-              <Network className="h-4 w-4" />
-              <span className="hidden sm:inline">Role Hierarchy</span>
-              <span className="sm:hidden">Hierarchy</span>
-            </TabsTrigger>
-            <TabsTrigger value="permissions" className="flex items-center gap-2 text-xs md:text-sm">
-              <Shield className="h-4 w-4" />
-              <span className="hidden sm:inline">Hierarchy Permissions</span>
-              <span className="sm:hidden">Permissions</span>
-            </TabsTrigger>
-            <TabsTrigger value="manage-roles" className="flex items-center gap-2 text-xs md:text-sm">
-              <Users className="h-4 w-4" />
-              <span className="hidden sm:inline">Manage Roles</span>
-              <span className="sm:hidden">Roles</span>
-            </TabsTrigger>
-          </TabsList>
-        </div>
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="hierarchy-view" className="flex items-center gap-2">
+            <Network className="h-4 w-4" />
+            Role Hierarchy
+          </TabsTrigger>
+          <TabsTrigger value="permissions" className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            Hierarchy Permissions
+          </TabsTrigger>
+          <TabsTrigger value="manage-roles" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Manage Roles
+          </TabsTrigger>
+        </TabsList>
 
         <TabsContent value="hierarchy-view" className="space-y-6">
           <Card>
-            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <CardTitle className="text-lg md:text-xl">Current Role Hierarchy</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Current Role Hierarchy</CardTitle>
               <Dialog open={showAddRoleDialog} onOpenChange={setShowAddRoleDialog}>
                 <DialogTrigger asChild>
                   <Button>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Role
+                    Add Role to Hierarchy
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Add Role to Hierarchy</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
                     <div>
                       <Label>Role</Label>
-                      <SearchableSelect
+                   
+                     <SearchableSelect
                         options={getAvailableRolesForHierarchy().map(role => ({
                           value: role.role_name,
                           label: role.display_name
                         }))}
                         value={selectedRole}
-                        onValueChange={setSelectedRole}
+                        onValueChange={(value) => setSelectedRole(value as UserRole)}
                         placeholder="Select Role"
                       />
                     </div>
@@ -446,7 +473,7 @@ export const RoleHierarchyManager = () => {
             <CardContent>
               <div className="space-y-4">
                 {roleHierarchy.map((role) => (
-                  <div key={role.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg gap-4">
+                  <div key={role.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center gap-4">
                       <Badge variant="outline" className="min-w-8 justify-center">
                         {role.level}
@@ -464,7 +491,7 @@ export const RoleHierarchyManager = () => {
                     </div>
                     <div className="flex gap-2">
                       {editingRole === role.role ? (
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                        <div className="flex items-center gap-2">
                           <Input
                             type="number"
                             value={editLevel}
@@ -481,22 +508,20 @@ export const RoleHierarchyManager = () => {
                             onValueChange={setEditParent}
                             placeholder="Parent Role"
                           />
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              onClick={() => updateRoleHierarchy(role.role)}
-                              disabled={saving}
-                            >
-                              <Save className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setEditingRole(null)}
-                            >
-                              Cancel
-                            </Button>
-                          </div>
+                          <Button
+                            size="sm"
+                            onClick={() => updateRoleHierarchy(role.role)}
+                            disabled={saving}
+                          >
+                            <Save className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setEditingRole(null)}
+                          >
+                            Cancel
+                          </Button>
                         </div>
                       ) : (
                         <Button
@@ -522,11 +547,11 @@ export const RoleHierarchyManager = () => {
         <TabsContent value="manage-roles" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Available Roles</CardTitle>
+              <CardTitle>Available System Roles</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {roles.map((role) => (
+                {availableRoles.map((role) => (
                   <div key={role.role_name} className="flex items-center justify-between p-4 border rounded-lg">
                     <div>
                       <h4 className="font-medium">{role.display_name}</h4>
@@ -557,7 +582,7 @@ export const RoleHierarchyManager = () => {
                   <SearchableSelect
                     options={getRoleOptions()}
                     value={selectedHigherRole}
-                    onValueChange={setSelectedHigherRole}
+                    onValueChange={(value) => setSelectedHigherRole(value as UserRole)}
                     placeholder="Select Higher Role"
                   />
                 </div>
@@ -566,7 +591,7 @@ export const RoleHierarchyManager = () => {
                   <SearchableSelect
                     options={getRoleOptions()}
                     value={selectedLowerRole}
-                    onValueChange={setSelectedLowerRole}
+                    onValueChange={(value) => setSelectedLowerRole(value as UserRole)}
                     placeholder="Select Lower Role"
                   />
                 </div>
@@ -623,7 +648,7 @@ export const RoleHierarchyManager = () => {
                 <div className="space-y-4">
                   {hierarchyPermissions.map((permission) => (
                     <div key={permission.id} className="border rounded-lg p-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 gap-3">
+                      <div className="flex items-center justify-between mb-3">
                         <div>
                           <h4 className="font-medium">
                             {getRoleDisplayName(permission.higher_role)} → {getRoleDisplayName(permission.lower_role)}
