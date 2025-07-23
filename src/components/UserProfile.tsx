@@ -113,6 +113,14 @@ const UserProfile = () => {
     }
   };
 
+  const handlePhotoUpload = () => {
+    // For now, just show a toast - photo upload functionality would need to be implemented
+    toast({
+      title: 'Info',
+      description: 'Photo upload functionality coming soon',
+    });
+  };
+
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -168,7 +176,12 @@ const UserProfile = () => {
               </div>
             )}
             {canEdit && (
-              <Button variant="outline" size="sm" className="w-full">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full"
+                onClick={handlePhotoUpload}
+              >
                 <Upload className="h-4 w-4 mr-2" />
                 Upload Photo
               </Button>
@@ -259,20 +272,20 @@ const UserProfile = () => {
                       </div>
                     </div>
 
-                    {canEdit && (
-                      <div className="flex justify-end gap-2 pt-4">
-                        <Button 
-                          variant="outline" 
-                          onClick={() => setShowPersonalInfo(false)}
-                        >
-                          Cancel
-                        </Button>
+                    <div className="flex justify-end gap-2 pt-4">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setShowPersonalInfo(false)}
+                      >
+                        {canEdit ? 'Cancel' : 'Close'}
+                      </Button>
+                      {canEdit && (
                         <Button onClick={updateProfile} disabled={saving}>
                           <Save className="h-4 w-4 mr-2" />
                           {saving ? 'Saving...' : 'Save Changes'}
                         </Button>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </DialogContent>
               </Dialog>
