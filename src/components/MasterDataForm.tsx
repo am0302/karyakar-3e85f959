@@ -57,24 +57,34 @@ export const MasterDataForm = ({
         
         // Filter out any options with empty values and ensure all values are valid strings
         options = options.filter(option => 
+          option && 
+          typeof option === 'object' &&
           option.value && 
+          typeof option.value === 'string' &&
           option.value !== '' && 
           option.value.toString().trim() !== '' &&
           option.label && 
+          typeof option.label === 'string' &&
           option.label.toString().trim() !== ''
         );
 
         const handleSelectChange = (selectedValue: string) => {
-          // Only update if the value is not empty
-          if (selectedValue && selectedValue !== '' && selectedValue !== 'placeholder') {
+          // Only update if the value is valid
+          if (selectedValue && selectedValue !== '' && selectedValue !== 'placeholder' && selectedValue.trim() !== '') {
             onFormDataChange(field.name, selectedValue);
+          } else {
+            // Clear the value if empty
+            onFormDataChange(field.name, '');
           }
         };
+
+        // Ensure we never pass empty values to SearchableSelect
+        const safeValue = value && value !== '' && value.trim() !== '' ? value : '';
         
         return (
           <SearchableSelect
             options={options}
-            value={value}
+            value={safeValue}
             onValueChange={handleSelectChange}
             placeholder={`Select ${field.label.toLowerCase()}`}
           />

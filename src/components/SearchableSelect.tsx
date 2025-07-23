@@ -46,17 +46,23 @@ export const SearchableSelect = ({
 }: SearchableSelectProps) => {
   const [open, setOpen] = useState(false);
 
-  // Filter out any invalid options
+  // Filter out any invalid options - be very strict about what we allow
   const validOptions = options.filter(option => 
     option && 
+    typeof option === 'object' &&
     option.value && 
+    typeof option.value === 'string' &&
     option.value !== '' && 
-    option.value.toString().trim() !== '' &&
+    option.value.trim() !== '' &&
     option.label && 
-    option.label.toString().trim() !== ''
+    typeof option.label === 'string' &&
+    option.label.trim() !== ''
   );
 
-  const selectedValues = multiple && value ? value.split(',').filter(Boolean) : [];
+  // Ensure we never work with empty or invalid values
+  const safeValue = value && value !== '' && value.trim() !== '' ? value : '';
+  
+  const selectedValues = multiple && safeValue ? safeValue.split(',').filter(v => v && v.trim() !== '') : [];
   const selectedOptions = multiple 
     ? validOptions.filter(option => selectedValues.includes(option.value))
     : [];
@@ -73,9 +79,8 @@ export const SearchableSelect = ({
         : [...selectedValues, currentValue];
       onValueChange(newSelectedValues.join(','));
     } else {
-      // For single select, if clicking the same value, clear it by passing empty string
-      // But we need to handle the display logic properly
-      if (currentValue === value) {
+      // For single select, if clicking the same value, clear it
+      if (currentValue === safeValue) {
         onValueChange('');
       } else {
         onValueChange(currentValue);
@@ -96,10 +101,10 @@ export const SearchableSelect = ({
       return selectedOptions.length > 0 ? `${selectedOptions.length} selected` : placeholder;
     } else {
       // Handle empty string or placeholder values properly
-      if (!value || value === '' || value === 'placeholder') {
+      if (!safeValue || safeValue === 'placeholder') {
         return placeholder;
       }
-      const selectedOption = validOptions.find((option) => option.value === value);
+      const selectedOption = validOptions.find((option) => option.value === safeValue);
       return selectedOption ? selectedOption.label : placeholder;
     }
   };
@@ -133,7 +138,7 @@ export const SearchableSelect = ({
                     <Check
                       className={cn(
                         "mr-2 h-4 w-4",
-                        (multiple ? selectedValues.includes(option.value) : value === option.value) 
+                        (multiple ? selectedValues.includes(option.value) : safeValue === option.value) 
                           ? "opacity-100" 
                           : "opacity-0"
                       )}
