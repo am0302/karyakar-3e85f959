@@ -51,28 +51,21 @@ export const MasterDataForm = ({
           />
         );
       case 'select':
-        const options = field.foreignKey 
-          ? foreignKeyOptions[field.foreignKey] || []
+        let options = field.foreignKey 
+          ? foreignKeyOptions[field.name] || []
           : field.options || [];
         
-        // Add a placeholder option if none selected
-        const selectOptions = value ? options : [
-          { value: 'placeholder', label: `Select ${field.label.toLowerCase()}` },
-          ...options
-        ];
+        // Filter out any options with empty values to prevent the error
+        options = options.filter(option => option.value && option.value !== '');
 
         const handleSelectChange = (selectedValue: string) => {
-          if (selectedValue === 'placeholder') {
-            onFormDataChange(field.name, '');
-          } else {
-            onFormDataChange(field.name, selectedValue);
-          }
+          onFormDataChange(field.name, selectedValue);
         };
         
         return (
           <SearchableSelect
-            options={selectOptions}
-            value={value || 'placeholder'}
+            options={options}
+            value={value}
             onValueChange={handleSelectChange}
             placeholder={`Select ${field.label.toLowerCase()}`}
           />

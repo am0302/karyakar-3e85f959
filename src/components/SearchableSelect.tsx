@@ -58,7 +58,13 @@ export const SearchableSelect = ({
         : [...selectedValues, currentValue];
       onValueChange(newSelectedValues.join(','));
     } else {
-      onValueChange(currentValue === value ? "placeholder" : currentValue);
+      // For single select, if clicking the same value, clear it by passing empty string
+      // But we need to handle the display logic properly
+      if (currentValue === value) {
+        onValueChange('');
+      } else {
+        onValueChange(currentValue);
+      }
       setOpen(false);
     }
   };
@@ -74,7 +80,8 @@ export const SearchableSelect = ({
     if (multiple) {
       return selectedOptions.length > 0 ? `${selectedOptions.length} selected` : placeholder;
     } else {
-      if (!value || value === 'placeholder') {
+      // Handle empty string or placeholder values properly
+      if (!value || value === '' || value === 'placeholder') {
         return placeholder;
       }
       const selectedOption = options.find((option) => option.value === value);

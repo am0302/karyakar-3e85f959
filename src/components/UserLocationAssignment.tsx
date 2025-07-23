@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -219,7 +218,7 @@ export const UserLocationAssignment = () => {
   };
 
   const handleUserChange = (value: string) => {
-    setSelectedUser(value === 'placeholder' ? '' : value);
+    setSelectedUser(value);
   };
 
   const getLocationNames = (ids: string[], locations: LocationOption[]) => {
@@ -238,7 +237,6 @@ export const UserLocationAssignment = () => {
   }
 
   const userOptions = [
-    { value: 'placeholder', label: 'Select User' },
     ...profiles.map(p => ({ 
       value: p.id, 
       label: `${p.full_name} (${p.role.replace('_', ' ')})` 
@@ -268,7 +266,7 @@ export const UserLocationAssignment = () => {
             <Label>Select User</Label>
             <SearchableSelect
               options={userOptions}
-              value={selectedUser || 'placeholder'}
+              value={selectedUser}
               onValueChange={handleUserChange}
               placeholder="Select User"
             />

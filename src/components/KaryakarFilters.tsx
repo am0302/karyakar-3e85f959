@@ -28,12 +28,26 @@ export const KaryakarFilters = ({
     ...getRoleOptions()
   ];
 
+  const statusOptions = [
+    { value: 'all', label: 'All Status' },
+    { value: 'active', label: 'Active' },
+    { value: 'inactive', label: 'Inactive' },
+  ];
+
   const handleRoleChange = (value: string) => {
     setSelectedRole(value === 'all' ? '' : value);
   };
 
   const handleStatusChange = (value: string) => {
     setSelectedStatus(value === 'all' ? '' : value);
+  };
+
+  const getCurrentRoleValue = () => {
+    return selectedRole || 'all';
+  };
+
+  const getCurrentStatusValue = () => {
+    return selectedStatus || 'all';
   };
 
   return (
@@ -49,19 +63,15 @@ export const KaryakarFilters = ({
       
       <SearchableSelect
         options={roleOptions}
-        value={selectedRole || 'all'}
+        value={getCurrentRoleValue()}
         onValueChange={handleRoleChange}
         placeholder="Filter by Role"
         className="w-48"
       />
       
       <SearchableSelect
-        options={[
-          { value: 'all', label: 'All Status' },
-          { value: 'active', label: 'Active' },
-          { value: 'inactive', label: 'Inactive' },
-        ]}
-        value={selectedStatus || 'all'}
+        options={statusOptions}
+        value={getCurrentStatusValue()}
         onValueChange={handleStatusChange}
         placeholder="Filter by Status"
         className="w-48"
