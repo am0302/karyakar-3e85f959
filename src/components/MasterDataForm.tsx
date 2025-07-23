@@ -55,11 +55,20 @@ export const MasterDataForm = ({
           ? foreignKeyOptions[field.name] || []
           : field.options || [];
         
-        // Filter out any options with empty values to prevent the error
-        options = options.filter(option => option.value && option.value !== '');
+        // Filter out any options with empty values and ensure all values are valid strings
+        options = options.filter(option => 
+          option.value && 
+          option.value !== '' && 
+          option.value.toString().trim() !== '' &&
+          option.label && 
+          option.label.toString().trim() !== ''
+        );
 
         const handleSelectChange = (selectedValue: string) => {
-          onFormDataChange(field.name, selectedValue);
+          // Only update if the value is not empty
+          if (selectedValue && selectedValue !== '' && selectedValue !== 'placeholder') {
+            onFormDataChange(field.name, selectedValue);
+          }
         };
         
         return (

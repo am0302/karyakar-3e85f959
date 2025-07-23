@@ -79,10 +79,15 @@ export const useForeignKeyOptions = (fields: FormField[]) => {
           }
 
           if (data && Array.isArray(data)) {
-            options[field.name] = data.map(item => ({
-              value: item.id,
-              label: item.name
-            }));
+            // Filter out any items with empty or null values and ensure they have valid names
+            const validOptions = data
+              .filter(item => item.id && item.name && item.id.toString().trim() !== '' && item.name.trim() !== '')
+              .map(item => ({
+                value: item.id.toString(),
+                label: item.name.toString()
+              }));
+
+            options[field.name] = validOptions;
           }
         } catch (error) {
           console.error(`Error loading ${field.foreignKey} options:`, error);

@@ -46,12 +46,27 @@ export const SearchableSelect = ({
 }: SearchableSelectProps) => {
   const [open, setOpen] = useState(false);
 
+  // Filter out any invalid options
+  const validOptions = options.filter(option => 
+    option && 
+    option.value && 
+    option.value !== '' && 
+    option.value.toString().trim() !== '' &&
+    option.label && 
+    option.label.toString().trim() !== ''
+  );
+
   const selectedValues = multiple && value ? value.split(',').filter(Boolean) : [];
   const selectedOptions = multiple 
-    ? options.filter(option => selectedValues.includes(option.value))
+    ? validOptions.filter(option => selectedValues.includes(option.value))
     : [];
 
   const handleSelect = (currentValue: string) => {
+    // Ensure we don't pass empty values
+    if (!currentValue || currentValue === '' || currentValue.trim() === '') {
+      return;
+    }
+
     if (multiple) {
       const newSelectedValues = selectedValues.includes(currentValue)
         ? selectedValues.filter(val => val !== currentValue)
@@ -84,7 +99,7 @@ export const SearchableSelect = ({
       if (!value || value === '' || value === 'placeholder') {
         return placeholder;
       }
-      const selectedOption = options.find((option) => option.value === value);
+      const selectedOption = validOptions.find((option) => option.value === value);
       return selectedOption ? selectedOption.label : placeholder;
     }
   };
@@ -109,7 +124,7 @@ export const SearchableSelect = ({
             <CommandList>
               <CommandEmpty>{emptyText}</CommandEmpty>
               <CommandGroup>
-                {options.map((option) => (
+                {validOptions.map((option) => (
                   <CommandItem
                     key={option.value}
                     value={option.value}
