@@ -94,7 +94,7 @@ export const RoleHierarchyManager = () => {
         console.error('Error loading hierarchy data:', hierarchyError);
         setHierarchyData([]);
       } else {
-        setHierarchyData((hierarchyData as RoleHierarchy[]) || []);
+        setHierarchyData((hierarchyData as unknown as RoleHierarchy[]) || []);
       }
 
       // Load permissions data with proper error handling
@@ -107,7 +107,7 @@ export const RoleHierarchyManager = () => {
         console.error('Error loading permissions data:', permissionsError);
         setPermissionsData([]);
       } else {
-        setPermissionsData((permissionsData as HierarchyPermission[]) || []);
+        setPermissionsData((permissionsData as unknown as HierarchyPermission[]) || []);
       }
     } catch (error: any) {
       console.error('Error loading data:', error);
@@ -254,12 +254,14 @@ export const RoleHierarchyManager = () => {
         throw checkError;
       }
 
-      if (existingPermission) {
+      const existingPermissionData = existingPermission as unknown as HierarchyPermission;
+
+      if (existingPermissionData) {
         // Update existing permission
         const { error } = await supabase
           .from('hierarchy_permissions' as any)
           .update(permissionSet)
-          .eq('id', existingPermission.id);
+          .eq('id', existingPermissionData.id);
 
         if (error) throw error;
       } else {
