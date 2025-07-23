@@ -187,10 +187,11 @@ export const PermissionsManager = () => {
 
         if (error) throw error;
       } else {
+        // Cast selectedRole to the expected type for database insertion
         const { error } = await supabase
           .from('role_permissions')
           .insert({
-            role: selectedRole,
+            role: selectedRole as any, // Type assertion for database compatibility
             module_name: selectedModule,
             ...rolePermissionSet
           });
