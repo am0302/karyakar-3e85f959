@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -159,11 +158,11 @@ export const RoleHierarchyManager = () => {
 
       const { error } = await supabase
         .from('role_hierarchy')
-        .insert({
+        .insert([{
           role: selectedRole,
           level: newRoleLevel,
           parent_role: newRoleParent || null
-        });
+        }]);
 
       if (error) throw error;
 
@@ -262,11 +261,11 @@ export const RoleHierarchyManager = () => {
       } else {
         const { error } = await supabase
           .from('hierarchy_permissions')
-          .insert({
+          .insert([{
             higher_role: selectedHigherRole,
             lower_role: selectedLowerRole,
             ...permissionSet
-          });
+          }]);
 
         if (error) throw error;
       }
