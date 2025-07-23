@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, Link, User } from 'lucide-react';
+import { useDynamicRoles } from '@/hooks/useDynamicRoles';
 import type { Database } from '@/integrations/supabase/types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
@@ -56,6 +56,7 @@ export const KaryakarForm = ({
   sevaTypes
 }: KaryakarFormProps) => {
   const [photoMethod, setPhotoMethod] = useState<'upload' | 'url'>('url');
+  const { getRoleOptions, loading: rolesLoading } = useDynamicRoles();
 
   // Update form data when editing karyakar changes
   useEffect(() => {
@@ -343,14 +344,7 @@ export const KaryakarForm = ({
           <div>
             <Label>Role</Label>
             <SearchableSelect
-              options={[
-                { value: 'sevak', label: 'Sevak' },
-                { value: 'karyakar', label: 'Karyakar' },
-                { value: 'mandal_sanchalak', label: 'Mandal Sanchalak' },
-                { value: 'sah_nirdeshak', label: 'Sah Nirdeshak' },
-                { value: 'sant_nirdeshak', label: 'Sant Nirdeshak' },
-                { value: 'super_admin', label: 'Super Admin' },
-              ]}
+              options={getRoleOptions()}
               value={formData.role || 'sevak'}
               onValueChange={(value) => handleInputChange('role', value as UserRole)}
               placeholder="Select Role"

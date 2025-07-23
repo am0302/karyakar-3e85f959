@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
 
-type TableName = 'mandirs' | 'kshetras' | 'villages' | 'mandals' | 'professions' | 'seva_types';
+type TableName = 'mandirs' | 'kshetras' | 'villages' | 'mandals' | 'professions' | 'seva_types' | 'custom_roles';
 
 type TableInsertTypes = {
   mandirs: Database['public']['Tables']['mandirs']['Insert'];
@@ -13,6 +13,7 @@ type TableInsertTypes = {
   mandals: Database['public']['Tables']['mandals']['Insert'];
   professions: Database['public']['Tables']['professions']['Insert'];
   seva_types: Database['public']['Tables']['seva_types']['Insert'];
+  custom_roles: Database['public']['Tables']['custom_roles']['Insert'];
 };
 
 export const useMasterData = (table: TableName, title: string, onSuccess: () => void) => {
@@ -24,11 +25,14 @@ export const useMasterData = (table: TableName, title: string, onSuccess: () => 
 
   const loadExistingData = async () => {
     try {
-      const { data, error } = await supabase
-        .from(table)
-        .select('*')
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
+      let query = supabase.from(table).select('*');
+      
+      // For custom_roles, don't filter by is_active initially to show all
+      if (table !== 'custom_roles') {
+        query = query.eq('is_active', true);
+      }
+      
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
       setExistingData(data || []);
@@ -42,10 +46,28 @@ export const useMasterData = (table: TableName, title: string, onSuccess: () => 
     setLoading(true);
 
     try {
+      // For custom_roles, prevent editing system roles
+      if (table === 'custom_roles' && editingItem?.is_system_role) {
+        toast({
+          title: "Error",
+          description: "System roles cannot be modified",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      const dataToSubmit = { ...formData };
+      
+      // For custom_roles, ensure is_system_role is set to false for new roles
+      if (table === 'custom_roles' && !editingItem) {
+        (dataToSubmit as any).is_system_role = false;
+      }
+
       if (editingItem) {
         const { error } = await supabase
           .from(table)
-          .update(formData as any)
+          .update(dataToSubmit as any)
           .eq('id', editingItem.id);
 
         if (error) throw error;
@@ -57,7 +79,7 @@ export const useMasterData = (table: TableName, title: string, onSuccess: () => 
       } else {
         const { error } = await supabase
           .from(table)
-          .insert(formData as any);
+          .insert(dataToSubmit as any);
 
         if (error) throw error;
 
@@ -83,12 +105,35 @@ export const useMasterData = (table: TableName, title: string, onSuccess: () => 
   };
 
   const handleEdit = (item: any) => {
+    // For custom_roles, prevent editing system roles
+    if (table === 'custom_roles' && item.is_system_role) {
+      toast({
+        title: "Error",
+        description: "System roles cannot be modified",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setEditingItem(item);
     setFormData(item);
   };
 
   const handleDelete = async (id: string) => {
     try {
+      // For custom_roles, check if it's a system role
+      if (table === 'custom_roles') {
+        const item = existingData.find(data => data.id === id);
+        if (item?.is_system_role) {
+          toast({
+            title: "Error",
+            description: "System roles cannot be deleted",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
       const { error } = await supabase
         .from(table)
         .update({ is_active: false })

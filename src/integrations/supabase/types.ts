@@ -125,6 +125,39 @@ export type Database = {
           },
         ]
       }
+      custom_roles: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_name: string
+          id: string
+          is_active: boolean | null
+          is_system_role: boolean | null
+          role_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_name: string
+          id?: string
+          is_active?: boolean | null
+          is_system_role?: boolean | null
+          role_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_name?: string
+          id?: string
+          is_active?: boolean | null
+          is_system_role?: boolean | null
+          role_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       hierarchy_permissions: {
         Row: {
           can_assign_locations: boolean | null
@@ -1026,6 +1059,10 @@ export type Database = {
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["user_role"]
+      }
+      get_role_display_name: {
+        Args: { _role_name: string }
+        Returns: string
       }
       get_user_hierarchy_level: {
         Args: { _user_id: string }

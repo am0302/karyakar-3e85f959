@@ -2,6 +2,7 @@
 import React from 'react';
 import { Input } from '@/components/ui/input';
 import { SearchableSelect } from '@/components/SearchableSelect';
+import { useDynamicRoles } from '@/hooks/useDynamicRoles';
 
 interface KaryakarFiltersProps {
   searchTerm: string;
@@ -20,6 +21,13 @@ export const KaryakarFilters = ({
   selectedStatus,
   setSelectedStatus
 }: KaryakarFiltersProps) => {
+  const { getRoleOptions } = useDynamicRoles();
+
+  const roleOptions = [
+    { value: '', label: 'All Roles' },
+    ...getRoleOptions()
+  ];
+
   return (
     <div className="flex flex-col sm:flex-row gap-4 mb-6">
       <div className="flex-1">
@@ -32,15 +40,7 @@ export const KaryakarFilters = ({
       </div>
       
       <SearchableSelect
-        options={[
-          { value: '', label: 'All Roles' },
-          { value: 'sevak', label: 'Sevak' },
-          { value: 'karyakar', label: 'Karyakar' },
-          { value: 'mandal_sanchalak', label: 'Mandal Sanchalak' },
-          { value: 'sah_nirdeshak', label: 'Sah Nirdeshak' },
-          { value: 'sant_nirdeshak', label: 'Sant Nirdeshak' },
-          { value: 'super_admin', label: 'Super Admin' },
-        ]}
+        options={roleOptions}
         value={selectedRole}
         onValueChange={setSelectedRole}
         placeholder="Filter by Role"

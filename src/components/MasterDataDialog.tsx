@@ -14,7 +14,7 @@ import { MasterDataTable } from "./MasterDataTable";
 import { useForeignKeyOptions } from "@/hooks/useForeignKeyOptions";
 import { useMasterData } from "@/hooks/useMasterData";
 
-type TableName = 'mandirs' | 'kshetras' | 'villages' | 'mandals' | 'professions' | 'seva_types';
+type TableName = 'mandirs' | 'kshetras' | 'villages' | 'mandals' | 'professions' | 'seva_types' | 'custom_roles';
 
 interface MasterDataDialogProps {
   title: string;
