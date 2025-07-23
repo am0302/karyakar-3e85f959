@@ -4,12 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { SearchableSelect } from "@/components/SearchableSelect";
 
 interface FormField {
   name: string;
   label: string;
-  type: 'text' | 'textarea' | 'select' | 'date' | 'number' | 'time';
+  type: 'text' | 'textarea' | 'select' | 'date' | 'number' | 'time' | 'boolean';
   required?: boolean;
   options?: Array<{ value: string; label: string }>;
   foreignKey?: string;
@@ -49,6 +50,24 @@ export const MasterDataForm = ({
               value={formData[field.name] || ''}
               onChange={(e) => onFormDataChange(field.name, e.target.value)}
               required={field.required}
+            />
+          ) : field.type === 'boolean' ? (
+            <div className="flex items-center space-x-2">
+              <Switch
+                id={field.name}
+                checked={formData[field.name] || false}
+                onCheckedChange={(checked) => onFormDataChange(field.name, checked)}
+              />
+              <Label htmlFor={field.name} className="text-sm font-normal">
+                {field.label}
+              </Label>
+            </div>
+          ) : field.type === 'select' && field.options ? (
+            <SearchableSelect
+              options={field.options}
+              value={formData[field.name] || ''}
+              onValueChange={(value) => onFormDataChange(field.name, value)}
+              placeholder={`Select ${field.label}`}
             />
           ) : field.type === 'select' && field.foreignKey ? (
             <SearchableSelect

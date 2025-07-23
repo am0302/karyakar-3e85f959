@@ -1,83 +1,44 @@
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { LogOut, Settings, User } from "lucide-react";
-import { useAuth } from "@/components/AuthProvider";
-import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
-import { SlideOutMenu } from "./SlideOutMenu";
+import { Menu, X } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
+import { UserProfile } from "./UserProfile";
+import { NotificationPanel } from "./NotificationPanel";
 
-export const Header = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
+interface HeaderProps {
+  onMenuToggle: () => void;
+  isMobileMenuOpen: boolean;
+}
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate("/auth");
-  };
-
-  if (!user) return null;
-
+export const Header = ({ onMenuToggle, isMobileMenuOpen }: HeaderProps) => {
   return (
-    <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <SlideOutMenu />
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 bg-primary rounded-md flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">K</span>
-            </div>
-            <span className="font-semibold text-foreground hidden sm:inline">
-              Karyakar Management
-            </span>
-          </div>
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container flex h-14 max-w-screen-2xl items-center">
+        <div className="mr-4 flex">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onMenuToggle}
+            className="md:hidden"
+          >
+            {isMobileMenuOpen ? (
+              <X className="h-5 w-5" />
+            ) : (
+              <Menu className="h-5 w-5" />
+            )}
+          </Button>
         </div>
 
-        <div className="flex items-center gap-3">
-          <ThemeToggle />
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={user.profile_photo_url} alt={user.email || ""} />
-                  <AvatarFallback className="bg-primary text-primary-foreground">
-                    {user.email?.charAt(0).toUpperCase() || user.full_name?.charAt(0).toUpperCase() || "U"}
-                  </AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end" forceMount>
-              <div className="flex items-center justify-start gap-2 p-2">
-                <div className="flex flex-col space-y-1 leading-none">
-                  <p className="font-medium text-sm">{user.full_name || user.email}</p>
-                  <p className="text-xs text-muted-foreground">{user.email}</p>
-                </div>
-              </div>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <User className="mr-2 h-4 w-4" />
-                <span>Profile</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout}>
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Log out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
+          <div className="w-full flex-1 md:w-auto md:flex-none">
+            <h1 className="text-lg font-semibold md:hidden">Dashboard</h1>
+          </div>
+          <nav className="flex items-center space-x-2">
+            <NotificationPanel />
+            <ThemeToggle />
+            <UserProfile />
+          </nav>
         </div>
       </div>
     </header>

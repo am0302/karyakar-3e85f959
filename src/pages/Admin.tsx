@@ -9,8 +9,8 @@ import { Shield, Network, MapPin, Users, Briefcase, Star } from "lucide-react";
 
 const Admin = () => {
   const handleSuccess = () => {
-    // Refresh data after successful operations
-    window.location.reload();
+    // Just refresh the current data, don't reload the page
+    console.log('Data updated successfully');
   };
 
   return (
@@ -33,7 +33,8 @@ const Admin = () => {
                 </TabsTrigger>
                 <TabsTrigger value="hierarchy" className="flex flex-col items-center gap-1 p-3 text-xs md:text-sm">
                   <Network className="h-4 w-4" />
-                  <span>Role Hierarchy</span>
+                  <span className="hidden sm:inline">Role Hierarchy</span>
+                  <span className="sm:hidden">Hierarchy</span>
                 </TabsTrigger>
                 <TabsTrigger value="locations" className="flex flex-col items-center gap-1 p-3 text-xs md:text-sm">
                   <MapPin className="h-4 w-4" />
@@ -41,7 +42,8 @@ const Admin = () => {
                 </TabsTrigger>
                 <TabsTrigger value="roles" className="flex flex-col items-center gap-1 p-3 text-xs md:text-sm">
                   <Users className="h-4 w-4" />
-                  <span>User Roles</span>
+                  <span className="hidden sm:inline">User Roles</span>
+                  <span className="sm:hidden">Roles</span>
                 </TabsTrigger>
                 <TabsTrigger value="professions" className="flex flex-col items-center gap-1 p-3 text-xs md:text-sm">
                   <Briefcase className="h-4 w-4" />
@@ -49,7 +51,8 @@ const Admin = () => {
                 </TabsTrigger>
                 <TabsTrigger value="seva-types" className="flex flex-col items-center gap-1 p-3 text-xs md:text-sm">
                   <Star className="h-4 w-4" />
-                  <span>Seva Types</span>
+                  <span className="hidden sm:inline">Seva Types</span>
+                  <span className="sm:hidden">Seva</span>
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -82,6 +85,7 @@ const Admin = () => {
                       { name: 'role_name', label: 'Role Name', type: 'text', required: true },
                       { name: 'display_name', label: 'Display Name', type: 'text', required: true },
                       { name: 'description', label: 'Description', type: 'textarea' },
+                      { name: 'is_active', label: 'Active Status', type: 'boolean' },
                     ]}
                     onSuccess={handleSuccess}
                   />
