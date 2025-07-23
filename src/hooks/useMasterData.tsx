@@ -62,6 +62,7 @@ export const useMasterData = (table: TableName, title: string, onSuccess: () => 
       // For custom_roles, ensure is_system_role is set to false for new roles
       if (table === 'custom_roles' && !editingItem) {
         (dataToSubmit as any).is_system_role = false;
+        (dataToSubmit as any).is_active = dataToSubmit.is_active ?? true;
       }
 
       if (editingItem) {
