@@ -3,8 +3,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
-import UserProfile from "./UserProfile";
 import { NotificationPanel } from "./NotificationPanel";
+import { useAuth } from "./AuthProvider";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import UserProfileDropdown from "./UserProfileDropdown";
 
 interface HeaderProps {
   onMenuToggle: () => void;
@@ -12,6 +15,12 @@ interface HeaderProps {
 }
 
 export const Header = ({ onMenuToggle, isMobileMenuOpen }: HeaderProps) => {
+  const { user, loading } = useAuth();
+
+  const getInitials = (name: string) => {
+    return name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U';
+  };
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 max-w-screen-2xl items-center">
@@ -37,7 +46,26 @@ export const Header = ({ onMenuToggle, isMobileMenuOpen }: HeaderProps) => {
           <nav className="flex items-center space-x-2">
             <NotificationPanel />
             <ThemeToggle />
-            <UserProfile />
+            {!loading && user && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="p-1 rounded-full hover:scale-105 transition"
+                  >
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={user.profile_photo_url} />
+                      <AvatarFallback className="text-sm">
+                        {getInitials(user.full_name || user.email || 'U')}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <UserProfileDropdown />
+                </PopoverContent>
+              </Popover>
+            )}
           </nav>
         </div>
       </div>
