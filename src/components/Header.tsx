@@ -48,9 +48,9 @@ export const Header = () => {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={user.user_metadata?.avatar_url} alt={user.email} />
+                  <AvatarImage src={user.profile_photo_url} alt={user.email || ""} />
                   <AvatarFallback className="bg-primary text-primary-foreground">
-                    {user.email?.charAt(0).toUpperCase()}
+                    {user.email?.charAt(0).toUpperCase() || user.full_name?.charAt(0).toUpperCase() || "U"}
                   </AvatarFallback>
                 </Avatar>
               </Button>
@@ -58,7 +58,7 @@ export const Header = () => {
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <div className="flex items-center justify-start gap-2 p-2">
                 <div className="flex flex-col space-y-1 leading-none">
-                  <p className="font-medium text-sm">{user.user_metadata?.full_name || user.email}</p>
+                  <p className="font-medium text-sm">{user.full_name || user.email}</p>
                   <p className="text-xs text-muted-foreground">{user.email}</p>
                 </div>
               </div>
