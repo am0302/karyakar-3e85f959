@@ -140,7 +140,7 @@ const UserProfile = () => {
         <p className="text-gray-600">Manage your personal information</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/*  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">*/}
         {/* Profile Summary */}
         <Card>
           <CardHeader>
