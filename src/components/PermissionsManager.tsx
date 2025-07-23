@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +9,6 @@ import { SearchableSelect } from '@/components/SearchableSelect';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Trash2, Save, Users, Shield, RefreshCw } from 'lucide-react';
-import { useDynamicRoles } from '@/hooks/useDynamicRoles';
 import type { Database } from '@/integrations/supabase/types';
 
 type UserRole = Database['public']['Enums']['user_role'];
@@ -45,7 +43,6 @@ interface RolePermission extends PermissionSet {
 
 export const PermissionsManager = () => {
   const { toast } = useToast();
-  const { getRoleOptions } = useDynamicRoles();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [userPermissions, setUserPermissions] = useState<UserPermission[]>([]);
   const [rolePermissions, setRolePermissions] = useState<RolePermission[]>([]);
@@ -78,6 +75,15 @@ export const PermissionsManager = () => {
     { value: 'communication', label: 'Communication' },
     { value: 'reports', label: 'Reports' },
     { value: 'admin', label: 'Admin' }
+  ];
+
+  const roles: { value: UserRole; label: string }[] = [
+    { value: 'sevak', label: 'Sevak' },
+    { value: 'karyakar', label: 'Karyakar' },
+    { value: 'mandal_sanchalak', label: 'Mandal Sanchalak' },
+    { value: 'sah_nirdeshak', label: 'Sah Nirdeshak' },
+    { value: 'sant_nirdeshak', label: 'Sant Nirdeshak' },
+    { value: 'super_admin', label: 'Super Admin' },
   ];
 
   const permissionTypes = [
@@ -556,7 +562,7 @@ export const PermissionsManager = () => {
                 <div className="space-y-2">
                   <Label className="text-sm lg:text-base">Select Role</Label>
                   <SearchableSelect
-                    options={getRoleOptions()}
+                    options={roles}
                     value={selectedRole}
                     onValueChange={(value) => setSelectedRole(value as UserRole)}
                     placeholder="Select Role"
