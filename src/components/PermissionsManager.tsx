@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -168,7 +167,7 @@ export const PermissionsManager = () => {
       const { data: existing, error: checkError } = await supabase
         .from('role_permissions')
         .select('id')
-        .eq('role', selectedRole)
+        .eq('role', selectedRole as any) // Type assertion for database compatibility
         .eq('module_name', selectedModule)
         .maybeSingle();
 
