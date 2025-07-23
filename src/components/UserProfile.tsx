@@ -134,7 +134,7 @@ const UserProfile = () => {
     return <div className="flex items-center justify-center h-64">Loading profile...</div>;
   }
 
-  {/* return (
+  return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
@@ -143,7 +143,7 @@ const UserProfile = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Profile Summary */}
-  /*      <Card>
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <User className="h-5 w-5" />
@@ -190,7 +190,7 @@ const UserProfile = () => {
         </Card>
 
         {/* Quick Actions */}
-  /*      <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Quick Actions</CardTitle>
             <CardDescription>
@@ -200,7 +200,7 @@ const UserProfile = () => {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Personal Information Dialog */}
-  /*            <Dialog open={showPersonalInfo} onOpenChange={setShowPersonalInfo}>
+              <Dialog open={showPersonalInfo} onOpenChange={setShowPersonalInfo}>
                 <DialogTrigger asChild>
                   <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2">
                     <Edit className="h-6 w-6" />
@@ -291,7 +291,7 @@ const UserProfile = () => {
               </Dialog>
 
               {/* Account Information Dialog */}
-  /*            <Dialog open={showAccountInfo} onOpenChange={setShowAccountInfo}>
+              <Dialog open={showAccountInfo} onOpenChange={setShowAccountInfo}>
                 <DialogTrigger asChild>
                   <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2">
                     <Info className="h-6 w-6" />
