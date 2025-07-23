@@ -14,7 +14,7 @@ interface MasterDataTableProps {
   data: any[];
   onEdit: (item: any) => void;
   onDelete: (id: string) => void;
-  getDisplayName?: (item: any) => string; // 👈 added
+  getDisplayName?: (item: any) => string; // Optional custom display function
 }
 
 export const MasterDataTable = ({
@@ -38,7 +38,9 @@ export const MasterDataTable = ({
           <TableBody>
             {data.map((item) => (
               <TableRow key={item.id}>
-                <TableCell>{getDisplayName ? getDisplayName(item) : item.name}</TableCell>
+                <TableCell>
+                  {getDisplayName ? getDisplayName(item) : item.name}
+                </TableCell>
                 <TableCell>
                   <div className="flex space-x-2">
                     <Button
