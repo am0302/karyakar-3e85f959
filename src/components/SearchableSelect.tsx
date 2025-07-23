@@ -58,7 +58,7 @@ export const SearchableSelect = ({
         : [...selectedValues, currentValue];
       onValueChange(newSelectedValues.join(','));
     } else {
-      onValueChange(currentValue === value ? "" : currentValue);
+      onValueChange(currentValue === value ? "placeholder" : currentValue);
       setOpen(false);
     }
   };
@@ -67,6 +67,18 @@ export const SearchableSelect = ({
     if (multiple) {
       const newSelectedValues = selectedValues.filter(val => val !== valueToRemove);
       onValueChange(newSelectedValues.join(','));
+    }
+  };
+
+  const getDisplayValue = () => {
+    if (multiple) {
+      return selectedOptions.length > 0 ? `${selectedOptions.length} selected` : placeholder;
+    } else {
+      if (!value || value === 'placeholder') {
+        return placeholder;
+      }
+      const selectedOption = options.find((option) => option.value === value);
+      return selectedOption ? selectedOption.label : placeholder;
     }
   };
 
@@ -80,17 +92,7 @@ export const SearchableSelect = ({
             aria-expanded={open}
             className={cn("w-full justify-between", className)}
           >
-            {multiple ? (
-              selectedOptions.length > 0 ? (
-                `${selectedOptions.length} selected`
-              ) : (
-                placeholder
-              )
-            ) : (
-              value
-                ? options.find((option) => option.value === value)?.label
-                : placeholder
-            )}
+            {getDisplayValue()}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>

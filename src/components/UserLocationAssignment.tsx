@@ -137,7 +137,7 @@ export const UserLocationAssignment = () => {
   };
 
   const saveAssignment = async () => {
-    if (!selectedUser) {
+    if (!selectedUser || selectedUser === 'placeholder') {
       toast({
         title: 'Error',
         description: 'Please select a user',
@@ -218,6 +218,10 @@ export const UserLocationAssignment = () => {
     }
   };
 
+  const handleUserChange = (value: string) => {
+    setSelectedUser(value === 'placeholder' ? '' : value);
+  };
+
   const getLocationNames = (ids: string[], locations: LocationOption[]) => {
     return ids.map(id => locations.find(loc => loc.id === id)?.name || 'Unknown').join(', ');
   };
@@ -232,6 +236,14 @@ export const UserLocationAssignment = () => {
       </div>
     );
   }
+
+  const userOptions = [
+    { value: 'placeholder', label: 'Select User' },
+    ...profiles.map(p => ({ 
+      value: p.id, 
+      label: `${p.full_name} (${p.role.replace('_', ' ')})` 
+    }))
+  ];
 
   return (
     <div className="space-y-6">
@@ -255,12 +267,9 @@ export const UserLocationAssignment = () => {
           <div className="space-y-2">
             <Label>Select User</Label>
             <SearchableSelect
-              options={profiles.map(p => ({ 
-                value: p.id, 
-                label: `${p.full_name} (${p.role.replace('_', ' ')})` 
-              }))}
-              value={selectedUser}
-              onValueChange={setSelectedUser}
+              options={userOptions}
+              value={selectedUser || 'placeholder'}
+              onValueChange={handleUserChange}
               placeholder="Select User"
             />
           </div>

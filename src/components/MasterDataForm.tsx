@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,11 +55,25 @@ export const MasterDataForm = ({
           ? foreignKeyOptions[field.foreignKey] || []
           : field.options || [];
         
+        // Add a placeholder option if none selected
+        const selectOptions = value ? options : [
+          { value: 'placeholder', label: `Select ${field.label.toLowerCase()}` },
+          ...options
+        ];
+
+        const handleSelectChange = (selectedValue: string) => {
+          if (selectedValue === 'placeholder') {
+            onFormDataChange(field.name, '');
+          } else {
+            onFormDataChange(field.name, selectedValue);
+          }
+        };
+        
         return (
           <SearchableSelect
-            options={options}
-            value={value}
-            onValueChange={(val) => onFormDataChange(field.name, val)}
+            options={selectOptions}
+            value={value || 'placeholder'}
+            onValueChange={handleSelectChange}
             placeholder={`Select ${field.label.toLowerCase()}`}
           />
         );
