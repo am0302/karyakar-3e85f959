@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,16 +12,11 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Trash2, Save, Shield, RefreshCw, Users, Network, Plus, Edit2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useDynamicRoles } from '@/hooks/useDynamicRoles';
 import type { Database } from '@/integrations/supabase/types';
 
 // Define types based on the expected database structure
 type UserRole = Database['public']['Enums']['user_role'];
-
-interface RoleInfo {
-  role_name: UserRole;
-  display_name: string;
-  is_system_role: boolean;
-}
 
 interface RoleHierarchy {
   id: string;
@@ -42,7 +38,7 @@ interface HierarchyPermission {
 
 export const RoleHierarchyManager = () => {
   const { toast } = useToast();
-  const [availableRoles, setAvailableRoles] = useState<RoleInfo[]>([]);
+  const { roles, loading: rolesLoading, getRoleOptions, getRoleDisplayName } = useDynamicRoles();
   const [roleHierarchy, setRoleHierarchy] = useState<RoleHierarchy[]>([]);
   const [hierarchyPermissions, setHierarchyPermissions] = useState<HierarchyPermission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,16 +74,6 @@ export const RoleHierarchyManager = () => {
     { key: 'can_assign_locations', label: 'Assign Locations' }
   ];
 
-  // System roles with display names
-  const systemRoles: RoleInfo[] = [
-    { role_name: 'super_admin', display_name: 'Super Admin', is_system_role: true },
-    { role_name: 'sant_nirdeshak', display_name: 'Sant Nirdeshak', is_system_role: true },
-    { role_name: 'sah_nirdeshak', display_name: 'Sah Nirdeshak', is_system_role: true },
-    { role_name: 'mandal_sanchalak', display_name: 'Mandal Sanchalak', is_system_role: true },
-    { role_name: 'karyakar', display_name: 'Karyakar', is_system_role: true },
-    { role_name: 'sevak', display_name: 'Sevak', is_system_role: true }
-  ];
-
   useEffect(() => {
     fetchData();
   }, []);
@@ -95,7 +81,6 @@ export const RoleHierarchyManager = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      setAvailableRoles(systemRoles);
       await Promise.all([
         fetchRoleHierarchy(),
         fetchHierarchyPermissions()
@@ -346,24 +331,12 @@ export const RoleHierarchyManager = () => {
     }
   };
 
-  const getRoleOptions = () => {
-    return availableRoles.map(role => ({
-      value: role.role_name,
-      label: role.display_name
-    }));
-  };
-
-  const getRoleDisplayName = (roleName: string) => {
-    const role = availableRoles.find(r => r.role_name === roleName);
-    return role ? role.display_name : roleName.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
-  };
-
   const getAvailableRolesForHierarchy = () => {
     const existingRoles = roleHierarchy.map(r => r.role);
-    return availableRoles.filter(role => !existingRoles.includes(role.role_name));
+    return roles.filter(role => !existingRoles.includes(role.role_name as UserRole));
   };
 
-  if (loading) {
+  if (loading || rolesLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="flex items-center gap-2">
@@ -421,8 +394,7 @@ export const RoleHierarchyManager = () => {
                   <div className="space-y-4">
                     <div>
                       <Label>Role</Label>
-                   
-                     <SearchableSelect
+                      <SearchableSelect
                         options={getAvailableRolesForHierarchy().map(role => ({
                           value: role.role_name,
                           label: role.display_name
@@ -547,11 +519,11 @@ export const RoleHierarchyManager = () => {
         <TabsContent value="manage-roles" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Available System Roles</CardTitle>
+              <CardTitle>Available Roles</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {availableRoles.map((role) => (
+                {roles.map((role) => (
                   <div key={role.role_name} className="flex items-center justify-between p-4 border rounded-lg">
                     <div>
                       <h4 className="font-medium">{role.display_name}</h4>
