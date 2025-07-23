@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
-import UserProfile from "./UserProfile";
+import { UserProfile } from "./UserProfile";
 import { NotificationPanel } from "./NotificationPanel";
 
 interface HeaderProps {

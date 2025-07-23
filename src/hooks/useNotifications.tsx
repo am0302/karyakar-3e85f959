@@ -26,29 +26,19 @@ export const useNotifications = () => {
     if (!user) return;
 
     try {
-      // Use direct query with proper error handling
-      const { data: notificationData, error } = await supabase
-        .from('notifications' as any)
+      const { data, error } = await supabase
+        .from('notifications')
         .select('*')
         .eq('user_id', user.id)
         .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
         .order('created_at', { ascending: false });
+
+      if (error) throw error;
       
-      if (error) {
-        console.error('Error fetching notifications:', error);
-        setNotifications([]);
-        setUnreadCount(0);
-        return;
-      }
-      
-      // Convert to proper type with proper handling
-      const notificationsData = (notificationData as unknown as Notification[]) || [];
-      setNotifications(notificationsData);
-      setUnreadCount(notificationsData.filter(n => !n.is_read).length);
+      setNotifications(data || []);
+      setUnreadCount(data?.filter(n => !n.is_read).length || 0);
     } catch (error: any) {
       console.error('Error fetching notifications:', error);
-      setNotifications([]);
-      setUnreadCount(0);
     } finally {
       setLoading(false);
     }
@@ -57,14 +47,11 @@ export const useNotifications = () => {
   const markAsRead = async (notificationId: string) => {
     try {
       const { error } = await supabase
-        .from('notifications' as any)
+        .from('notifications')
         .update({ is_read: true })
         .eq('id', notificationId);
 
-      if (error) {
-        console.error('Error marking notification as read:', error);
-        return;
-      }
+      if (error) throw error;
       
       setNotifications(prev => 
         prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
@@ -78,15 +65,12 @@ export const useNotifications = () => {
   const markAllAsRead = async () => {
     try {
       const { error } = await supabase
-        .from('notifications' as any)
+        .from('notifications')
         .update({ is_read: true })
         .eq('user_id', user?.id)
         .eq('is_read', false);
 
-      if (error) {
-        console.error('Error marking all notifications as read:', error);
-        return;
-      }
+      if (error) throw error;
       
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
       setUnreadCount(0);
@@ -104,21 +88,13 @@ export const useNotifications = () => {
   }) => {
     try {
       const { error } = await supabase
-        .from('notifications' as any)
+        .from('notifications')
         .insert({
           ...notification,
           type: notification.type || 'info'
         });
 
-      if (error) {
-        console.error('Error creating notification:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to create notification',
-          variant: 'destructive',
-        });
-        return;
-      }
+      if (error) throw error;
       
       toast({
         title: 'Success',
