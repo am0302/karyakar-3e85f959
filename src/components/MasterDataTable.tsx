@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -15,9 +14,16 @@ interface MasterDataTableProps {
   data: any[];
   onEdit: (item: any) => void;
   onDelete: (id: string) => void;
+  getDisplayName?: (item: any) => string; // 👈 added
 }
 
-export const MasterDataTable = ({ title, data, onEdit, onDelete }: MasterDataTableProps) => {
+export const MasterDataTable = ({
+  title,
+  data,
+  onEdit,
+  onDelete,
+  getDisplayName,
+}: MasterDataTableProps) => {
   return (
     <div>
       <h3 className="text-lg font-semibold mb-4">Existing {title}s</h3>
@@ -32,7 +38,7 @@ export const MasterDataTable = ({ title, data, onEdit, onDelete }: MasterDataTab
           <TableBody>
             {data.map((item) => (
               <TableRow key={item.id}>
-                <TableCell>{item.name}</TableCell>
+                <TableCell>{getDisplayName ? getDisplayName(item) : item.name}</TableCell>
                 <TableCell>
                   <div className="flex space-x-2">
                     <Button
