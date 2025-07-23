@@ -26,24 +26,29 @@ export const useNotifications = () => {
     if (!user) return;
 
     try {
-      // Use direct query with type assertion since notifications table exists
-      const { data: fallbackData, error: fallbackError } = await supabase
+      // Use direct query with proper error handling
+      const { data: notificationData, error } = await supabase
         .from('notifications' as any)
         .select('*')
         .eq('user_id', user.id)
         .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
         .order('created_at', { ascending: false });
       
-      if (fallbackError) {
-        console.error('Error fetching notifications:', fallbackError);
+      if (error) {
+        console.error('Error fetching notifications:', error);
+        setNotifications([]);
+        setUnreadCount(0);
         return;
       }
       
-      const notificationsData = fallbackData as Notification[];
-      setNotifications(notificationsData || []);
-      setUnreadCount(notificationsData?.filter(n => !n.is_read).length || 0);
+      // Convert to proper type with proper handling
+      const notificationsData = (notificationData as unknown as Notification[]) || [];
+      setNotifications(notificationsData);
+      setUnreadCount(notificationsData.filter(n => !n.is_read).length);
     } catch (error: any) {
       console.error('Error fetching notifications:', error);
+      setNotifications([]);
+      setUnreadCount(0);
     } finally {
       setLoading(false);
     }

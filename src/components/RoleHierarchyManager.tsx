@@ -84,23 +84,31 @@ export const RoleHierarchyManager = () => {
       if (rolesError) throw rolesError;
       setCustomRoles(rolesData || []);
 
-      // Load hierarchy data using type assertion
+      // Load hierarchy data with proper error handling
       const { data: hierarchyData, error: hierarchyError } = await supabase
         .from('role_hierarchy' as any)
         .select('*')
         .order('level');
 
-      if (hierarchyError) throw hierarchyError;
-      setHierarchyData(hierarchyData || []);
+      if (hierarchyError) {
+        console.error('Error loading hierarchy data:', hierarchyError);
+        setHierarchyData([]);
+      } else {
+        setHierarchyData((hierarchyData as RoleHierarchy[]) || []);
+      }
 
-      // Load permissions data using type assertion
+      // Load permissions data with proper error handling
       const { data: permissionsData, error: permissionsError } = await supabase
         .from('hierarchy_permissions' as any)
         .select('*')
         .order('higher_role');
 
-      if (permissionsError) throw permissionsError;
-      setPermissionsData(permissionsData || []);
+      if (permissionsError) {
+        console.error('Error loading permissions data:', permissionsError);
+        setPermissionsData([]);
+      } else {
+        setPermissionsData((permissionsData as HierarchyPermission[]) || []);
+      }
     } catch (error: any) {
       console.error('Error loading data:', error);
       toast({
