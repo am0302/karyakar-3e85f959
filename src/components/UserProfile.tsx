@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -121,14 +120,14 @@ const UserProfile = () => {
     });
   };
 
- /* const getInitials = (name: string) => {
+  const getInitials = (name: string) => {
     return name
       .split(' ')
       .map(word => word.charAt(0))
       .join('')
       .toUpperCase()
       .slice(0, 2);
-  };*/
+  };
 
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading profile...</div>;
