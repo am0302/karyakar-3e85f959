@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 interface FormField {
   name: string;
   label: string;
-  type: 'text' | 'textarea' | 'select' | 'date' | 'number' | 'time';
+  type: 'text' | 'textarea' | 'select' | 'date' | 'number' | 'time' | 'boolean';
   required?: boolean;
   options?: Array<{ value: string; label: string }>;
   foreignKey?: string;

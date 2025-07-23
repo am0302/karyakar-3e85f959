@@ -26,32 +26,22 @@ export const useNotifications = () => {
     if (!user) return;
 
     try {
-      // Use raw SQL query to avoid type issues
-      const { data, error } = await supabase.rpc('get_user_notifications', {
-        p_user_id: user.id
-      });
-
-      if (error) {
-        console.error('Error fetching notifications:', error);
-        // If RPC doesn't exist, fall back to direct query
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('notifications' as any)
-          .select('*')
-          .eq('user_id', user.id)
-          .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
-          .order('created_at', { ascending: false });
-        
-        if (fallbackError) {
-          console.error('Fallback query also failed:', fallbackError);
-          return;
-        }
-        
-        setNotifications(fallbackData || []);
-        setUnreadCount(fallbackData?.filter(n => !n.is_read).length || 0);
-      } else {
-        setNotifications(data || []);
-        setUnreadCount(data?.filter(n => !n.is_read).length || 0);
+      // Use direct query with type assertion since notifications table exists
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('notifications' as any)
+        .select('*')
+        .eq('user_id', user.id)
+        .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+        .order('created_at', { ascending: false });
+      
+      if (fallbackError) {
+        console.error('Error fetching notifications:', fallbackError);
+        return;
       }
+      
+      const notificationsData = fallbackData as Notification[];
+      setNotifications(notificationsData || []);
+      setUnreadCount(notificationsData?.filter(n => !n.is_read).length || 0);
     } catch (error: any) {
       console.error('Error fetching notifications:', error);
     } finally {
