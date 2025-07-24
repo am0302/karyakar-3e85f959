@@ -6,12 +6,14 @@ import { UserLocationAssignment } from "@/components/UserLocationAssignment";
 import { MasterDataDialog } from "@/components/MasterDataDialog";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Shield, Network, MapPin, Users, Briefcase, Star } from "lucide-react";
-const [open, setOpen] = useState(false); // Controls popup visibility
+import { useNavigate } from "react-router-dom";
+
+const navigate = useNavigate();
 const Admin = () => {
   const handleSuccess = () => {
     // Just show success message, don't reload the page
     console.log("Operation successful");
-    setOpen(false); // ✅ Closes the popup
+   navigate("/dashboard");  // ✅ Navigates to another page 
   };
 
   return (
