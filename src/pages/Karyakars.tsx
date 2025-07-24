@@ -70,13 +70,17 @@ const Karyakars = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
+  // Filter state
+  const [selectedRole, setSelectedRole] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
+
   useEffect(() => {
     fetchProfiles();
   }, []);
 
   useEffect(() => {
     filterProfiles();
-  }, [profiles, searchTerm]);
+  }, [profiles, searchTerm, selectedRole, selectedStatus]);
 
   const fetchProfiles = async () => {
     try {
@@ -141,6 +145,16 @@ const Karyakars = () => {
         profile.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         profile.mobile_number.includes(searchTerm) ||
         profile.email?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (selectedRole) {
+      filtered = filtered.filter(profile => profile.role === selectedRole);
+    }
+
+    if (selectedStatus) {
+      filtered = filtered.filter(profile => 
+        selectedStatus === 'active' ? profile.is_active : !profile.is_active
       );
     }
 
@@ -247,7 +261,7 @@ const Karyakars = () => {
       </div>
 
       {/* Stats */}
-      <KaryakarStats profiles={profiles} />
+      <KaryakarStats totalCount={profiles.length} />
 
       {/* Filters */}
       {showFilters && (
@@ -256,10 +270,14 @@ const Karyakars = () => {
             <CardTitle>Filters</CardTitle>
           </CardHeader>
           <CardContent>
-            <KaryakarFilters onFilter={(filters) => {
-              // Apply filters logic here
-              console.log('Filters applied:', filters);
-            }} />
+            <KaryakarFilters
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              selectedRole={selectedRole}
+              setSelectedRole={setSelectedRole}
+              selectedStatus={selectedStatus}
+              setSelectedStatus={setSelectedStatus}
+            />
           </CardContent>
         </Card>
       )}
@@ -296,13 +314,13 @@ const Karyakars = () => {
       {/* Content */}
       {viewMode === 'table' ? (
         <KaryakarTableView
-          profiles={filteredProfiles}
+          karyakars={filteredProfiles}
           onEdit={handleEdit}
           onDelete={handleDelete}
         />
       ) : (
         <KaryakarGridView
-          profiles={filteredProfiles}
+          karyakars={filteredProfiles}
           onEdit={handleEdit}
           onDelete={handleDelete}
         />
@@ -316,7 +334,7 @@ const Karyakars = () => {
               {selectedProfile ? 'Edit Karyakar' : 'Add New Karyakar'}
             </h2>
             <KaryakarForm
-              profile={selectedProfile}
+              karyakar={selectedProfile}
               onSave={handleProfileSaved}
               onCancel={() => {
                 setShowForm(false);

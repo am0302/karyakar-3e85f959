@@ -97,7 +97,7 @@ const Tasks = () => {
           ? task.assigned_to_profile 
           : null,
         // Map database task_type values to expected TypeScript values
-        task_type: task.task_type === 'general' ? 'personal' : task.task_type,
+        task_type: task.task_type === 'general' ? 'personal' : task.task_type as TaskType,
         // Ensure priority is within expected range
         priority: task.priority as TaskPriority
       }));
@@ -136,12 +136,15 @@ const Tasks = () => {
     try {
       // Map the task type back to database format if needed
       const taskToInsert = {
-        ...newTask,
+        title: newTask.title,
+        description: newTask.description,
         assigned_by: user?.id,
+        assigned_to: newTask.assigned_to,
+        priority: newTask.priority,
         // Map TypeScript types to database types
         task_type: newTask.task_type === 'personal' ? 'general' : newTask.task_type,
-        // Ensure priority is compatible with database
-        priority: newTask.priority as 'low' | 'medium' | 'high'
+        due_date: newTask.due_date,
+        status: newTask.status
       };
 
       const { error } = await supabase
