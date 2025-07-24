@@ -88,14 +88,18 @@ const Tasks = () => {
       if (error) throw error;
 
       // Transform the data to handle potential query errors and map database values
-      const transformedTasks = (data || []).map(task => ({
+      const transformedTasks: Task[] = (data || []).map(task => ({
         ...task,
-        profiles: task.profiles && !task.profiles.error ? task.profiles : null,
-        assigned_to_profile: task.assigned_to_profile && !task.assigned_to_profile.error ? task.assigned_to_profile : null,
+        profiles: task.profiles && typeof task.profiles === 'object' && !task.profiles.error 
+          ? task.profiles 
+          : null,
+        assigned_to_profile: task.assigned_to_profile && typeof task.assigned_to_profile === 'object' && !task.assigned_to_profile.error 
+          ? task.assigned_to_profile 
+          : null,
         // Map database task_type values to expected TypeScript values
         task_type: task.task_type === 'general' ? 'personal' : task.task_type,
         // Ensure priority is within expected range
-        priority: task.priority === 'urgent' ? 'high' : task.priority
+        priority: task.priority as TaskPriority
       }));
 
       setTasks(transformedTasks);

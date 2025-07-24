@@ -17,11 +17,11 @@ import {
   Filter,
   MoreVertical
 } from 'lucide-react';
-import KaryakarForm from '@/components/KaryakarForm';
-import KaryakarFilters from '@/components/KaryakarFilters';
-import KaryakarStats from '@/components/KaryakarStats';
-import KaryakarTableView from '@/components/KaryakarTableView';
-import KaryakarGridView from '@/components/KaryakarGridView';
+import { KaryakarForm } from '@/components/KaryakarForm';
+import { KaryakarFilters } from '@/components/KaryakarFilters';
+import { KaryakarStats } from '@/components/KaryakarStats';
+import { KaryakarTableView } from '@/components/KaryakarTableView';
+import { KaryakarGridView } from '@/components/KaryakarGridView';
 
 interface Profile {
   id: string;
@@ -98,14 +98,26 @@ const Karyakars = () => {
       if (error) throw error;
 
       // Transform the data to handle potential query errors
-      const transformedProfiles = (data || []).map(profile => ({
+      const transformedProfiles: Profile[] = (data || []).map(profile => ({
         ...profile,
-        professions: profile.professions && !profile.professions.error ? profile.professions : null,
-        seva_types: profile.seva_types && !profile.seva_types.error ? profile.seva_types : null,
-        mandirs: profile.mandirs && !profile.mandirs.error ? profile.mandirs : null,
-        kshetras: profile.kshetras && !profile.kshetras.error ? profile.kshetras : null,
-        villages: profile.villages && !profile.villages.error ? profile.villages : null,
-        mandals: profile.mandals && !profile.mandals.error ? profile.mandals : null
+        professions: profile.professions && typeof profile.professions === 'object' && !profile.professions.error 
+          ? profile.professions 
+          : null,
+        seva_types: profile.seva_types && typeof profile.seva_types === 'object' && !profile.seva_types.error 
+          ? profile.seva_types 
+          : null,
+        mandirs: profile.mandirs && typeof profile.mandirs === 'object' && !profile.mandirs.error 
+          ? profile.mandirs 
+          : null,
+        kshetras: profile.kshetras && typeof profile.kshetras === 'object' && !profile.kshetras.error 
+          ? profile.kshetras 
+          : null,
+        villages: profile.villages && typeof profile.villages === 'object' && !profile.villages.error 
+          ? profile.villages 
+          : null,
+        mandals: profile.mandals && typeof profile.mandals === 'object' && !profile.mandals.error 
+          ? profile.mandals 
+          : null
       }));
 
       setProfiles(transformedProfiles);

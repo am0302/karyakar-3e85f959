@@ -16,7 +16,7 @@ import {
   MessageSquare,
   TrendingUp
 } from 'lucide-react';
-import TaskStatusChart from '@/components/TaskStatusChart';
+import { TaskStatusChart } from '@/components/TaskStatusChart';
 import { Link } from 'react-router-dom';
 
 interface Task {
@@ -83,10 +83,14 @@ const Dashboard = () => {
       if (tasksError) throw tasksError;
 
       // Transform tasks data to handle potential query errors
-      const transformedTasks = (tasks || []).map(task => ({
+      const transformedTasks: Task[] = (tasks || []).map(task => ({
         ...task,
-        profiles: task.profiles && !task.profiles.error ? task.profiles : null,
-        assigned_by_profile: task.assigned_by_profile && !task.assigned_by_profile.error ? task.assigned_by_profile : null
+        profiles: task.profiles && typeof task.profiles === 'object' && !task.profiles.error 
+          ? task.profiles 
+          : null,
+        assigned_by_profile: task.assigned_by_profile && typeof task.assigned_by_profile === 'object' && !task.assigned_by_profile.error 
+          ? task.assigned_by_profile 
+          : null
       }));
 
       // Fetch profiles count
