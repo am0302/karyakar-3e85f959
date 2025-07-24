@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,6 +37,11 @@ interface Profile {
   mandal_id?: string;
   is_active: boolean;
   created_at: string;
+  date_of_birth?: string;
+  is_whatsapp_same_as_mobile?: boolean;
+  profile_photo_url?: string;
+  updated_at: string;
+  whatsapp_number?: string;
   professions?: {
     name: string;
   } | null;
@@ -104,22 +108,22 @@ const Karyakars = () => {
       // Transform the data to handle potential query errors
       const transformedProfiles: Profile[] = (data || []).map(profile => ({
         ...profile,
-        professions: profile.professions && typeof profile.professions === 'object' && !profile.professions.error 
+        professions: profile.professions && typeof profile.professions === 'object' && !('error' in profile.professions)
           ? profile.professions 
           : null,
-        seva_types: profile.seva_types && typeof profile.seva_types === 'object' && !profile.seva_types.error 
+        seva_types: profile.seva_types && typeof profile.seva_types === 'object' && !('error' in profile.seva_types)
           ? profile.seva_types 
           : null,
-        mandirs: profile.mandirs && typeof profile.mandirs === 'object' && !profile.mandirs.error 
+        mandirs: profile.mandirs && typeof profile.mandirs === 'object' && !('error' in profile.mandirs)
           ? profile.mandirs 
           : null,
-        kshetras: profile.kshetras && typeof profile.kshetras === 'object' && !profile.kshetras.error 
+        kshetras: profile.kshetras && typeof profile.kshetras === 'object' && !('error' in profile.kshetras)
           ? profile.kshetras 
           : null,
-        villages: profile.villages && typeof profile.villages === 'object' && !profile.villages.error 
+        villages: profile.villages && typeof profile.villages === 'object' && !('error' in profile.villages)
           ? profile.villages 
           : null,
-        mandals: profile.mandals && typeof profile.mandals === 'object' && !profile.mandals.error 
+        mandals: profile.mandals && typeof profile.mandals === 'object' && !('error' in profile.mandals)
           ? profile.mandals 
           : null
       }));

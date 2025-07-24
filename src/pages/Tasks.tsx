@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -90,10 +89,10 @@ const Tasks = () => {
       // Transform the data to handle potential query errors and map database values
       const transformedTasks: Task[] = (data || []).map(task => ({
         ...task,
-        profiles: task.profiles && typeof task.profiles === 'object' && !task.profiles.error 
+        profiles: task.profiles && typeof task.profiles === 'object' && !('error' in task.profiles)
           ? task.profiles 
           : null,
-        assigned_to_profile: task.assigned_to_profile && typeof task.assigned_to_profile === 'object' && !task.assigned_to_profile.error 
+        assigned_to_profile: task.assigned_to_profile && typeof task.assigned_to_profile === 'object' && !('error' in task.assigned_to_profile)
           ? task.assigned_to_profile 
           : null,
         // Map database task_type values to expected TypeScript values
@@ -140,9 +139,9 @@ const Tasks = () => {
         description: newTask.description,
         assigned_by: user?.id,
         assigned_to: newTask.assigned_to,
-        priority: newTask.priority,
+        priority: newTask.priority as 'low' | 'medium' | 'high',
         // Map TypeScript types to database types
-        task_type: newTask.task_type === 'personal' ? 'general' : newTask.task_type,
+        task_type: newTask.task_type === 'personal' ? 'general' : newTask.task_type as 'general' | 'personal',
         due_date: newTask.due_date,
         status: newTask.status
       };

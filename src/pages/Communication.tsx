@@ -4,23 +4,27 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/AuthProvider';
-import { 
-  MessageSquare, 
-  Send, 
-  Plus, 
-  Search, 
-  Users,
-  Phone,
-  Video,
-  MoreVertical,
-  Paperclip,
-  Smile
-} from 'lucide-react';
+import { Send, MessageCircle, Users, Plus, Search } from 'lucide-react';
+
+interface Message {
+  id: string;
+  content: string;
+  sender_id: string;
+  room_id: string;
+  created_at: string;
+  message_type: string;
+  profiles?: {
+    full_name: string;
+    profile_photo_url?: string;
+  } | null;
+}
 
 interface ChatRoom {
   id: string;
@@ -29,6 +33,10 @@ interface ChatRoom {
   created_by: string;
   created_at: string;
   updated_at: string;
+  mandir_id?: string;
+  kshetra_id?: string;
+  village_id?: string;
+  mandal_id?: string;
   chat_participants?: {
     user_id: string;
     profiles: {
@@ -45,45 +53,22 @@ interface ChatRoom {
   };
 }
 
-interface Message {
-  id: string;
-  content: string;
-  sender_id: string;
-  room_id: string;
-  created_at: string;
-  message_type: string;
-  file_url?: string;
-  file_name?: string;
-  file_size?: number;
-  sender?: {
-    full_name: string;
-    profile_photo_url?: string;
-  };
-}
-
-interface Profile {
-  id: string;
-  full_name: string;
-  profile_photo_url?: string;
-}
-
 const Communication = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [rooms, setRooms] = useState<ChatRoom[]>([]);
+  const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newRoomName, setNewRoomName] = useState('');
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
-  const [showCreateRoom, setShowCreateRoom] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     if (user) {
-      fetchRooms();
+      fetchChatRooms();
       fetchProfiles();
     }
   }, [user]);
@@ -94,7 +79,7 @@ const Communication = () => {
     }
   }, [selectedRoom]);
 
-  const fetchRooms = async () => {
+  const fetchChatRooms = async () => {
     try {
       const { data, error } = await supabase
         .from('chat_rooms')
@@ -109,17 +94,16 @@ const Communication = () => {
 
       if (error) throw error;
 
-      // Transform the data to handle potential query errors
-      const transformedRooms = (data || []).map(room => ({
+      const transformedRooms: ChatRoom[] = (data || []).map(room => ({
         ...room,
         chat_participants: Array.isArray(room.chat_participants) 
-          ? room.chat_participants.filter(p => p.profiles && typeof p.profiles === 'object' && !p.profiles.error)
+          ? room.chat_participants.filter(p => p && typeof p === 'object' && !('error' in p))
           : []
       }));
 
-      setRooms(transformedRooms);
+      setChatRooms(transformedRooms);
     } catch (error: any) {
-      console.error('Error fetching rooms:', error);
+      console.error('Error fetching chat rooms:', error);
       toast({
         title: 'Error',
         description: 'Failed to fetch chat rooms',
@@ -135,17 +119,13 @@ const Communication = () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, profile_photo_url')
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .neq('id', user?.id);
 
       if (error) throw error;
       setProfiles(data || []);
     } catch (error: any) {
       console.error('Error fetching profiles:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch profiles',
-        variant: 'destructive',
-      });
     }
   };
 
@@ -164,18 +144,11 @@ const Communication = () => {
 
       if (error) throw error;
 
-      // Transform the data to handle potential query errors
-      const transformedMessages = (data || []).map(message => ({
+      const transformedMessages: Message[] = (data || []).map(message => ({
         ...message,
-        sender: message.profiles && typeof message.profiles === 'object' && !message.profiles.error
-          ? {
-              full_name: message.profiles.full_name || 'Unknown',
-              profile_photo_url: message.profiles.profile_photo_url || undefined
-            }
-          : {
-              full_name: 'Unknown',
-              profile_photo_url: undefined
-            }
+        profiles: message.profiles && typeof message.profiles === 'object' && !('error' in message.profiles)
+          ? message.profiles
+          : null
       }));
 
       setMessages(transformedMessages);
@@ -190,16 +163,15 @@ const Communication = () => {
   };
 
   const sendMessage = async () => {
-    if (!selectedRoom || !newMessage.trim()) return;
+    if (!newMessage.trim() || !selectedRoom || !user) return;
 
     try {
       const { error } = await supabase
         .from('messages')
         .insert({
           content: newMessage,
-          sender_id: user?.id,
+          sender_id: user.id,
           room_id: selectedRoom.id,
-          message_type: 'text'
         });
 
       if (error) throw error;
@@ -216,34 +188,34 @@ const Communication = () => {
     }
   };
 
-  const createRoom = async () => {
-    if (!newRoomName.trim() || selectedParticipants.length === 0) return;
+  const createChatRoom = async () => {
+    if (!newRoomName.trim() || !user) return;
 
     try {
-      const { data: room, error: roomError } = await supabase
+      const { data: roomData, error: roomError } = await supabase
         .from('chat_rooms')
         .insert({
           name: newRoomName,
           is_group: selectedParticipants.length > 1,
-          created_by: user?.id
+          created_by: user.id,
         })
         .select()
         .single();
 
       if (roomError) throw roomError;
 
-      // Add participants including the creator
-      const participants = [
-        { room_id: room.id, user_id: user?.id },
+      // Add participants including creator
+      const participantData = [
+        { room_id: roomData.id, user_id: user.id },
         ...selectedParticipants.map(userId => ({
-          room_id: room.id,
-          user_id: userId
+          room_id: roomData.id,
+          user_id: userId,
         }))
       ];
 
       const { error: participantError } = await supabase
         .from('chat_participants')
-        .insert(participants);
+        .insert(participantData);
 
       if (participantError) throw participantError;
 
@@ -254,10 +226,10 @@ const Communication = () => {
 
       setNewRoomName('');
       setSelectedParticipants([]);
-      setShowCreateRoom(false);
-      fetchRooms();
+      setShowCreateDialog(false);
+      fetchChatRooms();
     } catch (error: any) {
-      console.error('Error creating room:', error);
+      console.error('Error creating chat room:', error);
       toast({
         title: 'Error',
         description: 'Failed to create chat room',
@@ -266,17 +238,33 @@ const Communication = () => {
     }
   };
 
-  const filteredRooms = rooms.filter(room =>
-    room.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const renderMessage = (message: Message) => {
+    const isOwnMessage = message.sender_id === user?.id;
+    const senderName = message.profiles?.full_name || 'Unknown User';
+    const profilePhoto = message.profiles?.profile_photo_url;
 
-  const getRoomDisplayName = (room: ChatRoom) => {
-    if (room.is_group) {
-      return room.name;
-    }
-    
-    const otherParticipant = room.chat_participants?.find(p => p.user_id !== user?.id);
-    return otherParticipant?.profiles?.full_name || 'Unknown User';
+    return (
+      <div
+        key={message.id}
+        className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-4`}
+      >
+        <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+          isOwnMessage 
+            ? 'bg-blue-500 text-white' 
+            : 'bg-gray-200 text-gray-800'
+        }`}>
+          {!isOwnMessage && (
+            <div className="text-xs font-semibold mb-1">{senderName}</div>
+          )}
+          <div>{message.content}</div>
+          <div className={`text-xs mt-1 ${
+            isOwnMessage ? 'text-blue-100' : 'text-gray-500'
+          }`}>
+            {new Date(message.created_at).toLocaleTimeString()}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   if (loading) {
@@ -284,14 +272,13 @@ const Communication = () => {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] bg-gray-50">
+    <div className="h-screen flex">
       {/* Sidebar */}
-      <div className="w-1/3 bg-white border-r flex flex-col">
-        {/* Header */}
+      <div className="w-1/3 border-r bg-gray-50 flex flex-col">
         <div className="p-4 border-b">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl font-semibold">Messages</h1>
-            <Dialog open={showCreateRoom} onOpenChange={setShowCreateRoom}>
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-xl font-bold">Messages</h1>
+            <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
               <DialogTrigger asChild>
                 <Button size="sm">
                   <Plus className="h-4 w-4 mr-2" />
@@ -301,44 +288,42 @@ const Communication = () => {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Create New Chat Room</DialogTitle>
+                  <DialogDescription>
+                    Create a new chat room and invite participants
+                  </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>
+                    <Label>Room Name</Label>
                     <Input
-                      placeholder="Room name"
                       value={newRoomName}
                       onChange={(e) => setNewRoomName(e.target.value)}
+                      placeholder="Enter room name"
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Select Participants</label>
-                    <div className="max-h-40 overflow-y-auto space-y-2">
-                      {profiles.filter(p => p.id !== user?.id).map(profile => (
-                        <div key={profile.id} className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            id={profile.id}
-                            checked={selectedParticipants.includes(profile.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedParticipants([...selectedParticipants, profile.id]);
-                              } else {
-                                setSelectedParticipants(selectedParticipants.filter(id => id !== profile.id));
-                              }
-                            }}
-                          />
-                          <label htmlFor={profile.id} className="text-sm">
+                    <Label>Participants</Label>
+                    <Select 
+                      value={selectedParticipants.join(',')} 
+                      onValueChange={(value) => setSelectedParticipants(value ? value.split(',') : [])}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select participants" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {profiles.map(profile => (
+                          <SelectItem key={profile.id} value={profile.id}>
                             {profile.full_name}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="flex gap-2">
-                    <Button onClick={createRoom} className="flex-1">
+                    <Button onClick={createChatRoom} className="flex-1">
                       Create Room
                     </Button>
-                    <Button variant="outline" onClick={() => setShowCreateRoom(false)}>
+                    <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
                       Cancel
                     </Button>
                   </div>
@@ -346,43 +331,27 @@ const Communication = () => {
               </DialogContent>
             </Dialog>
           </div>
-          <div className="relative">
-            <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
-            <Input
-              placeholder="Search conversations..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
         </div>
 
-        {/* Chat List */}
+        {/* Chat Room List */}
         <div className="flex-1 overflow-y-auto">
-          {filteredRooms.map(room => (
+          {chatRooms.map(room => (
             <div
               key={room.id}
-              className={`p-4 border-b cursor-pointer hover:bg-gray-50 ${
+              className={`p-4 border-b cursor-pointer hover:bg-gray-100 ${
                 selectedRoom?.id === room.id ? 'bg-blue-50' : ''
               }`}
               onClick={() => setSelectedRoom(room)}
             >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                  {room.is_group ? (
-                    <Users className="h-5 w-5 text-gray-600" />
-                  ) : (
-                    <MessageSquare className="h-5 w-5 text-gray-600" />
-                  )}
+                <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
+                  {room.is_group ? <Users className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-medium">{getRoomDisplayName(room)}</h3>
-                  <p className="text-sm text-gray-600 truncate">
-                    {room.last_message?.content || 'No messages yet'}
-                  </p>
-                </div>
-                <div className="text-xs text-gray-500">
-                  {room.last_message?.created_at && new Date(room.last_message.created_at).toLocaleTimeString()}
+                  <div className="font-medium">{room.name}</div>
+                  <div className="text-sm text-gray-500">
+                    {room.chat_participants?.length || 0} participants
+                  </div>
                 </div>
               </div>
             </div>
@@ -395,85 +364,35 @@ const Communication = () => {
         {selectedRoom ? (
           <>
             {/* Chat Header */}
-            <div className="p-4 border-b bg-white flex items-center justify-between">
+            <div className="p-4 border-b bg-white">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                  {selectedRoom.is_group ? (
-                    <Users className="h-5 w-5 text-gray-600" />
-                  ) : (
-                    <MessageSquare className="h-5 w-5 text-gray-600" />
-                  )}
+                <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
+                  {selectedRoom.is_group ? <Users className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}
                 </div>
                 <div>
-                  <h2 className="font-medium">{getRoomDisplayName(selectedRoom)}</h2>
-                  <p className="text-sm text-gray-600">
-                    {selectedRoom.is_group ? 
-                      `${selectedRoom.chat_participants?.length || 0} members` : 
-                      'Online'
-                    }
-                  </p>
+                  <div className="font-medium">{selectedRoom.name}</div>
+                  <div className="text-sm text-gray-500">
+                    {selectedRoom.chat_participants?.length || 0} participants
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm">
-                  <Phone className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="sm">
-                  <Video className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="sm">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
               </div>
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.map(message => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                      message.sender_id === user?.id
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-200 text-gray-900'
-                    }`}
-                  >
-                    {message.sender_id !== user?.id && (
-                      <p className="text-xs font-medium mb-1">
-                        {message.sender?.full_name || 'Unknown'}
-                      </p>
-                    )}
-                    <p className="text-sm">{message.content}</p>
-                    <p className={`text-xs mt-1 ${
-                      message.sender_id === user?.id ? 'text-blue-100' : 'text-gray-500'
-                    }`}>
-                      {new Date(message.created_at).toLocaleTimeString()}
-                    </p>
-                  </div>
-                </div>
-              ))}
+            <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+              {messages.map(renderMessage)}
             </div>
 
             {/* Message Input */}
             <div className="p-4 border-t bg-white">
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm">
-                  <Paperclip className="h-4 w-4" />
-                </Button>
+              <div className="flex gap-2">
                 <Input
-                  placeholder="Type a message..."
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Type a message..."
                   onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                  className="flex-1"
                 />
-                <Button variant="ghost" size="sm">
-                  <Smile className="h-4 w-4" />
-                </Button>
-                <Button onClick={sendMessage} size="sm">
+                <Button onClick={sendMessage} disabled={!newMessage.trim()}>
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
@@ -482,8 +401,8 @@ const Communication = () => {
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
-              <MessageSquare className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Select a conversation</h3>
+              <MessageCircle className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No chat selected</h3>
               <p className="text-gray-600">Choose a chat room to start messaging</p>
             </div>
           </div>
