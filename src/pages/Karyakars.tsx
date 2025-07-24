@@ -27,7 +27,7 @@ interface RelatedData {
   name: string;
 }
 
-interface Profile {
+interface KaryakarProfile {
   id: string;
   full_name: string;
   mobile_number: string;
@@ -58,11 +58,11 @@ interface Profile {
 const Karyakars = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [filteredProfiles, setFilteredProfiles] = useState<Profile[]>([]);
+  const [profiles, setProfiles] = useState<KaryakarProfile[]>([]);
+  const [filteredProfiles, setFilteredProfiles] = useState<KaryakarProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
+  const [selectedProfile, setSelectedProfile] = useState<KaryakarProfile | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -99,7 +99,7 @@ const Karyakars = () => {
       if (error) throw error;
 
       // Transform the data to handle potential query errors
-      const transformedProfiles: Profile[] = (data || []).map(profile => ({
+      const transformedProfiles: KaryakarProfile[] = (data || []).map(profile => ({
         ...profile,
         professions: profile.professions && typeof profile.professions === 'object' && !Array.isArray(profile.professions) && 'name' in profile.professions
           ? profile.professions as RelatedData
@@ -164,7 +164,7 @@ const Karyakars = () => {
     setSelectedProfile(null);
   };
 
-  const handleEdit = (profile: Profile) => {
+  const handleEdit = (profile: KaryakarProfile) => {
     setSelectedProfile(profile);
     setShowForm(true);
   };
@@ -311,14 +311,14 @@ const Karyakars = () => {
       {/* Content */}
       {viewMode === 'table' ? (
         <KaryakarTableView
-          karyakars={filteredProfiles}
-          onEdit={handleEdit}
+          karyakars={filteredProfiles as any}
+          onEdit={handleEdit as any}
           onDelete={handleDelete}
         />
       ) : (
         <KaryakarGridView
-          karyakars={filteredProfiles}
-          onEdit={handleEdit}
+          karyakars={filteredProfiles as any}
+          onEdit={handleEdit as any}
           onDelete={handleDelete}
         />
       )}
@@ -331,7 +331,7 @@ const Karyakars = () => {
               {selectedProfile ? 'Edit Karyakar' : 'Add New Karyakar'}
             </h2>
             <KaryakarForm
-              karyakar={selectedProfile}
+              profile={selectedProfile as any}
               onSave={handleProfileSaved}
               onCancel={() => {
                 setShowForm(false);

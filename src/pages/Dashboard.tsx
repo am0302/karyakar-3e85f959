@@ -105,7 +105,7 @@ const Dashboard = () => {
 
       if (tasksError) throw tasksError;
 
-      const transformedTasks: Task[] = (data || []).map(task => ({
+      const transformedTasks: Task[] = (tasksData || []).map(task => ({
         ...task,
         profiles: task.profiles && typeof task.profiles === 'object' && !Array.isArray(task.profiles) && 'full_name' in task.profiles
           ? task.profiles as TaskProfile
