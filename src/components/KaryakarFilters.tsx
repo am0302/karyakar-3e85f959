@@ -24,7 +24,7 @@ export const KaryakarFilters = ({
   const { getRoleOptions } = useDynamicRoles();
 
   const roleOptions = [
-    { value: '', label: 'All Roles' },
+    { value: 'all', label: 'All Roles' },
     ...getRoleOptions()
   ];
 
@@ -41,20 +41,20 @@ export const KaryakarFilters = ({
       
       <SearchableSelect
         options={roleOptions}
-        value={selectedRole}
-        onValueChange={setSelectedRole}
+        value={selectedRole || 'all'}
+        onValueChange={(value) => setSelectedRole(value === 'all' ? '' : value)}
         placeholder="Filter by Role"
         className="w-48"
       />
       
       <SearchableSelect
         options={[
-          { value: '', label: 'All Status' },
+          { value: 'all', label: 'All Status' },
           { value: 'active', label: 'Active' },
           { value: 'inactive', label: 'Inactive' },
         ]}
-        value={selectedStatus}
-        onValueChange={setSelectedStatus}
+        value={selectedStatus || 'all'}
+        onValueChange={(value) => setSelectedStatus(value === 'all' ? '' : value)}
         placeholder="Filter by Status"
         className="w-48"
       />

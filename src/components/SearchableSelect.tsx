@@ -46,9 +46,12 @@ export const SearchableSelect = ({
 }: SearchableSelectProps) => {
   const [open, setOpen] = useState(false);
 
+  // Filter out any options with empty string values to prevent the Radix UI error
+  const validOptions = options.filter(option => option.value !== '');
+
   const selectedValues = multiple && value ? value.split(',').filter(Boolean) : [];
   const selectedOptions = multiple 
-    ? options.filter(option => selectedValues.includes(option.value))
+    ? validOptions.filter(option => selectedValues.includes(option.value))
     : [];
 
   const handleSelect = (currentValue: string) => {
@@ -88,7 +91,7 @@ export const SearchableSelect = ({
               )
             ) : (
               value
-                ? options.find((option) => option.value === value)?.label
+                ? validOptions.find((option) => option.value === value)?.label
                 : placeholder
             )}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -100,7 +103,7 @@ export const SearchableSelect = ({
             <CommandList>
               <CommandEmpty>{emptyText}</CommandEmpty>
               <CommandGroup>
-                {options.map((option) => (
+                {validOptions.map((option) => (
                   <CommandItem
                     key={option.value}
                     value={option.value}
