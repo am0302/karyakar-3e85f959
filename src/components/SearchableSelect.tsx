@@ -46,8 +46,16 @@ export const SearchableSelect = ({
 }: SearchableSelectProps) => {
   const [open, setOpen] = useState(false);
 
-  // Filter out any options with empty string values to prevent the Radix UI error
-  const validOptions = options.filter(option => option.value !== '');
+  // Filter out any options with empty, null, or undefined values to prevent the Radix UI error
+  const validOptions = options.filter(option => 
+    option && 
+    option.value && 
+    typeof option.value === 'string' && 
+    option.value.trim() !== '' &&
+    option.label &&
+    typeof option.label === 'string' &&
+    option.label.trim() !== ''
+  );
 
   const selectedValues = multiple && value ? value.split(',').filter(Boolean) : [];
   const selectedOptions = multiple 
@@ -55,6 +63,11 @@ export const SearchableSelect = ({
     : [];
 
   const handleSelect = (currentValue: string) => {
+    // Additional safety check to prevent empty values
+    if (!currentValue || currentValue.trim() === '') {
+      return;
+    }
+
     if (multiple) {
       const newSelectedValues = selectedValues.includes(currentValue)
         ? selectedValues.filter(val => val !== currentValue)
