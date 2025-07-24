@@ -48,7 +48,7 @@ export const RoleHierarchyManager = () => {
   // New role form states
   const [newRoleLevel, setNewRoleLevel] = useState(1);
   const [newRoleParent, setNewRoleParent] = useState('');
-  const [selectedRole, setSelectedRole] = useState<UserRole>('sevak');
+  const [selectedRole, setSelectedRole] = useState<string>('');
   const [showAddRoleDialog, setShowAddRoleDialog] = useState(false);
 
   // Edit hierarchy states
@@ -57,8 +57,8 @@ export const RoleHierarchyManager = () => {
   const [editParent, setEditParent] = useState('');
 
   // Permission form states
-  const [selectedHigherRole, setSelectedHigherRole] = useState<UserRole>('super_admin');
-  const [selectedLowerRole, setSelectedLowerRole] = useState<UserRole>('sevak');
+  const [selectedHigherRole, setSelectedHigherRole] = useState<string>('');
+  const [selectedLowerRole, setSelectedLowerRole] = useState<string>('');
   const [permissionSet, setPermissionSet] = useState({
     can_view: false,
     can_edit: false,
@@ -139,11 +139,25 @@ export const RoleHierarchyManager = () => {
     }
   };
 
+  const isValidUserRole = (role: string): role is UserRole => {
+    const validRoles: UserRole[] = ['super_admin', 'sant_nirdeshak', 'sah_nirdeshak', 'mandal_sanchalak', 'karyakar', 'sevak', 'admin', 'moderator', 'user'];
+    return validRoles.includes(role as UserRole);
+  };
+
   const addRoleToHierarchy = async () => {
     if (!selectedRole) {
       toast({
         title: 'Error',
         description: 'Please select a role',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!isValidUserRole(selectedRole)) {
+      toast({
+        title: 'Error',
+        description: 'Invalid role selection',
         variant: 'destructive',
       });
       return;
@@ -166,9 +180,9 @@ export const RoleHierarchyManager = () => {
       const { error } = await supabase
         .from('role_hierarchy')
         .insert({
-          role: selectedRole,
+          role: selectedRole as UserRole,
           level: newRoleLevel,
-          parent_role: newRoleParent ? newRoleParent as UserRole : null
+          parent_role: newRoleParent && isValidUserRole(newRoleParent) ? newRoleParent as UserRole : null
         });
 
       if (error) throw error;
@@ -179,7 +193,7 @@ export const RoleHierarchyManager = () => {
       });
 
       // Reset form
-      setSelectedRole('sevak');
+      setSelectedRole('');
       setNewRoleLevel(1);
       setNewRoleParent('');
       setShowAddRoleDialog(false);
@@ -198,6 +212,15 @@ export const RoleHierarchyManager = () => {
   };
 
   const updateRoleHierarchy = async (roleName: string) => {
+    if (!isValidUserRole(roleName)) {
+      toast({
+        title: 'Error',
+        description: 'Invalid role',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       setSaving(true);
       
@@ -205,7 +228,7 @@ export const RoleHierarchyManager = () => {
         .from('role_hierarchy')
         .update({
           level: editLevel,
-          parent_role: editParent ? editParent as UserRole : null,
+          parent_role: editParent && isValidUserRole(editParent) ? editParent as UserRole : null,
           updated_at: new Date().toISOString()
         })
         .eq('role', roleName as UserRole);
@@ -241,14 +264,23 @@ export const RoleHierarchyManager = () => {
       return;
     }
 
+    if (!isValidUserRole(selectedHigherRole) || !isValidUserRole(selectedLowerRole)) {
+      toast({
+        title: 'Error',
+        description: 'Invalid role selection',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       setSaving(true);
       
       const { data: existing, error: checkError } = await supabase
         .from('hierarchy_permissions')
         .select('id')
-        .eq('higher_role', selectedHigherRole)
-        .eq('lower_role', selectedLowerRole)
+        .eq('higher_role', selectedHigherRole as UserRole)
+        .eq('lower_role', selectedLowerRole as UserRole)
         .maybeSingle();
 
       if (checkError && checkError.code !== 'PGRST116') {
@@ -269,8 +301,8 @@ export const RoleHierarchyManager = () => {
         const { error } = await supabase
           .from('hierarchy_permissions')
           .insert({
-            higher_role: selectedHigherRole,
-            lower_role: selectedLowerRole,
+            higher_role: selectedHigherRole as UserRole,
+            lower_role: selectedLowerRole as UserRole,
             ...permissionSet
           });
 
@@ -283,8 +315,8 @@ export const RoleHierarchyManager = () => {
       });
 
       // Reset form
-      setSelectedHigherRole('super_admin');
-      setSelectedLowerRole('sevak');
+      setSelectedHigherRole('');
+      setSelectedLowerRole('');
       setPermissionSet({
         can_view: false,
         can_edit: false,
@@ -335,7 +367,7 @@ export const RoleHierarchyManager = () => {
 
   const getAvailableRolesForHierarchy = () => {
     const existingRoles = roleHierarchy.map(r => r.role);
-    return roles.filter(role => !existingRoles.includes(role.role_name));
+    return roles.filter(role => !existingRoles.includes(role.role_name as UserRole));
   };
 
   if (loading || rolesLoading) {
@@ -402,7 +434,7 @@ export const RoleHierarchyManager = () => {
                           label: role.display_name
                         }))}
                         value={selectedRole}
-                        onValueChange={(value) => setSelectedRole(value as UserRole)}
+                        onValueChange={setSelectedRole}
                         placeholder="Select Role"
                       />
                     </div>
@@ -563,7 +595,7 @@ export const RoleHierarchyManager = () => {
                   <SearchableSelect
                     options={getRoleOptions()}
                     value={selectedHigherRole}
-                    onValueChange={(value) => setSelectedHigherRole(value as UserRole)}
+                    onValueChange={setSelectedHigherRole}
                     placeholder="Select Higher Role"
                   />
                 </div>
@@ -572,7 +604,7 @@ export const RoleHierarchyManager = () => {
                   <SearchableSelect
                     options={getRoleOptions()}
                     value={selectedLowerRole}
-                    onValueChange={(value) => setSelectedLowerRole(value as UserRole)}
+                    onValueChange={setSelectedLowerRole}
                     placeholder="Select Lower Role"
                   />
                 </div>

@@ -10,6 +10,8 @@ interface CustomRole {
   description?: string;
   is_system_role: boolean;
   is_active: boolean;
+  type: string;
+  status: string;
   created_at: string;
   updated_at: string;
 }
