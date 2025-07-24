@@ -79,10 +79,12 @@ export const useForeignKeyOptions = (fields: FormField[]) => {
           }
 
           if (data && Array.isArray(data)) {
-            options[field.name] = data.map(item => ({
-              value: item.id,
-              label: item.name
-            }));
+            options[field.name] = data
+              .filter(item => item.id && item.id.toString().trim() !== '') // Filter out empty IDs
+              .map(item => ({
+                value: item.id,
+                label: item.name || item.id
+              }));
           }
         } catch (error) {
           console.error(`Error loading ${field.foreignKey} options:`, error);
