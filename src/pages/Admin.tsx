@@ -8,12 +8,13 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Shield, Network, MapPin, Users, Briefcase, Star } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-const navigate = useNavigate();
 const Admin = () => {
+  const navigate = useNavigate();
+  
   const handleSuccess = () => {
     // Just show success message, don't reload the page
     console.log("Operation successful");
-   navigate("/dashboard");  // ✅ Navigates to another page 
+    navigate("/dashboard");  // ✅ Navigates to another page 
   };
 
   return (
