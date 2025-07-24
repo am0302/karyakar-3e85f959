@@ -1,4 +1,3 @@
-
 import { Outlet } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -7,12 +6,18 @@ import Header from "@/components/Header";
 export const Layout = () => {
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-gray-50">
+      <div className="min-h-screen flex flex-row bg-gray-50">
+        {/* Sidebar */}
         <AppSidebar />
-        <div className="flex-1 flex flex-col min-w-0">
-          <Header onMenuClick={() => {}} />
-          <main className="flex-1 p-3 lg:p-6 overflow-x-hidden">
-            <div className="max-w-full">
+
+        {/* Main Content Area */}
+        <div className="flex flex-col flex-1 min-w-0">
+          {/* Header */}
+          <Header />
+
+          {/* Page Content */}
+          <main className="flex-1 overflow-auto p-4 md:p-6">
+            <div className="max-w-7xl mx-auto w-full">
               <Outlet />
             </div>
           </main>
@@ -21,3 +26,4 @@ export const Layout = () => {
     </SidebarProvider>
   );
 };
+
