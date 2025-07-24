@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -140,8 +139,8 @@ export const RoleHierarchyManager = () => {
   };
 
   const isValidUserRole = (role: string): role is UserRole => {
-    const validRoles: UserRole[] = ['super_admin', 'sant_nirdeshak', 'sah_nirdeshak', 'mandal_sanchalak', 'karyakar', 'sevak', 'admin', 'moderator', 'user'];
-    return validRoles.includes(role as UserRole);
+    // Check if the role exists in our custom roles
+    return roles.some(r => r.role_name === role);
   };
 
   const addRoleToHierarchy = async () => {
@@ -157,7 +156,7 @@ export const RoleHierarchyManager = () => {
     if (!isValidUserRole(selectedRole)) {
       toast({
         title: 'Error',
-        description: 'Invalid role selection',
+        description: 'Selected role is not valid. Please select from available roles.',
         variant: 'destructive',
       });
       return;
@@ -382,52 +381,55 @@ export const RoleHierarchyManager = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Role Hierarchy Management</h2>
-          <p className="text-gray-600">Manage role hierarchy and permissions between roles</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Role Hierarchy Management</h2>
+          <p className="text-sm sm:text-base text-gray-600">Manage role hierarchy and permissions between roles</p>
         </div>
-        <Button onClick={fetchData} variant="outline" size="sm">
+        <Button onClick={fetchData} variant="outline" size="sm" className="w-full sm:w-auto">
           <RefreshCw className="h-4 w-4 mr-2" />
           Refresh
         </Button>
       </div>
 
-      <Tabs defaultValue="hierarchy-view" className="space-y-6">
+      <Tabs defaultValue="hierarchy-view" className="space-y-4 sm:space-y-6">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="hierarchy-view" className="flex items-center gap-2">
-            <Network className="h-4 w-4" />
+          <TabsTrigger value="hierarchy-view" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+            <Network className="h-3 w-3 sm:h-4 sm:w-4" />
             <span className="hidden sm:inline">Role Hierarchy</span>
+            <span className="sm:hidden">Hierarchy</span>
           </TabsTrigger>
-          <TabsTrigger value="permissions" className="flex items-center gap-2">
-            <Shield className="h-4 w-4" />
+          <TabsTrigger value="permissions" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+            <Shield className="h-3 w-3 sm:h-4 sm:w-4" />
             <span className="hidden sm:inline">Permissions</span>
+            <span className="sm:hidden">Perms</span>
           </TabsTrigger>
-          <TabsTrigger value="manage-roles" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
+          <TabsTrigger value="manage-roles" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+            <Users className="h-3 w-3 sm:h-4 sm:w-4" />
             <span className="hidden sm:inline">Manage Roles</span>
+            <span className="sm:hidden">Roles</span>
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="hierarchy-view" className="space-y-6">
+        <TabsContent value="hierarchy-view" className="space-y-4 sm:space-y-6">
           <Card>
-            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between space-y-4 sm:space-y-0">
-              <CardTitle>Current Role Hierarchy</CardTitle>
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between space-y-4 sm:space-y-0 pb-4">
+              <CardTitle className="text-lg sm:text-xl">Current Role Hierarchy</CardTitle>
               <Dialog open={showAddRoleDialog} onOpenChange={setShowAddRoleDialog}>
                 <DialogTrigger asChild>
-                  <Button className="w-full sm:w-auto">
+                  <Button className="w-full sm:w-auto text-sm">
                     <Plus className="h-4 w-4 mr-2" />
                     Add Role to Hierarchy
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="sm:max-w-md mx-4 sm:mx-0">
                   <DialogHeader>
                     <DialogTitle>Add Role to Hierarchy</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
                     <div>
-                      <Label>Role</Label>
+                      <Label className="text-sm">Role</Label>
                       <SearchableSelect
                         options={getAvailableRolesForHierarchy().map(role => ({
                           value: role.role_name,
@@ -439,16 +441,17 @@ export const RoleHierarchyManager = () => {
                       />
                     </div>
                     <div>
-                      <Label>Hierarchy Level</Label>
+                      <Label className="text-sm">Hierarchy Level</Label>
                       <Input
                         type="number"
                         value={newRoleLevel}
                         onChange={(e) => setNewRoleLevel(parseInt(e.target.value))}
                         min="1"
+                        className="text-sm"
                       />
                     </div>
                     <div>
-                      <Label>Parent Role (Optional)</Label>
+                      <Label className="text-sm">Parent Role (Optional)</Label>
                       <SearchableSelect
                         options={[
                           { value: '', label: 'No Parent' },
@@ -459,7 +462,7 @@ export const RoleHierarchyManager = () => {
                         placeholder="Select Parent Role"
                       />
                     </div>
-                    <Button onClick={addRoleToHierarchy} className="w-full" disabled={saving}>
+                    <Button onClick={addRoleToHierarchy} className="w-full text-sm" disabled={saving}>
                       {saving ? (
                         <>
                           <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
@@ -477,48 +480,51 @@ export const RoleHierarchyManager = () => {
               </Dialog>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {roleHierarchy.map((role) => (
-                  <div key={role.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg space-y-4 sm:space-y-0">
-                    <div className="flex items-center gap-4">
-                      <Badge variant="outline" className="min-w-8 justify-center">
+                  <div key={role.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg space-y-3 sm:space-y-0">
+                    <div className="flex items-center gap-2 sm:gap-4">
+                      <Badge variant="outline" className="min-w-6 sm:min-w-8 justify-center text-xs">
                         {role.level}
                       </Badge>
-                      <div>
-                        <h4 className="font-medium">
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-medium text-sm sm:text-base truncate">
                           {getRoleDisplayName(role.role)}
                         </h4>
                         {role.parent_role && (
-                          <p className="text-sm text-gray-600">
+                          <p className="text-xs sm:text-sm text-gray-600 truncate">
                             Reports to: {getRoleDisplayName(role.parent_role)}
                           </p>
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 justify-end">
                       {editingRole === role.role ? (
-                        <div className="flex flex-col sm:flex-row items-center gap-2">
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                           <Input
                             type="number"
                             value={editLevel}
                             onChange={(e) => setEditLevel(parseInt(e.target.value))}
-                            className="w-20"
+                            className="w-full sm:w-20 text-sm"
                             min="1"
                           />
-                          <SearchableSelect
-                            options={[
-                              { value: '', label: 'No Parent' },
-                              ...getRoleOptions().filter(r => r.value !== role.role)
-                            ]}
-                            value={editParent}
-                            onValueChange={setEditParent}
-                            placeholder="Parent Role"
-                          />
+                          <div className="min-w-0 flex-1 sm:min-w-32">
+                            <SearchableSelect
+                              options={[
+                                { value: '', label: 'No Parent' },
+                                ...getRoleOptions().filter(r => r.value !== role.role)
+                              ]}
+                              value={editParent}
+                              onValueChange={setEditParent}
+                              placeholder="Parent Role"
+                            />
+                          </div>
                           <div className="flex gap-2">
                             <Button
                               size="sm"
                               onClick={() => updateRoleHierarchy(role.role)}
                               disabled={saving}
+                              className="flex-1 sm:flex-none"
                             >
                               <Save className="h-4 w-4" />
                             </Button>
@@ -526,6 +532,7 @@ export const RoleHierarchyManager = () => {
                               size="sm"
                               variant="outline"
                               onClick={() => setEditingRole(null)}
+                              className="flex-1 sm:flex-none"
                             >
                               Cancel
                             </Button>
@@ -540,8 +547,10 @@ export const RoleHierarchyManager = () => {
                             setEditLevel(role.level);
                             setEditParent(role.parent_role || '');
                           }}
+                          className="w-full sm:w-auto"
                         >
-                          <Edit2 className="h-4 w-4" />
+                          <Edit2 className="h-4 w-4 mr-2 sm:mr-0" />
+                          <span className="sm:hidden">Edit</span>
                         </Button>
                       )}
                     </div>
@@ -552,27 +561,33 @@ export const RoleHierarchyManager = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="manage-roles" className="space-y-6">
+        <TabsContent value="manage-roles" className="space-y-4 sm:space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Available Roles</CardTitle>
+              <CardTitle className="text-lg sm:text-xl">Available Roles</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {roles.map((role) => (
-                  <div key={role.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg space-y-2 sm:space-y-0">
-                    <div>
-                      <h4 className="font-medium">{role.display_name}</h4>
-                      <p className="text-sm text-gray-600">
+                  <div key={role.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg space-y-2 sm:space-y-0">
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-medium text-sm sm:text-base truncate">{role.display_name}</h4>
+                      <p className="text-xs sm:text-sm text-gray-600 truncate">
                         {role.role_name} {role.is_system_role && '(System Role)'}
                       </p>
+                      {role.description && (
+                        <p className="text-xs text-gray-500 mt-1 line-clamp-2">{role.description}</p>
+                      )}
                     </div>
-                    <div className="flex gap-2">
-                      <Badge variant={role.is_system_role ? "secondary" : "default"}>
+                    <div className="flex gap-2 flex-wrap">
+                      <Badge variant={role.is_system_role ? "secondary" : "default"} className="text-xs">
                         {role.is_system_role ? 'System' : 'Custom'}
                       </Badge>
-                      <Badge variant="outline">
+                      <Badge variant="outline" className="text-xs">
                         {role.status || 'active'}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {role.type || 'custom'}
                       </Badge>
                     </div>
                   </div>
@@ -582,16 +597,16 @@ export const RoleHierarchyManager = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="permissions" className="space-y-6">
+        <TabsContent value="permissions" className="space-y-4 sm:space-y-6">
           {/* Permission Form */}
           <Card>
             <CardHeader>
-              <CardTitle>Configure Hierarchy Permissions</CardTitle>
+              <CardTitle className="text-lg sm:text-xl">Configure Hierarchy Permissions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Higher Role (Can Perform Actions)</Label>
+                  <Label className="text-sm">Higher Role (Can Perform Actions)</Label>
                   <SearchableSelect
                     options={getRoleOptions()}
                     value={selectedHigherRole}
@@ -600,7 +615,7 @@ export const RoleHierarchyManager = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Lower Role (Target of Actions)</Label>
+                  <Label className="text-sm">Lower Role (Target of Actions)</Label>
                   <SearchableSelect
                     options={getRoleOptions()}
                     value={selectedLowerRole}
@@ -611,8 +626,8 @@ export const RoleHierarchyManager = () => {
               </div>
 
               <div className="space-y-3">
-                <Label>Permissions</Label>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <Label className="text-sm">Permissions</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4">
                   {permissionTypes.map((permission) => (
                     <div key={permission.key} className="flex items-center space-x-2">
                       <Switch
@@ -623,14 +638,15 @@ export const RoleHierarchyManager = () => {
                             [permission.key]: checked 
                           })
                         }
+                        className="scale-90 sm:scale-100"
                       />
-                      <Label className="text-sm">{permission.label}</Label>
+                      <Label className="text-xs sm:text-sm">{permission.label}</Label>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <Button onClick={saveHierarchyPermission} className="w-full" disabled={saving}>
+              <Button onClick={saveHierarchyPermission} className="w-full text-sm" disabled={saving}>
                 {saving ? (
                   <>
                     <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
@@ -649,24 +665,24 @@ export const RoleHierarchyManager = () => {
           {/* Permissions List */}
           <Card>
             <CardHeader>
-              <CardTitle>Current Hierarchy Permissions</CardTitle>
+              <CardTitle className="text-lg sm:text-xl">Current Hierarchy Permissions</CardTitle>
             </CardHeader>
             <CardContent>
               {hierarchyPermissions.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No hierarchy permissions configured</p>
+                  <p className="text-sm sm:text-base">No hierarchy permissions configured</p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {hierarchyPermissions.map((permission) => (
-                    <div key={permission.id} className="border rounded-lg p-4">
+                    <div key={permission.id} className="border rounded-lg p-3 sm:p-4">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 space-y-2 sm:space-y-0">
-                        <div>
-                          <h4 className="font-medium">
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-medium text-sm sm:text-base truncate">
                             {getRoleDisplayName(permission.higher_role)} → {getRoleDisplayName(permission.lower_role)}
                           </h4>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-xs sm:text-sm text-gray-600 truncate">
                             What {getRoleDisplayName(permission.higher_role)} can do with {getRoleDisplayName(permission.lower_role)} data
                           </p>
                         </div>
@@ -674,12 +690,13 @@ export const RoleHierarchyManager = () => {
                           variant="ghost"
                           size="sm"
                           onClick={() => deleteHierarchyPermission(permission.id)}
-                          className="text-red-600 hover:text-red-800"
+                          className="text-red-600 hover:text-red-800 w-full sm:w-auto"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4 mr-2 sm:mr-0" />
+                          <span className="sm:hidden">Delete</span>
                         </Button>
                       </div>
-                      <div className="flex gap-2 flex-wrap">
+                      <div className="flex gap-1 sm:gap-2 flex-wrap">
                         {permissionTypes.map((perm) => (
                           <Badge
                             key={perm.key}

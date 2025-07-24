@@ -38,6 +38,11 @@ export const useMasterData = (table: TableName, title: string, onSuccess?: () =>
       setExistingData(data || []);
     } catch (error: any) {
       console.error(`Error loading existing ${table} data:`, error);
+      toast({
+        title: "Error",
+        description: `Failed to load existing ${title.toLowerCase()}s`,
+        variant: "destructive",
+      });
     }
   };
 
@@ -65,6 +70,8 @@ export const useMasterData = (table: TableName, title: string, onSuccess?: () =>
       }
 
       if (editingItem) {
+        console.log('Updating item:', editingItem.id, 'with data:', dataToSubmit);
+        
         const { error } = await supabase
           .from(table)
           .update(dataToSubmit as any)
@@ -77,6 +84,8 @@ export const useMasterData = (table: TableName, title: string, onSuccess?: () =>
           description: `${title} updated successfully`,
         });
       } else {
+        console.log('Creating new item with data:', dataToSubmit);
+        
         const { error } = await supabase
           .from(table)
           .insert(dataToSubmit as any);
@@ -91,12 +100,13 @@ export const useMasterData = (table: TableName, title: string, onSuccess?: () =>
 
       setFormData({});
       setEditingItem(null);
-      loadExistingData();
+      await loadExistingData();
       if (onSuccess) onSuccess();
     } catch (error: any) {
+      console.error(`Error ${editingItem ? 'updating' : 'creating'} ${table}:`, error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || `Failed to ${editingItem ? 'update' : 'create'} ${title.toLowerCase()}`,
         variant: "destructive",
       });
     } finally {
@@ -105,6 +115,8 @@ export const useMasterData = (table: TableName, title: string, onSuccess?: () =>
   };
 
   const handleEdit = (item: any) => {
+    console.log('handleEdit called with:', item);
+    
     // For custom_roles, prevent editing system roles
     if (table === 'custom_roles' && item.is_system_role) {
       toast({
@@ -121,6 +133,8 @@ export const useMasterData = (table: TableName, title: string, onSuccess?: () =>
 
   const handleDelete = async (id: string) => {
     try {
+      console.log('handleDelete called with id:', id);
+      
       // For custom_roles, check if it's a system role
       if (table === 'custom_roles') {
         const item = existingData.find(data => data.id === id);
@@ -146,22 +160,25 @@ export const useMasterData = (table: TableName, title: string, onSuccess?: () =>
         description: `${title} deleted successfully`,
       });
 
-      loadExistingData();
+      await loadExistingData();
       if (onSuccess) onSuccess();
     } catch (error: any) {
+      console.error(`Error deleting ${table} item:`, error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || `Failed to delete ${title.toLowerCase()}`,
         variant: "destructive",
       });
     }
   };
 
   const updateFormData = (field: string, value: any) => {
+    console.log('updateFormData called:', field, value);
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const resetForm = () => {
+    console.log('resetForm called');
     setFormData({});
     setEditingItem(null);
   };

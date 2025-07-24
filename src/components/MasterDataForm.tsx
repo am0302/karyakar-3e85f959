@@ -44,7 +44,8 @@ export const MasterDataForm = ({
           value={formData[field.name] || ''}
           onChange={(e) => onFormDataChange(field.name, e.target.value)}
           required={field.required}
-          className="min-h-[80px]"
+          className="min-h-[80px] text-sm sm:text-base"
+          placeholder={`Enter ${field.label.toLowerCase()}`}
         />
       );
     }
@@ -58,6 +59,7 @@ export const MasterDataForm = ({
             value={formData[field.name] || ''}
             onValueChange={(value) => onFormDataChange(field.name, value)}
             placeholder={`Select ${field.label}`}
+            className="text-sm sm:text-base"
           />
         );
       }
@@ -70,6 +72,7 @@ export const MasterDataForm = ({
             value={formData[field.name] || ''}
             onValueChange={(value) => onFormDataChange(field.name, value)}
             placeholder={`Select ${field.label}`}
+            className="text-sm sm:text-base"
           />
         );
       }
@@ -82,6 +85,8 @@ export const MasterDataForm = ({
         value={formData[field.name] || ''}
         onChange={(e) => onFormDataChange(field.name, e.target.value)}
         required={field.required}
+        className="text-sm sm:text-base"
+        placeholder={`Enter ${field.label.toLowerCase()}`}
       />
     );
   };
@@ -96,11 +101,11 @@ export const MasterDataForm = ({
           {renderField(field)}
         </div>
       ))}
-      <div className="flex justify-end space-x-2 pt-4">
-        <Button type="button" variant="outline" onClick={onCancel}>
+      <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2 pt-4">
+        <Button type="button" variant="outline" onClick={onCancel} className="w-full sm:w-auto">
           Cancel
         </Button>
-        <Button type="submit" disabled={loading}>
+        <Button type="submit" disabled={loading} className="w-full sm:w-auto">
           {loading ? (editingItem ? "Updating..." : "Creating...") : (editingItem ? "Update" : "Create")}
         </Button>
       </div>
