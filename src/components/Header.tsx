@@ -1,22 +1,17 @@
 
-import { Bell, Menu, Moon, Sun } from "lucide-react";
+import { Bell, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "next-themes";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import UserProfile from "./UserProfile";
 
-interface HeaderProps {
-  onMenuClick: () => void;
-}
-
-const Header = ({ onMenuClick }: HeaderProps) => {
+const Header = () => {
   const { theme, setTheme } = useTheme();
 
   return (
     <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
       <div className="flex items-center">
-        <Button variant="ghost" size="icon" onClick={onMenuClick} className="md:hidden">
-          <Menu className="h-5 w-5" />
-        </Button>
+        <SidebarTrigger className="md:hidden" />
         <h1 className="text-xl font-semibold ml-2 md:ml-0">Karyakar Management</h1>
       </div>
       
