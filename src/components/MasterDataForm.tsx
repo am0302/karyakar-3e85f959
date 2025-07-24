@@ -53,9 +53,15 @@ export const MasterDataForm = ({
     if (field.type === 'select') {
       // Handle static options
       if (field.options) {
-        // Filter out options with empty values
+        // Apply strict filtering for static options
         const validOptions = field.options.filter(option => 
-          option.value && option.value.toString().trim() !== ''
+          option && 
+          option.value && 
+          typeof option.value === 'string' && 
+          option.value.trim() !== '' &&
+          option.label &&
+          typeof option.label === 'string' &&
+          option.label.trim() !== ''
         );
         return (
           <SearchableSelect
@@ -70,9 +76,15 @@ export const MasterDataForm = ({
       
       // Handle foreign key options
       if (field.foreignKey) {
-        // Filter out options with empty values
+        // Apply strict filtering for foreign key options
         const validOptions = (foreignKeyOptions[field.name] || []).filter(option => 
-          option.value && option.value.toString().trim() !== ''
+          option && 
+          option.value && 
+          typeof option.value === 'string' && 
+          option.value.trim() !== '' &&
+          option.label &&
+          typeof option.label === 'string' &&
+          option.label.trim() !== ''
         );
         return (
           <SearchableSelect
