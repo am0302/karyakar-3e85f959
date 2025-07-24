@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -331,12 +330,36 @@ const Karyakars = () => {
               {selectedProfile ? 'Edit Karyakar' : 'Add New Karyakar'}
             </h2>
             <KaryakarForm
-              profile={selectedProfile as any}
-              onSave={handleProfileSaved}
+              formData={{
+                full_name: selectedProfile?.full_name || '',
+                email: selectedProfile?.email || '',
+                mobile_number: selectedProfile?.mobile_number || '',
+                whatsapp_number: selectedProfile?.whatsapp_number || '',
+                is_whatsapp_same_as_mobile: selectedProfile?.is_whatsapp_same_as_mobile || false,
+                date_of_birth: selectedProfile?.date_of_birth || '',
+                age: selectedProfile?.age?.toString() || '',
+                profession_id: selectedProfile?.profession_id || '',
+                mandir_id: selectedProfile?.mandir_id || '',
+                kshetra_id: selectedProfile?.kshetra_id || '',
+                village_id: selectedProfile?.village_id || '',
+                mandal_id: selectedProfile?.mandal_id || '',
+                seva_type_id: selectedProfile?.seva_type_id || '',
+                role: selectedProfile?.role || 'sevak',
+                profile_photo_url: selectedProfile?.profile_photo_url || ''
+              }}
+              setFormData={() => {}}
+              onSubmit={handleProfileSaved}
               onCancel={() => {
                 setShowForm(false);
                 setSelectedProfile(null);
               }}
+              editingKaryakar={selectedProfile as any}
+              mandirs={[]}
+              kshetras={[]}
+              villages={[]}
+              mandals={[]}
+              professions={[]}
+              sevaTypes={[]}
             />
           </div>
         </div>
