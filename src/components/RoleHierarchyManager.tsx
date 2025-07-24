@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,22 +13,18 @@ import { useToast } from '@/hooks/use-toast';
 import { Trash2, Save, Shield, RefreshCw, Users, Network, Plus, Edit2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useDynamicRoles } from '@/hooks/useDynamicRoles';
-import type { Database } from '@/integrations/supabase/types';
-
-// Define types based on the expected database structure
-type UserRole = Database['public']['Enums']['user_role'];
 
 interface RoleHierarchy {
   id: string;
-  role: UserRole;
+  role: string;
   level: number;
-  parent_role: UserRole | null;
+  parent_role: string | null;
 }
 
 interface HierarchyPermission {
   id: string;
-  higher_role: UserRole;
-  lower_role: UserRole;
+  higher_role: string;
+  lower_role: string;
   can_view: boolean;
   can_edit: boolean;
   can_delete: boolean;
@@ -138,8 +135,7 @@ export const RoleHierarchyManager = () => {
     }
   };
 
-  const isValidUserRole = (role: string): role is UserRole => {
-    // Check if the role exists in our custom roles
+  const isValidRole = (role: string): boolean => {
     return roles.some(r => r.role_name === role);
   };
 
@@ -153,7 +149,7 @@ export const RoleHierarchyManager = () => {
       return;
     }
 
-    if (!isValidUserRole(selectedRole)) {
+    if (!isValidRole(selectedRole)) {
       toast({
         title: 'Error',
         description: 'Selected role is not valid. Please select from available roles.',
@@ -179,9 +175,9 @@ export const RoleHierarchyManager = () => {
       const { error } = await supabase
         .from('role_hierarchy')
         .insert({
-          role: selectedRole as UserRole,
+          role: selectedRole,
           level: newRoleLevel,
-          parent_role: newRoleParent && isValidUserRole(newRoleParent) ? newRoleParent as UserRole : null
+          parent_role: newRoleParent && isValidRole(newRoleParent) ? newRoleParent : null
         });
 
       if (error) throw error;
@@ -211,7 +207,7 @@ export const RoleHierarchyManager = () => {
   };
 
   const updateRoleHierarchy = async (roleName: string) => {
-    if (!isValidUserRole(roleName)) {
+    if (!isValidRole(roleName)) {
       toast({
         title: 'Error',
         description: 'Invalid role',
@@ -227,10 +223,10 @@ export const RoleHierarchyManager = () => {
         .from('role_hierarchy')
         .update({
           level: editLevel,
-          parent_role: editParent && isValidUserRole(editParent) ? editParent as UserRole : null,
+          parent_role: editParent && isValidRole(editParent) ? editParent : null,
           updated_at: new Date().toISOString()
         })
-        .eq('role', roleName as UserRole);
+        .eq('role', roleName);
 
       if (error) throw error;
 
@@ -263,7 +259,7 @@ export const RoleHierarchyManager = () => {
       return;
     }
 
-    if (!isValidUserRole(selectedHigherRole) || !isValidUserRole(selectedLowerRole)) {
+    if (!isValidRole(selectedHigherRole) || !isValidRole(selectedLowerRole)) {
       toast({
         title: 'Error',
         description: 'Invalid role selection',
@@ -278,8 +274,8 @@ export const RoleHierarchyManager = () => {
       const { data: existing, error: checkError } = await supabase
         .from('hierarchy_permissions')
         .select('id')
-        .eq('higher_role', selectedHigherRole as UserRole)
-        .eq('lower_role', selectedLowerRole as UserRole)
+        .eq('higher_role', selectedHigherRole)
+        .eq('lower_role', selectedLowerRole)
         .maybeSingle();
 
       if (checkError && checkError.code !== 'PGRST116') {
@@ -300,8 +296,8 @@ export const RoleHierarchyManager = () => {
         const { error } = await supabase
           .from('hierarchy_permissions')
           .insert({
-            higher_role: selectedHigherRole as UserRole,
-            lower_role: selectedLowerRole as UserRole,
+            higher_role: selectedHigherRole,
+            lower_role: selectedLowerRole,
             ...permissionSet
           });
 
@@ -366,7 +362,7 @@ export const RoleHierarchyManager = () => {
 
   const getAvailableRolesForHierarchy = () => {
     const existingRoles = roleHierarchy.map(r => r.role);
-    return roles.filter(role => !existingRoles.includes(role.role_name as UserRole));
+    return roles.filter(role => !existingRoles.includes(role.role_name));
   };
 
   if (loading || rolesLoading) {
