@@ -15,8 +15,6 @@ type Profile = Database['public']['Tables']['profiles']['Row'] & {
   mandals?: { name: string } | null;
 };
 
-type UserRole = Database['public']['Enums']['user_role'];
-
 interface KaryakarTableViewProps {
   karyakars: Profile[];
   onEdit: (karyakar: Profile) => void;
@@ -24,7 +22,7 @@ interface KaryakarTableViewProps {
 }
 
 export const KaryakarTableView = ({ karyakars, onEdit, onDelete }: KaryakarTableViewProps) => {
-  const getRoleColor = (role: UserRole) => {
+  const getRoleColor = (role: string) => {
     switch (role) {
       case 'super_admin': return 'bg-red-100 text-red-800';
       case 'sant_nirdeshak': return 'bg-purple-100 text-purple-800';

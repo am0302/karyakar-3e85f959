@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,14 +10,11 @@ import { SearchableSelect } from '@/components/SearchableSelect';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Trash2, Save, Users, Shield, RefreshCw } from 'lucide-react';
-import type { Database } from '@/integrations/supabase/types';
-
-type UserRole = Database['public']['Enums']['user_role'];
 
 interface Profile {
   id: string;
   full_name: string;
-  role: UserRole;
+  role: string;
   email?: string;
 }
 
@@ -32,12 +30,12 @@ interface UserPermission extends PermissionSet {
   id: string;
   user_id: string;
   module: string;
-  profiles?: { full_name: string };
+  profiles?: { full_name: string } | null;
 }
 
 interface RolePermission extends PermissionSet {
   id: string;
-  role: UserRole;
+  role: string;
   module_name: string;
 }
 
@@ -51,7 +49,7 @@ export const PermissionsManager = () => {
 
   // Form states
   const [selectedUser, setSelectedUser] = useState<string>('');
-  const [selectedRole, setSelectedRole] = useState<UserRole>('sevak');
+  const [selectedRole, setSelectedRole] = useState<string>('sevak');
   const [selectedModule, setSelectedModule] = useState<string>('');
   const [userPermissionSet, setUserPermissionSet] = useState<PermissionSet>({
     can_view: false,
@@ -77,7 +75,7 @@ export const PermissionsManager = () => {
     { value: 'admin', label: 'Admin' }
   ];
 
-  const roles: { value: UserRole; label: string }[] = [
+  const roles: { value: string; label: string }[] = [
     { value: 'sevak', label: 'Sevak' },
     { value: 'karyakar', label: 'Karyakar' },
     { value: 'mandal_sanchalak', label: 'Mandal Sanchalak' },
@@ -156,7 +154,12 @@ export const PermissionsManager = () => {
     }
     
     console.log('User permissions fetched:', data?.length || 0);
-    setUserPermissions(data || []);
+    // Transform the data to handle potential query errors
+    const transformedPermissions = (data || []).map((permission: any) => ({
+      ...permission,
+      profiles: permission.profiles && !permission.profiles.error ? permission.profiles : null
+    }));
+    setUserPermissions(transformedPermissions);
   };
 
   const fetchRolePermissions = async () => {
@@ -564,7 +567,7 @@ export const PermissionsManager = () => {
                   <SearchableSelect
                     options={roles}
                     value={selectedRole}
-                    onValueChange={(value) => setSelectedRole(value as UserRole)}
+                    onValueChange={setSelectedRole}
                     placeholder="Select Role"
                   />
                 </div>
