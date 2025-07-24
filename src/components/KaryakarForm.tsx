@@ -98,6 +98,35 @@ export const KaryakarForm = ({
     setFormData({ ...formData, [field]: value });
   };
 
+  // Filter all options to ensure no empty values
+  const getFilteredOptions = (items: Array<{ id: string; name: string }>) => {
+    return items
+      .filter(item => 
+        item && 
+        item.id && 
+        typeof item.id === 'string' && 
+        item.id.trim() !== '' &&
+        item.name &&
+        typeof item.name === 'string' &&
+        item.name.trim() !== ''
+      )
+      .map(item => ({ 
+        value: item.id, 
+        label: item.name 
+      }));
+  };
+
+  // Get filtered role options
+  const validRoleOptions = getRoleOptions().filter(option => 
+    option && 
+    option.value && 
+    typeof option.value === 'string' && 
+    option.value.trim() !== '' &&
+    option.label &&
+    typeof option.label === 'string' &&
+    option.label.trim() !== ''
+  );
+
   return (
     <form onSubmit={onSubmit} className="space-y-6">
       {/* Basic Information */}
@@ -260,7 +289,7 @@ export const KaryakarForm = ({
             <div>
               <Label>Profession</Label>
               <SearchableSelect
-                options={professions.map(p => ({ value: p.id, label: p.name }))}
+                options={getFilteredOptions(professions)}
                 value={formData.profession_id || ''}
                 onValueChange={(value) => handleInputChange('profession_id', value)}
                 placeholder="Select Profession"
@@ -270,7 +299,7 @@ export const KaryakarForm = ({
             <div>
               <Label>Seva Type</Label>
               <SearchableSelect
-                options={sevaTypes.map(s => ({ value: s.id, label: s.name }))}
+                options={getFilteredOptions(sevaTypes)}
                 value={formData.seva_type_id || ''}
                 onValueChange={(value) => handleInputChange('seva_type_id', value)}
                 placeholder="Select Seva Type"
@@ -291,7 +320,7 @@ export const KaryakarForm = ({
             <div>
               <Label>Mandir</Label>
               <SearchableSelect
-                options={mandirs.map(m => ({ value: m.id, label: m.name }))}
+                options={getFilteredOptions(mandirs)}
                 value={formData.mandir_id || ''}
                 onValueChange={(value) => handleInputChange('mandir_id', value)}
                 placeholder="Select Mandir"
@@ -301,7 +330,7 @@ export const KaryakarForm = ({
             <div>
               <Label>Kshetra</Label>
               <SearchableSelect
-                options={kshetras.map(k => ({ value: k.id, label: k.name }))}
+                options={getFilteredOptions(kshetras)}
                 value={formData.kshetra_id || ''}
                 onValueChange={(value) => handleInputChange('kshetra_id', value)}
                 placeholder="Select Kshetra"
@@ -313,7 +342,7 @@ export const KaryakarForm = ({
             <div>
               <Label>Village</Label>
               <SearchableSelect
-                options={villages.map(v => ({ value: v.id, label: v.name }))}
+                options={getFilteredOptions(villages)}
                 value={formData.village_id || ''}
                 onValueChange={(value) => handleInputChange('village_id', value)}
                 placeholder="Select Village"
@@ -323,7 +352,7 @@ export const KaryakarForm = ({
             <div>
               <Label>Mandal</Label>
               <SearchableSelect
-                options={mandals.map(m => ({ value: m.id, label: m.name }))}
+                options={getFilteredOptions(mandals)}
                 value={formData.mandal_id || ''}
                 onValueChange={(value) => handleInputChange('mandal_id', value)}
                 placeholder="Select Mandal"
@@ -343,7 +372,7 @@ export const KaryakarForm = ({
           <div>
             <Label>Role</Label>
             <SearchableSelect
-              options={getRoleOptions()}
+              options={validRoleOptions}
               value={formData.role || 'sevak'}
               onValueChange={(value) => handleInputChange('role', value)}
               placeholder="Select Role"

@@ -65,6 +65,7 @@ export const SearchableSelect = ({
   const handleSelect = (currentValue: string) => {
     // Additional safety check to prevent empty values
     if (!currentValue || currentValue.trim() === '') {
+      console.warn('SearchableSelect: Attempting to select empty value, ignoring');
       return;
     }
 
@@ -116,23 +117,31 @@ export const SearchableSelect = ({
             <CommandList>
               <CommandEmpty>{emptyText}</CommandEmpty>
               <CommandGroup>
-                {validOptions.map((option) => (
-                  <CommandItem
-                    key={option.value}
-                    value={option.value}
-                    onSelect={() => handleSelect(option.value)}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        (multiple ? selectedValues.includes(option.value) : value === option.value) 
-                          ? "opacity-100" 
-                          : "opacity-0"
-                      )}
-                    />
-                    {option.label}
-                  </CommandItem>
-                ))}
+                {validOptions.map((option) => {
+                  // Additional safety check before rendering each item
+                  if (!option.value || option.value.trim() === '') {
+                    console.warn('SearchableSelect: Skipping option with empty value:', option);
+                    return null;
+                  }
+                  
+                  return (
+                    <CommandItem
+                      key={option.value}
+                      value={option.value}
+                      onSelect={() => handleSelect(option.value)}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          (multiple ? selectedValues.includes(option.value) : value === option.value) 
+                            ? "opacity-100" 
+                            : "opacity-0"
+                        )}
+                      />
+                      {option.label}
+                    </CommandItem>
+                  );
+                })}
               </CommandGroup>
             </CommandList>
           </Command>
