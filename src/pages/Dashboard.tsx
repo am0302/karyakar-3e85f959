@@ -16,7 +16,7 @@ import {
   MessageSquare,
   Activity
 } from 'lucide-react';
-import { TaskCalendar } from '@/components/TaskCalendar';
+import TaskCalendar from '@/components/TaskCalendar';
 import { TaskStatusChart } from '@/components/TaskStatusChart';
 
 interface DashboardStats {

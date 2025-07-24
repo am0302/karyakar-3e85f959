@@ -1,25 +1,30 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/AuthProvider';
-import { Send, MessageCircle, Users, Plus, Search } from 'lucide-react';
+import { 
+  MessageSquare, 
+  Plus, 
+  Search, 
+  Users,
+  MoreVertical
+} from 'lucide-react';
+
+interface Profile {
+  id: string;
+  full_name: string;
+  profile_photo_url?: string;
+}
 
 interface Message {
   id: string;
-  content: string;
+  content: string | null;
+  created_at: string;
   sender_id: string;
   room_id: string;
-  created_at: string;
-  message_type: string;
   profiles?: {
     full_name: string;
     profile_photo_url?: string;
@@ -28,80 +33,42 @@ interface Message {
 
 interface ChatRoom {
   id: string;
-  name: string;
-  is_group: boolean;
-  created_by: string;
+  name: string | null;
   created_at: string;
-  updated_at: string;
-  mandir_id?: string;
-  kshetra_id?: string;
-  village_id?: string;
-  mandal_id?: string;
-  chat_participants?: {
-    user_id: string;
-    profiles: {
-      full_name: string;
-      profile_photo_url?: string;
-    };
-  }[];
-  last_message?: {
-    content: string;
-    created_at: string;
-    sender: {
-      full_name: string;
-    };
-  };
+  created_by: string;
+  is_group: boolean;
 }
 
 const Communication = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
-  const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [profiles, setProfiles] = useState<any[]>([]);
+  const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
+  const [activeRoom, setActiveRoom] = useState<ChatRoom | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [newRoomName, setNewRoomName] = useState('');
-  const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
 
   useEffect(() => {
-    if (user) {
-      fetchChatRooms();
-      fetchProfiles();
-    }
-  }, [user]);
+    fetchChatRooms();
+  }, []);
 
   useEffect(() => {
-    if (selectedRoom) {
+    if (activeRoom) {
       fetchMessages();
     }
-  }, [selectedRoom]);
+  }, [activeRoom]);
 
   const fetchChatRooms = async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('chat_rooms')
-        .select(`
-          *,
-          chat_participants(
-            user_id,
-            profiles(full_name, profile_photo_url)
-          )
-        `)
-        .order('updated_at', { ascending: false });
+        .select('*')
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      const transformedRooms: ChatRoom[] = (data || []).map(room => ({
-        ...room,
-        chat_participants: Array.isArray(room.chat_participants) 
-          ? room.chat_participants.filter(p => p && typeof p === 'object' && !('error' in p))
-          : []
-      }));
-
-      setChatRooms(transformedRooms);
+      setChatRooms(data || []);
     } catch (error: any) {
       console.error('Error fetching chat rooms:', error);
       toast({
@@ -114,23 +81,8 @@ const Communication = () => {
     }
   };
 
-  const fetchProfiles = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, profile_photo_url')
-        .eq('is_active', true)
-        .neq('id', user?.id);
-
-      if (error) throw error;
-      setProfiles(data || []);
-    } catch (error: any) {
-      console.error('Error fetching profiles:', error);
-    }
-  };
-
   const fetchMessages = async () => {
-    if (!selectedRoom) return;
+    if (!activeRoom) return;
 
     try {
       const { data, error } = await supabase
@@ -139,12 +91,12 @@ const Communication = () => {
           *,
           profiles(full_name, profile_photo_url)
         `)
-        .eq('room_id', selectedRoom.id)
+        .eq('room_id', activeRoom.id)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
 
-      const transformedMessages: Message[] = (data || []).map(message => ({
+      const transformedMessages = (data || []).map(message => ({
         ...message,
         profiles: message.profiles && typeof message.profiles === 'object' && !('error' in message.profiles)
           ? message.profiles
@@ -162,17 +114,21 @@ const Communication = () => {
     }
   };
 
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedRoom || !user) return;
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !user || !activeRoom) return;
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('messages')
-        .insert({
-          content: newMessage,
-          sender_id: user.id,
-          room_id: selectedRoom.id,
-        });
+        .insert([
+          {
+            content: newMessage,
+            sender_id: user.id,
+            room_id: activeRoom.id,
+            message_type: 'text',
+          },
+        ])
+        .select('*');
 
       if (error) throw error;
 
@@ -188,223 +144,105 @@ const Communication = () => {
     }
   };
 
-  const createChatRoom = async () => {
-    if (!newRoomName.trim() || !user) return;
-
-    try {
-      const { data: roomData, error: roomError } = await supabase
-        .from('chat_rooms')
-        .insert({
-          name: newRoomName,
-          is_group: selectedParticipants.length > 1,
-          created_by: user.id,
-        })
-        .select()
-        .single();
-
-      if (roomError) throw roomError;
-
-      // Add participants including creator
-      const participantData = [
-        { room_id: roomData.id, user_id: user.id },
-        ...selectedParticipants.map(userId => ({
-          room_id: roomData.id,
-          user_id: userId,
-        }))
-      ];
-
-      const { error: participantError } = await supabase
-        .from('chat_participants')
-        .insert(participantData);
-
-      if (participantError) throw participantError;
-
-      toast({
-        title: 'Success',
-        description: 'Chat room created successfully',
-      });
-
-      setNewRoomName('');
-      setSelectedParticipants([]);
-      setShowCreateDialog(false);
-      fetchChatRooms();
-    } catch (error: any) {
-      console.error('Error creating chat room:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to create chat room',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const renderMessage = (message: Message) => {
-    const isOwnMessage = message.sender_id === user?.id;
-    const senderName = message.profiles?.full_name || 'Unknown User';
-    const profilePhoto = message.profiles?.profile_photo_url;
-
-    return (
-      <div
-        key={message.id}
-        className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-4`}
-      >
-        <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-          isOwnMessage 
-            ? 'bg-blue-500 text-white' 
-            : 'bg-gray-200 text-gray-800'
-        }`}>
-          {!isOwnMessage && (
-            <div className="text-xs font-semibold mb-1">{senderName}</div>
-          )}
-          <div>{message.content}</div>
-          <div className={`text-xs mt-1 ${
-            isOwnMessage ? 'text-blue-100' : 'text-gray-500'
-          }`}>
-            {new Date(message.created_at).toLocaleTimeString()}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   if (loading) {
-    return <div className="flex items-center justify-center h-64">Loading communication...</div>;
+    return <div className="flex items-center justify-center h-64">Loading chat rooms...</div>;
   }
 
   return (
-    <div className="h-screen flex">
+    <div className="flex h-full">
       {/* Sidebar */}
-      <div className="w-1/3 border-r bg-gray-50 flex flex-col">
-        <div className="p-4 border-b">
-          <div className="flex justify-between items-center mb-4">
-            <h1 className="text-xl font-bold">Messages</h1>
-            <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-              <DialogTrigger asChild>
-                <Button size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Chat
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Create New Chat Room</DialogTitle>
-                  <DialogDescription>
-                    Create a new chat room and invite participants
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label>Room Name</Label>
-                    <Input
-                      value={newRoomName}
-                      onChange={(e) => setNewRoomName(e.target.value)}
-                      placeholder="Enter room name"
-                    />
-                  </div>
-                  <div>
-                    <Label>Participants</Label>
-                    <Select 
-                      value={selectedParticipants.join(',')} 
-                      onValueChange={(value) => setSelectedParticipants(value ? value.split(',') : [])}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select participants" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {profiles.map(profile => (
-                          <SelectItem key={profile.id} value={profile.id}>
-                            {profile.full_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button onClick={createChatRoom} className="flex-1">
-                      Create Room
-                    </Button>
-                    <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
+      <div className="w-80 border-r flex flex-col">
+        <CardHeader className="p-4">
+          <CardTitle className="text-xl font-bold">Chat Rooms</CardTitle>
+        </CardHeader>
+        <CardContent className="p-4">
+          <Input placeholder="Search chat rooms..." className="mb-4" />
+          <div className="space-y-2">
+            {chatRooms.map((room) => (
+              <Button
+                key={room.id}
+                variant="ghost"
+                className={`w-full justify-start ${activeRoom?.id === room.id ? 'bg-gray-100' : ''}`}
+                onClick={() => setActiveRoom(room)}
+              >
+                <MessageSquare className="h-4 w-4 mr-2" />
+                {room.name || 'Group Chat'}
+              </Button>
+            ))}
           </div>
-        </div>
-
-        {/* Chat Room List */}
-        <div className="flex-1 overflow-y-auto">
-          {chatRooms.map(room => (
-            <div
-              key={room.id}
-              className={`p-4 border-b cursor-pointer hover:bg-gray-100 ${
-                selectedRoom?.id === room.id ? 'bg-blue-50' : ''
-              }`}
-              onClick={() => setSelectedRoom(room)}
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
-                  {room.is_group ? <Users className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}
-                </div>
-                <div className="flex-1">
-                  <div className="font-medium">{room.name}</div>
-                  <div className="text-sm text-gray-500">
-                    {room.chat_participants?.length || 0} participants
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
+        </CardContent>
+        <div className="p-4 mt-auto">
+          <Button variant="outline" className="w-full">
+            <Plus className="h-4 w-4 mr-2" />
+            Create Chat Room
+          </Button>
         </div>
       </div>
 
       {/* Chat Area */}
       <div className="flex-1 flex flex-col">
-        {selectedRoom ? (
+        {activeRoom ? (
           <>
-            {/* Chat Header */}
-            <div className="p-4 border-b bg-white">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
-                  {selectedRoom.is_group ? <Users className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}
-                </div>
-                <div>
-                  <div className="font-medium">{selectedRoom.name}</div>
-                  <div className="text-sm text-gray-500">
-                    {selectedRoom.chat_participants?.length || 0} participants
-                  </div>
+            {/* Header */}
+            <CardHeader className="p-4 border-b">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg font-semibold">{activeRoom.name || 'Group Chat'}</CardTitle>
+                <div className="flex items-center space-x-2">
+                  <Users className="h-5 w-5 text-gray-500" />
+                  <MoreVertical className="h-5 w-5 text-gray-500" />
                 </div>
               </div>
-            </div>
+            </CardHeader>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
-              {messages.map(renderMessage)}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                    message.sender_id === user?.id
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-200 text-gray-800'
+                  }`}>
+                    {message.sender_id !== user?.id && (
+                      <div className="text-xs font-semibold mb-1">
+                        {message.profiles?.full_name || 'Unknown User'}
+                      </div>
+                    )}
+                    <div>{message.content}</div>
+                    <div className={`text-xs mt-1 ${
+                      message.sender_id === user?.id ? 'text-blue-100' : 'text-gray-500'
+                    }`}>
+                      {new Date(message.created_at).toLocaleTimeString()}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
 
             {/* Message Input */}
-            <div className="p-4 border-t bg-white">
-              <div className="flex gap-2">
+            <div className="p-4 border-t">
+              <div className="flex items-center">
                 <Input
+                  placeholder="Type your message..."
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type a message..."
-                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                  className="flex-1 mr-2"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSendMessage();
+                    }
+                  }}
                 />
-                <Button onClick={sendMessage} disabled={!newMessage.trim()}>
-                  <Send className="h-4 w-4" />
-                </Button>
+                <Button onClick={handleSendMessage}>Send</Button>
               </div>
             </div>
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <MessageCircle className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No chat selected</h3>
-              <p className="text-gray-600">Choose a chat room to start messaging</p>
-            </div>
+            <p className="text-gray-500">Select a chat room to start messaging</p>
           </div>
         )}
       </div>

@@ -1,20 +1,28 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/AuthProvider';
-import { Calendar, Clock, User, Plus, Filter, Search } from 'lucide-react';
+import { 
+  Plus, 
+  Calendar, 
+  User, 
+  CheckCircle, 
+  Clock, 
+  AlertCircle,
+  Filter,
+  Search
+} from 'lucide-react';
 
-type TaskPriority = 'low' | 'medium' | 'high';
 type TaskStatus = 'pending' | 'in_progress' | 'completed';
-type TaskType = 'personal' | 'delegated' | 'broadcasted';
+type TaskPriority = 'low' | 'medium' | 'high';
 
 interface Task {
   id: string;
@@ -22,7 +30,6 @@ interface Task {
   description: string;
   priority: TaskPriority;
   status: TaskStatus;
-  task_type: TaskType;
   due_date: string;
   assigned_to: string;
   assigned_by: string;
@@ -35,45 +42,41 @@ interface Task {
   } | null;
 }
 
-interface NewTask {
-  title: string;
-  description: string;
-  priority: TaskPriority;
-  task_type: TaskType;
-  due_date: string;
-  assigned_to: string;
-  status: TaskStatus;
+interface Profile {
+  id: string;
+  full_name: string;
+  role: string;
 }
 
 const Tasks = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [profiles, setProfiles] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [priorityFilter, setPriorityFilter] = useState<string>('all');
-  const [newTask, setNewTask] = useState<NewTask>({
+  const [statusFilter, setStatusFilter] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState('');
+
+  // Form state
+  const [formData, setFormData] = useState({
     title: '',
     description: '',
-    priority: 'medium',
-    task_type: 'personal',
+    priority: 'medium' as TaskPriority,
+    task_type: 'general' as 'general' | 'personal',
     due_date: '',
     assigned_to: '',
-    status: 'pending'
   });
 
   useEffect(() => {
-    if (user) {
-      fetchTasks();
-      fetchProfiles();
-    }
-  }, [user]);
+    fetchTasks();
+    fetchProfiles();
+  }, []);
 
   const fetchTasks = async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('tasks')
         .select(`
@@ -81,28 +84,23 @@ const Tasks = () => {
           profiles!tasks_assigned_to_fkey(full_name),
           assigned_to_profile:profiles!tasks_assigned_by_fkey(full_name)
         `)
-        .or(`assigned_to.eq.${user?.id},assigned_by.eq.${user?.id}`)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      // Transform the data to handle potential query errors and map database values
       const transformedTasks: Task[] = (data || []).map(task => ({
         ...task,
         profiles: task.profiles && typeof task.profiles === 'object' && !('error' in task.profiles)
-          ? task.profiles 
+          ? task.profiles
           : null,
         assigned_to_profile: task.assigned_to_profile && typeof task.assigned_to_profile === 'object' && !('error' in task.assigned_to_profile)
-          ? task.assigned_to_profile 
-          : null,
-        // Map database task_type values to expected TypeScript values
-        task_type: task.task_type === 'general' ? 'personal' : task.task_type as TaskType,
-        // Ensure priority is within expected range
-        priority: task.priority as TaskPriority
+          ? task.assigned_to_profile
+          : null
       }));
 
       setTasks(transformedTasks);
     } catch (error: any) {
+      console.error('Error fetching tasks:', error);
       toast({
         title: 'Error',
         description: 'Failed to fetch tasks',
@@ -123,32 +121,29 @@ const Tasks = () => {
       if (error) throw error;
       setProfiles(data || []);
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch profiles',
-        variant: 'destructive',
-      });
+      console.error('Error fetching profiles:', error);
     }
   };
 
-  const createTask = async () => {
-    try {
-      // Map the task type back to database format if needed
-      const taskToInsert = {
-        title: newTask.title,
-        description: newTask.description,
-        assigned_by: user?.id,
-        assigned_to: newTask.assigned_to,
-        priority: newTask.priority as 'low' | 'medium' | 'high',
-        // Map TypeScript types to database types
-        task_type: newTask.task_type === 'personal' ? 'general' : newTask.task_type as 'general' | 'personal',
-        due_date: newTask.due_date,
-        status: newTask.status
-      };
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
 
+    try {
       const { error } = await supabase
         .from('tasks')
-        .insert(taskToInsert);
+        .insert([
+          {
+            title: formData.title,
+            description: formData.description,
+            assigned_by: user.id,
+            assigned_to: formData.assigned_to,
+            priority: formData.priority,
+            task_type: formData.task_type,
+            due_date: formData.due_date,
+            status: 'pending' as TaskStatus,
+          },
+        ]);
 
       if (error) throw error;
 
@@ -157,18 +152,18 @@ const Tasks = () => {
         description: 'Task created successfully',
       });
 
-      setNewTask({
+      setFormData({
         title: '',
         description: '',
         priority: 'medium',
-        task_type: 'personal',
+        task_type: 'general',
         due_date: '',
         assigned_to: '',
-        status: 'pending'
       });
-      setShowCreateDialog(false);
+      setShowForm(false);
       fetchTasks();
     } catch (error: any) {
+      console.error('Error creating task:', error);
       toast({
         title: 'Error',
         description: 'Failed to create task',
@@ -177,11 +172,11 @@ const Tasks = () => {
     }
   };
 
-  const updateTaskStatus = async (taskId: string, status: TaskStatus) => {
+  const updateTaskStatus = async (taskId: string, newStatus: TaskStatus) => {
     try {
       const { error } = await supabase
         .from('tasks')
-        .update({ status })
+        .update({ status: newStatus })
         .eq('id', taskId);
 
       if (error) throw error;
@@ -193,6 +188,7 @@ const Tasks = () => {
 
       fetchTasks();
     } catch (error: any) {
+      console.error('Error updating task:', error);
       toast({
         title: 'Error',
         description: 'Failed to update task status',
@@ -222,8 +218,8 @@ const Tasks = () => {
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          task.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
-    const matchesPriority = priorityFilter === 'all' || task.priority === priorityFilter;
+    const matchesStatus = !statusFilter || task.status === statusFilter;
+    const matchesPriority = !priorityFilter || task.priority === priorityFilter;
     
     return matchesSearch && matchesStatus && matchesPriority;
   });
@@ -236,104 +232,11 @@ const Tasks = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <Calendar className="h-6 w-6" />
-          <h1 className="text-3xl font-bold">Tasks</h1>
-          <Badge variant="secondary">{filteredTasks.length}</Badge>
-        </div>
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Task
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New Task</DialogTitle>
-              <DialogDescription>
-                Fill in the details to create a new task
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label>Title</Label>
-                <Input
-                  value={newTask.title}
-                  onChange={(e) => setNewTask({...newTask, title: e.target.value})}
-                  placeholder="Enter task title"
-                />
-              </div>
-              <div>
-                <Label>Description</Label>
-                <Textarea
-                  value={newTask.description}
-                  onChange={(e) => setNewTask({...newTask, description: e.target.value})}
-                  placeholder="Enter task description"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Priority</Label>
-                  <Select value={newTask.priority} onValueChange={(value: TaskPriority) => setNewTask({...newTask, priority: value})}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Type</Label>
-                  <Select value={newTask.task_type} onValueChange={(value: TaskType) => setNewTask({...newTask, task_type: value})}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="personal">Personal</SelectItem>
-                      <SelectItem value="delegated">Delegated</SelectItem>
-                      <SelectItem value="broadcasted">Broadcasted</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div>
-                <Label>Assign To</Label>
-                <Select value={newTask.assigned_to} onValueChange={(value) => setNewTask({...newTask, assigned_to: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select assignee" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {profiles.map(profile => (
-                      <SelectItem key={profile.id} value={profile.id}>
-                        {profile.full_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Due Date</Label>
-                <Input
-                  type="datetime-local"
-                  value={newTask.due_date}
-                  onChange={(e) => setNewTask({...newTask, due_date: e.target.value})}
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={createTask} className="flex-1">
-                  Create Task
-                </Button>
-                <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <h1 className="text-3xl font-bold">Tasks</h1>
+        <Button onClick={() => setShowForm(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Create Task
+        </Button>
       </div>
 
       {/* Filters */}
@@ -348,22 +251,22 @@ const Tasks = () => {
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-32">
-            <SelectValue />
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="">All Status</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="in_progress">In Progress</SelectItem>
             <SelectItem value="completed">Completed</SelectItem>
           </SelectContent>
         </Select>
         <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-          <SelectTrigger className="w-32">
-            <SelectValue />
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Priority" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Priority</SelectItem>
+            <SelectItem value="">All Priority</SelectItem>
             <SelectItem value="low">Low</SelectItem>
             <SelectItem value="medium">Medium</SelectItem>
             <SelectItem value="high">High</SelectItem>
@@ -372,51 +275,50 @@ const Tasks = () => {
       </div>
 
       {/* Tasks List */}
-      <div className="space-y-4">
-        {filteredTasks.map(task => (
+      <div className="grid gap-4">
+        {filteredTasks.map((task) => (
           <Card key={task.id}>
-            <CardHeader>
+            <CardContent className="p-6">
               <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="text-lg">{task.title}</CardTitle>
-                  <p className="text-gray-600 mt-1">{task.description}</p>
-                </div>
-                <div className="flex gap-2">
-                  <Badge className={getPriorityColor(task.priority)}>
-                    {task.priority}
-                  </Badge>
-                  <Badge className={getStatusColor(task.status)}>
-                    {task.status}
-                  </Badge>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-4 text-sm text-gray-600">
-                  <div className="flex items-center gap-1">
-                    <User className="h-4 w-4" />
-                    Assigned to: {task.profiles?.full_name || 'Unknown'}
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="font-semibold">{task.title}</h3>
+                    <Badge className={getPriorityColor(task.priority)}>
+                      {task.priority}
+                    </Badge>
+                    <Badge className={getStatusColor(task.status)}>
+                      {task.status}
+                    </Badge>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
-                    Due: {task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date'}
+                  <p className="text-gray-600 mb-3">{task.description}</p>
+                  <div className="flex items-center gap-4 text-sm text-gray-500">
+                    <div className="flex items-center gap-1">
+                      <User className="h-4 w-4" />
+                      <span>Assigned to: {task.profiles?.full_name || 'Unknown'}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Calendar className="h-4 w-4" />
+                      <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
+                    </div>
                   </div>
                 </div>
                 <div className="flex gap-2">
                   {task.status === 'pending' && (
-                    <Button size="sm" onClick={() => updateTaskStatus(task.id, 'in_progress')}>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => updateTaskStatus(task.id, 'in_progress')}
+                    >
                       Start
                     </Button>
                   )}
                   {task.status === 'in_progress' && (
-                    <Button size="sm" onClick={() => updateTaskStatus(task.id, 'completed')}>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => updateTaskStatus(task.id, 'completed')}
+                    >
                       Complete
-                    </Button>
-                  )}
-                  {task.status === 'completed' && (
-                    <Button size="sm" variant="outline" onClick={() => updateTaskStatus(task.id, 'pending')}>
-                      Reopen
                     </Button>
                   )}
                 </div>
@@ -426,11 +328,102 @@ const Tasks = () => {
         ))}
       </div>
 
-      {filteredTasks.length === 0 && (
-        <div className="text-center py-8">
-          <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
-          <p className="text-gray-600">Create your first task to get started</p>
+      {/* Create Task Form */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg max-w-md w-full">
+            <h2 className="text-xl font-semibold mb-4">Create New Task</h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <Label htmlFor="title">Title</Label>
+                <Input
+                  id="title"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="assigned_to">Assign To</Label>
+                <Select 
+                  value={formData.assigned_to} 
+                  onValueChange={(value) => setFormData({ ...formData, assigned_to: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a person" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {profiles.map((profile) => (
+                      <SelectItem key={profile.id} value={profile.id}>
+                        {profile.full_name} ({profile.role})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="priority">Priority</Label>
+                <Select 
+                  value={formData.priority} 
+                  onValueChange={(value: TaskPriority) => setFormData({ ...formData, priority: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="task_type">Task Type</Label>
+                <Select 
+                  value={formData.task_type} 
+                  onValueChange={(value: 'general' | 'personal') => setFormData({ ...formData, task_type: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="general">General</SelectItem>
+                    <SelectItem value="personal">Personal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="due_date">Due Date</Label>
+                <Input
+                  id="due_date"
+                  type="date"
+                  value={formData.due_date}
+                  onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button type="submit" className="flex-1">Create Task</Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setShowForm(false)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

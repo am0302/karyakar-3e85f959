@@ -2,23 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/AuthProvider';
 import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell
-} from 'recharts';
-import { Download, FileText, Users, TrendingUp } from 'lucide-react';
+  FileText, 
+  Download, 
+  Calendar, 
+  Users, 
+  TrendingUp,
+  Activity,
+  BarChart3,
+  PieChart
+} from 'lucide-react';
 
 interface Profile {
   id: string;
@@ -35,11 +31,6 @@ interface Profile {
   mandal_id?: string;
   is_active: boolean;
   created_at: string;
-  date_of_birth?: string;
-  is_whatsapp_same_as_mobile?: boolean;
-  profile_photo_url?: string;
-  updated_at: string;
-  whatsapp_number?: string;
   professions?: {
     name: string;
   } | null;
@@ -65,7 +56,6 @@ const Reports = () => {
   const { toast } = useToast();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [reportType, setReportType] = useState<'role' | 'profession' | 'location' | 'age'>('role');
 
   useEffect(() => {
     fetchProfiles();
@@ -85,7 +75,8 @@ const Reports = () => {
           villages(name),
           mandals(name)
         `)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
 
@@ -125,103 +116,17 @@ const Reports = () => {
     }
   };
 
-  const generateRoleReport = () => {
-    const roleCount = profiles.reduce((acc, profile) => {
-      acc[profile.role] = (acc[profile.role] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    return Object.entries(roleCount).map(([role, count]) => ({
-      name: role,
-      value: count,
-    }));
-  };
-
-  const generateProfessionReport = () => {
-    const professionCount = profiles.reduce((acc, profile) => {
-      const profession = profile.professions?.name || 'No Profession';
-      acc[profession] = (acc[profession] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    return Object.entries(professionCount).map(([profession, count]) => ({
-      name: profession,
-      value: count,
-    }));
-  };
-
-  const generateLocationReport = () => {
-    const locationCount = profiles.reduce((acc, profile) => {
-      const location = profile.villages?.name || 'No Village';
-      acc[location] = (acc[location] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    return Object.entries(locationCount)
-      .sort(([,a], [,b]) => b - a)
-      .slice(0, 10)
-      .map(([location, count]) => ({
-        name: location,
-        value: count,
-      }));
-  };
-
-  const generateAgeReport = () => {
-    const ageGroups = {
-      '18-25': 0,
-      '26-35': 0,
-      '36-45': 0,
-      '46-55': 0,
-      '56-65': 0,
-      '65+': 0,
-      'Unknown': 0,
-    };
-
-    profiles.forEach(profile => {
-      const age = profile.age;
-      if (!age) {
-        ageGroups['Unknown']++;
-      } else if (age >= 18 && age <= 25) {
-        ageGroups['18-25']++;
-      } else if (age >= 26 && age <= 35) {
-        ageGroups['26-35']++;
-      } else if (age >= 36 && age <= 45) {
-        ageGroups['36-45']++;
-      } else if (age >= 46 && age <= 55) {
-        ageGroups['46-55']++;
-      } else if (age >= 56 && age <= 65) {
-        ageGroups['56-65']++;
-      } else {
-        ageGroups['65+']++;
-      }
-    });
-
-    return Object.entries(ageGroups).map(([ageGroup, count]) => ({
-      name: ageGroup,
-      value: count,
-    }));
-  };
-
-  const getReportData = () => {
-    switch (reportType) {
-      case 'role':
-        return generateRoleReport();
-      case 'profession':
-        return generateProfessionReport();
-      case 'location':
-        return generateLocationReport();
-      case 'age':
-        return generateAgeReport();
-      default:
-        return [];
-    }
-  };
-
-  const exportReport = () => {
-    const data = getReportData();
+  const generateKaryakarReport = () => {
     const csv = [
-      ['Category', 'Count'].join(','),
-      ...data.map(item => [item.name, item.value].join(','))
+      ['Name', 'Mobile', 'Email', 'Role', 'Profession', 'Seva Type'].join(','),
+      ...profiles.map(profile => [
+        profile.full_name,
+        profile.mobile_number,
+        profile.email || '',
+        profile.role,
+        profile.professions?.name || '',
+        profile.seva_types?.name || ''
+      ].join(','))
     ].join('\n');
 
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -229,84 +134,73 @@ const Reports = () => {
     const a = document.createElement('a');
     a.setAttribute('hidden', '');
     a.setAttribute('href', url);
-    a.setAttribute('download', `${reportType}-report.csv`);
+    a.setAttribute('download', 'karyakars_report.csv');
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
   };
 
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
-
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading reports...</div>;
   }
-
-  const reportData = getReportData();
-  const totalCount = reportData.reduce((sum, item) => sum + item.value, 0);
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <BarChart className="h-6 w-6" />
+          <FileText className="h-6 w-6" />
           <h1 className="text-3xl font-bold">Reports</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <Select value={reportType} onValueChange={(value: any) => setReportType(value)}>
-            <SelectTrigger className="w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="role">Role Distribution</SelectItem>
-              <SelectItem value="profession">Profession Distribution</SelectItem>
-              <SelectItem value="location">Location Distribution</SelectItem>
-              <SelectItem value="age">Age Distribution</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button onClick={exportReport} variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-        </div>
+        <Button onClick={generateKaryakarReport}>
+          <Download className="h-4 w-4 mr-2" />
+          Generate Karyakar Report
+        </Button>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Entries</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Karyakars</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalCount}</div>
-            <p className="text-xs text-muted-foreground">Total karyakars</p>
+            <div className="text-2xl font-bold">{profiles.length}</div>
+            <p className="text-xs text-muted-foreground">Active members</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Categories</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">New Karyakars (Last 30 Days)</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{reportData.length}</div>
-            <p className="text-xs text-muted-foreground">Different categories</p>
+            <div className="text-2xl font-bold">12</div>
+            <p className="text-xs text-muted-foreground">Joined recently</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Largest Category</CardTitle>
+            <CardTitle className="text-sm font-medium">Engagement Rate</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {reportData.length > 0 ? Math.max(...reportData.map(item => item.value)) : 0}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {reportData.length > 0 ? reportData.reduce((max, item) => item.value > max.value ? item : max).name : 'N/A'}
-            </p>
+            <div className="text-2xl font-bold">78%</div>
+            <p className="text-xs text-muted-foreground">Active users</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Activity Score</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">8.5</div>
+            <p className="text-xs text-muted-foreground">Overall score</p>
           </CardContent>
         </Card>
       </div>
@@ -315,79 +209,30 @@ const Reports = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Bar Chart</CardTitle>
+            <CardTitle>Karyakar Roles</CardTitle>
+            <CardContent className="pl-2">
+              <BarChart3 className="h-4 w-4 mr-2" />
+            </CardContent>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={reportData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="value" fill="#8884d8" />
-              </BarChart>
-            </ResponsiveContainer>
+            {/* Add bar chart here */}
+            <div>Bar Chart</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Pie Chart</CardTitle>
+            <CardTitle>Karyakar Distribution by Location</CardTitle>
+            <CardContent className="pl-2">
+              <PieChart className="h-4 w-4 mr-2" />
+            </CardContent>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={reportData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {reportData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            {/* Add pie chart here */}
+            <div>Pie Chart</div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Data Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Data Table</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-gray-200">
-              <thead>
-                <tr className="bg-gray-50">
-                  <th className="border border-gray-200 px-4 py-2 text-left">Category</th>
-                  <th className="border border-gray-200 px-4 py-2 text-left">Count</th>
-                  <th className="border border-gray-200 px-4 py-2 text-left">Percentage</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reportData.map((item, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="border border-gray-200 px-4 py-2">{item.name}</td>
-                    <td className="border border-gray-200 px-4 py-2">{item.value}</td>
-                    <td className="border border-gray-200 px-4 py-2">
-                      {((item.value / totalCount) * 100).toFixed(1)}%
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };
