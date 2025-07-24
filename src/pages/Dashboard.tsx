@@ -27,6 +27,10 @@ interface DashboardStats {
   totalChatRooms: number;
 }
 
+interface TaskProfile {
+  full_name: string;
+}
+
 interface Task {
   id: string;
   title: string;
@@ -37,12 +41,8 @@ interface Task {
   assigned_to: string;
   assigned_by: string;
   created_at: string;
-  profiles?: {
-    full_name: string;
-  } | null;
-  assigned_by_profile?: {
-    full_name: string;
-  } | null;
+  profiles?: TaskProfile | null;
+  assigned_by_profile?: TaskProfile | null;
 }
 
 const Dashboard = () => {
@@ -105,13 +105,13 @@ const Dashboard = () => {
 
       if (tasksError) throw tasksError;
 
-      const transformedTasks: Task[] = (tasksData || []).map(task => ({
+      const transformedTasks: Task[] = (data || []).map(task => ({
         ...task,
-        profiles: task.profiles && typeof task.profiles === 'object' && !('error' in task.profiles)
-          ? task.profiles
+        profiles: task.profiles && typeof task.profiles === 'object' && !Array.isArray(task.profiles) && 'full_name' in task.profiles
+          ? task.profiles as TaskProfile
           : null,
-        assigned_by_profile: task.assigned_by_profile && typeof task.assigned_by_profile === 'object' && !('error' in task.assigned_by_profile)
-          ? task.assigned_by_profile
+        assigned_by_profile: task.assigned_by_profile && typeof task.assigned_by_profile === 'object' && !Array.isArray(task.assigned_by_profile) && 'full_name' in task.assigned_by_profile
+          ? task.assigned_by_profile as TaskProfile
           : null
       }));
 

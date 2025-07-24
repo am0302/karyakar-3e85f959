@@ -23,6 +23,10 @@ import { KaryakarStats } from '@/components/KaryakarStats';
 import { KaryakarTableView } from '@/components/KaryakarTableView';
 import { KaryakarGridView } from '@/components/KaryakarGridView';
 
+interface RelatedData {
+  name: string;
+}
+
 interface Profile {
   id: string;
   full_name: string;
@@ -43,24 +47,12 @@ interface Profile {
   profile_photo_url?: string;
   updated_at: string;
   whatsapp_number?: string;
-  professions?: {
-    name: string;
-  } | null;
-  seva_types?: {
-    name: string;
-  } | null;
-  mandirs?: {
-    name: string;
-  } | null;
-  kshetras?: {
-    name: string;
-  } | null;
-  villages?: {
-    name: string;
-  } | null;
-  mandals?: {
-    name: string;
-  } | null;
+  professions?: RelatedData | null;
+  seva_types?: RelatedData | null;
+  mandirs?: RelatedData | null;
+  kshetras?: RelatedData | null;
+  villages?: RelatedData | null;
+  mandals?: RelatedData | null;
 }
 
 const Karyakars = () => {
@@ -109,23 +101,23 @@ const Karyakars = () => {
       // Transform the data to handle potential query errors
       const transformedProfiles: Profile[] = (data || []).map(profile => ({
         ...profile,
-        professions: profile.professions && typeof profile.professions === 'object' && !('error' in profile.professions)
-          ? profile.professions 
+        professions: profile.professions && typeof profile.professions === 'object' && !Array.isArray(profile.professions) && 'name' in profile.professions
+          ? profile.professions as RelatedData
           : null,
-        seva_types: profile.seva_types && typeof profile.seva_types === 'object' && !('error' in profile.seva_types)
-          ? profile.seva_types 
+        seva_types: profile.seva_types && typeof profile.seva_types === 'object' && !Array.isArray(profile.seva_types) && 'name' in profile.seva_types
+          ? profile.seva_types as RelatedData
           : null,
-        mandirs: profile.mandirs && typeof profile.mandirs === 'object' && !('error' in profile.mandirs)
-          ? profile.mandirs 
+        mandirs: profile.mandirs && typeof profile.mandirs === 'object' && !Array.isArray(profile.mandirs) && 'name' in profile.mandirs
+          ? profile.mandirs as RelatedData
           : null,
-        kshetras: profile.kshetras && typeof profile.kshetras === 'object' && !('error' in profile.kshetras)
-          ? profile.kshetras 
+        kshetras: profile.kshetras && typeof profile.kshetras === 'object' && !Array.isArray(profile.kshetras) && 'name' in profile.kshetras
+          ? profile.kshetras as RelatedData
           : null,
-        villages: profile.villages && typeof profile.villages === 'object' && !('error' in profile.villages)
-          ? profile.villages 
+        villages: profile.villages && typeof profile.villages === 'object' && !Array.isArray(profile.villages) && 'name' in profile.villages
+          ? profile.villages as RelatedData
           : null,
-        mandals: profile.mandals && typeof profile.mandals === 'object' && !('error' in profile.mandals)
-          ? profile.mandals 
+        mandals: profile.mandals && typeof profile.mandals === 'object' && !Array.isArray(profile.mandals) && 'name' in profile.mandals
+          ? profile.mandals as RelatedData
           : null
       }));
 

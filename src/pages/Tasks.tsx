@@ -24,6 +24,10 @@ import {
 type TaskStatus = 'pending' | 'in_progress' | 'completed';
 type TaskPriority = 'low' | 'medium' | 'high';
 
+interface TaskProfile {
+  full_name: string;
+}
+
 interface Task {
   id: string;
   title: string;
@@ -34,12 +38,8 @@ interface Task {
   assigned_to: string;
   assigned_by: string;
   created_at: string;
-  profiles?: {
-    full_name: string;
-  } | null;
-  assigned_to_profile?: {
-    full_name: string;
-  } | null;
+  profiles?: TaskProfile | null;
+  assigned_to_profile?: TaskProfile | null;
 }
 
 interface Profile {
@@ -90,11 +90,11 @@ const Tasks = () => {
 
       const transformedTasks: Task[] = (data || []).map(task => ({
         ...task,
-        profiles: task.profiles && typeof task.profiles === 'object' && !('error' in task.profiles)
-          ? task.profiles
+        profiles: task.profiles && typeof task.profiles === 'object' && !Array.isArray(task.profiles) && 'full_name' in task.profiles
+          ? task.profiles as TaskProfile
           : null,
-        assigned_to_profile: task.assigned_to_profile && typeof task.assigned_to_profile === 'object' && !('error' in task.assigned_to_profile)
-          ? task.assigned_to_profile
+        assigned_to_profile: task.assigned_to_profile && typeof task.assigned_to_profile === 'object' && !Array.isArray(task.assigned_to_profile) && 'full_name' in task.assigned_to_profile
+          ? task.assigned_to_profile as TaskProfile
           : null
       }));
 
@@ -139,7 +139,7 @@ const Tasks = () => {
             assigned_by: user.id,
             assigned_to: formData.assigned_to,
             priority: formData.priority,
-            task_type: formData.task_type,
+            task_type: formData.task_type as 'general' | 'personal',
             due_date: formData.due_date,
             status: 'pending' as TaskStatus,
           },

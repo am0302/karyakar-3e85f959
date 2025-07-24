@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,10 +26,7 @@ interface Message {
   created_at: string;
   sender_id: string;
   room_id: string;
-  profiles?: {
-    full_name: string;
-    profile_photo_url?: string;
-  } | null;
+  profiles?: Profile | null;
 }
 
 interface ChatRoom {
@@ -96,10 +94,10 @@ const Communication = () => {
 
       if (error) throw error;
 
-      const transformedMessages = (data || []).map(message => ({
+      const transformedMessages: Message[] = (data || []).map(message => ({
         ...message,
-        profiles: message.profiles && typeof message.profiles === 'object' && !('error' in message.profiles)
-          ? message.profiles
+        profiles: message.profiles && typeof message.profiles === 'object' && !Array.isArray(message.profiles) && 'full_name' in message.profiles
+          ? message.profiles as Profile
           : null
       }));
 
