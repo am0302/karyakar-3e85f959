@@ -27,7 +27,7 @@ export const useMasterData = (table: TableName, title: string, onSuccess: () => 
     try {
       let query = supabase.from(table).select('*');
       
-      // For custom_roles, show all roles including inactive ones
+      // For custom_roles, don't filter by is_active initially to show all
       if (table !== 'custom_roles') {
         query = query.eq('is_active', true);
       }
@@ -38,11 +38,6 @@ export const useMasterData = (table: TableName, title: string, onSuccess: () => 
       setExistingData(data || []);
     } catch (error: any) {
       console.error(`Error loading existing ${table} data:`, error);
-      toast({
-        title: "Error",
-        description: `Failed to load ${title} data: ${error.message}`,
-        variant: "destructive",
-      });
     }
   };
 
@@ -67,7 +62,6 @@ export const useMasterData = (table: TableName, title: string, onSuccess: () => 
       // For custom_roles, ensure is_system_role is set to false for new roles
       if (table === 'custom_roles' && !editingItem) {
         (dataToSubmit as any).is_system_role = false;
-        (dataToSubmit as any).is_active = dataToSubmit.is_active ?? true;
       }
 
       if (editingItem) {
@@ -97,16 +91,12 @@ export const useMasterData = (table: TableName, title: string, onSuccess: () => 
 
       setFormData({});
       setEditingItem(null);
-      
-      // Refresh the data and call onSuccess
-      await loadExistingData();
       onSuccess();
-      
+      loadExistingData();
     } catch (error: any) {
-      console.error(`Error saving ${table}:`, error);
       toast({
         title: "Error",
-        description: error.message || `Failed to save ${title}`,
+        description: error.message,
         variant: "destructive",
       });
     } finally {
@@ -156,13 +146,12 @@ export const useMasterData = (table: TableName, title: string, onSuccess: () => 
         description: `${title} deleted successfully`,
       });
 
-      await loadExistingData();
+      loadExistingData();
       onSuccess();
     } catch (error: any) {
-      console.error(`Error deleting ${table}:`, error);
       toast({
         title: "Error",
-        description: error.message || `Failed to delete ${title}`,
+        description: error.message,
         variant: "destructive",
       });
     }

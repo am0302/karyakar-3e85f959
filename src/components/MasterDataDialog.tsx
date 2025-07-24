@@ -44,31 +44,14 @@ export const MasterDataDialog = ({ title, table, fields, onSuccess }: MasterData
     handleDelete,
     updateFormData,
     resetForm,
-  } = useMasterData(table, title, () => {
-    onSuccess();
-    // Don't close dialog or redirect, just refresh data
-    loadExistingData();
-  });
+  } = useMasterData(table, title, onSuccess);
 
-  // Load existing data when dialog opens
   useEffect(() => {
     if (open) {
       loadForeignKeyOptions();
       loadExistingData();
     }
   }, [open]);
-
-  // Load existing data immediately when component mounts
-  useEffect(() => {
-    loadExistingData();
-  }, []);
-
-  const getDisplayName = (item: any) => {
-    if (table === 'custom_roles') {
-      return item.display_name || item.role_name || item.name;
-    }
-    return item.display_name || item.name;
-  };
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
@@ -81,7 +64,7 @@ export const MasterDataDialog = ({ title, table, fields, onSuccess }: MasterData
           Add {title}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{editingItem ? 'Edit' : 'Add New'} {title}</DialogTitle>
         </DialogHeader>
@@ -97,10 +80,7 @@ export const MasterDataDialog = ({ title, table, fields, onSuccess }: MasterData
               loading={loading}
               onFormDataChange={updateFormData}
               onSubmit={handleSubmit}
-              onCancel={() => {
-                resetForm();
-                // Don't close dialog, just reset form
-              }}
+              onCancel={() => setOpen(false)}
             />
           </div>
 
@@ -111,7 +91,6 @@ export const MasterDataDialog = ({ title, table, fields, onSuccess }: MasterData
               data={existingData}
               onEdit={handleEdit}
               onDelete={handleDelete}
-              getDisplayName={getDisplayName}
             />
           </div>
         </div>

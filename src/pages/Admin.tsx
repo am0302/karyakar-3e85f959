@@ -1,81 +1,72 @@
 
-import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PermissionsManager } from "@/components/PermissionsManager";
 import { RoleHierarchyManager } from "@/components/RoleHierarchyManager";
 import { UserLocationAssignment } from "@/components/UserLocationAssignment";
 import { MasterDataDialog } from "@/components/MasterDataDialog";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { Shield, Network, MapPin, Users, Briefcase, Star } from "lucide-react";
+import { Shield, Network, MapPin, Users, Briefcase, Star, Database } from "lucide-react";
 
 const Admin = () => {
-  const [refreshKey, setRefreshKey] = useState(0);
-
   const handleSuccess = () => {
-    // Just refresh the component data, don't reload the page
-    setRefreshKey(prev => prev + 1);
+    // Refresh data after successful operations
+    window.location.reload();
   };
 
   return (
     <ProtectedRoute module="admin" action="view">
-      <div className="space-y-6 p-4 md:p-6">
+      <div className="space-y-6 p-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Admin Panel</h1>
-          <p className="text-gray-600 mt-2">Manage system settings, permissions, and user roles</p>
+          <h1 className="text-3xl font-bold text-gray-900">Admin Panel</h1>
+          <p className="text-gray-600">Manage system settings, permissions, and user roles</p>
         </div>
 
         <Tabs defaultValue="permissions" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 md:grid-cols-6 gap-1">
-            <TabsTrigger value="permissions" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
-              <Shield className="h-3 w-3 md:h-4 md:w-4" />
+          <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="permissions" className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
               <span className="hidden sm:inline">Permissions</span>
-              <span className="sm:hidden">Perms</span>
             </TabsTrigger>
-            <TabsTrigger value="hierarchy" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
-              <Network className="h-3 w-3 md:h-4 md:w-4" />
-              <span className="hidden sm:inline">Hierarchy</span>
-              <span className="sm:hidden">Hier</span>
+            <TabsTrigger value="hierarchy" className="flex items-center gap-2">
+              <Network className="h-4 w-4" />
+              <span className="hidden sm:inline">Role Hierarchy</span>
             </TabsTrigger>
-            <TabsTrigger value="locations" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
-              <MapPin className="h-3 w-3 md:h-4 md:w-4" />
-              <span className="hidden sm:inline">Locations</span>
-              <span className="sm:hidden">Loc</span>
+            <TabsTrigger value="locations" className="flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              <span className="hidden sm:inline">Location Assignments</span>
             </TabsTrigger>
-            <TabsTrigger value="roles" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
-              <Users className="h-3 w-3 md:h-4 md:w-4" />
-              <span className="hidden sm:inline">Roles</span>
-              <span className="sm:hidden">Roles</span>
+            <TabsTrigger value="roles" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">User Roles</span>
             </TabsTrigger>
-            <TabsTrigger value="professions" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
-              <Briefcase className="h-3 w-3 md:h-4 md:w-4" />
+            <TabsTrigger value="professions" className="flex items-center gap-2">
+              <Briefcase className="h-4 w-4" />
               <span className="hidden sm:inline">Professions</span>
-              <span className="sm:hidden">Prof</span>
             </TabsTrigger>
-            <TabsTrigger value="seva-types" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
-              <Star className="h-3 w-3 md:h-4 md:w-4" />
+            <TabsTrigger value="seva-types" className="flex items-center gap-2">
+              <Star className="h-4 w-4" />
               <span className="hidden sm:inline">Seva Types</span>
-              <span className="sm:hidden">Seva</span>
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="permissions" className="space-y-6">
-            <PermissionsManager key={`permissions-${refreshKey}`} />
+            <PermissionsManager />
           </TabsContent>
 
           <TabsContent value="hierarchy" className="space-y-6">
-            <RoleHierarchyManager key={`hierarchy-${refreshKey}`} />
+            <RoleHierarchyManager />
           </TabsContent>
 
           <TabsContent value="locations" className="space-y-6">
-            <UserLocationAssignment key={`locations-${refreshKey}`} />
+            <UserLocationAssignment />
           </TabsContent>
 
           <TabsContent value="roles" className="space-y-6">
-            <div className="bg-white p-4 md:p-6 rounded-lg shadow">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+            <div className="bg-white p-6 rounded-lg shadow">
+              <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="text-lg md:text-xl font-semibold">User Roles Management</h2>
-                  <p className="text-gray-600 text-sm md:text-base">Manage custom user roles and permissions</p>
+                  <h2 className="text-xl font-semibold">User Roles Management</h2>
+                  <p className="text-gray-600">Manage custom user roles and permissions</p>
                 </div>
                 <MasterDataDialog
                   title="User Role"
@@ -92,11 +83,11 @@ const Admin = () => {
           </TabsContent>
 
           <TabsContent value="professions" className="space-y-6">
-            <div className="bg-white p-4 md:p-6 rounded-lg shadow">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+            <div className="bg-white p-6 rounded-lg shadow">
+              <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="text-lg md:text-xl font-semibold">Professions Management</h2>
-                  <p className="text-gray-600 text-sm md:text-base">Manage available professions for karyakars</p>
+                  <h2 className="text-xl font-semibold">Professions Management</h2>
+                  <p className="text-gray-600">Manage available professions for karyakars</p>
                 </div>
                 <MasterDataDialog
                   title="Profession"
@@ -112,11 +103,11 @@ const Admin = () => {
           </TabsContent>
 
           <TabsContent value="seva-types" className="space-y-6">
-            <div className="bg-white p-4 md:p-6 rounded-lg shadow">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+            <div className="bg-white p-6 rounded-lg shadow">
+              <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="text-lg md:text-xl font-semibold">Seva Types Management</h2>
-                  <p className="text-gray-600 text-sm md:text-base">Manage available seva types for karyakars</p>
+                  <h2 className="text-xl font-semibold">Seva Types Management</h2>
+                  <p className="text-gray-600">Manage available seva types for karyakars</p>
                 </div>
                 <MasterDataDialog
                   title="Seva Type"
