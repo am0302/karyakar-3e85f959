@@ -23,9 +23,26 @@ export const KaryakarFilters = ({
 }: KaryakarFiltersProps) => {
   const { getRoleOptions } = useDynamicRoles();
 
+  // Filter role options to ensure no empty values
+  const validRoleOptions = getRoleOptions().filter(option => 
+    option && 
+    option.value && 
+    typeof option.value === 'string' && 
+    option.value.trim() !== '' &&
+    option.label &&
+    typeof option.label === 'string' &&
+    option.label.trim() !== ''
+  );
+
   const roleOptions = [
-    { value: 'all', label: 'All Roles' },
-    ...getRoleOptions()
+    { value: 'all_roles', label: 'All Roles' },
+    ...validRoleOptions
+  ];
+
+  const statusOptions = [
+    { value: 'all_status', label: 'All Status' },
+    { value: 'active', label: 'Active' },
+    { value: 'inactive', label: 'Inactive' },
   ];
 
   return (
@@ -41,20 +58,16 @@ export const KaryakarFilters = ({
       
       <SearchableSelect
         options={roleOptions}
-        value={selectedRole || 'all'}
-        onValueChange={(value) => setSelectedRole(value === 'all' ? '' : value)}
+        value={selectedRole || 'all_roles'}
+        onValueChange={(value) => setSelectedRole(value === 'all_roles' ? '' : value)}
         placeholder="Filter by Role"
         className="w-48"
       />
       
       <SearchableSelect
-        options={[
-          { value: 'all', label: 'All Status' },
-          { value: 'active', label: 'Active' },
-          { value: 'inactive', label: 'Inactive' },
-        ]}
-        value={selectedStatus || 'all'}
-        onValueChange={(value) => setSelectedStatus(value === 'all' ? '' : value)}
+        options={statusOptions}
+        value={selectedStatus || 'all_status'}
+        onValueChange={(value) => setSelectedStatus(value === 'all_status' ? '' : value)}
         placeholder="Filter by Status"
         className="w-48"
       />
