@@ -80,27 +80,27 @@ export const useForeignKeyOptions = (fields: FormField[]) => {
 
           if (data && Array.isArray(data)) {
             options[field.name] = data
-              .filter(item => 
-                item && 
-                item.id && 
-                typeof item.id === 'string' && 
-                item.id.toString().trim() !== '' &&
-                item.name &&
-                typeof item.name === 'string' &&
-                item.name.trim() !== ''
-              )
+              .filter(item => {
+                // Ultra-strict filtering to prevent empty values
+                if (!item || typeof item !== 'object') return false;
+                
+                if (!item.id || (typeof item.id !== 'string' && typeof item.id !== 'number') || item.id.toString().trim() === '') {
+                  console.warn(`useForeignKeyOptions: Filtering out ${field.foreignKey} item with invalid id:`, item);
+                  return false;
+                }
+                
+                if (!item.name || typeof item.name !== 'string' || item.name.trim() === '') {
+                  console.warn(`useForeignKeyOptions: Filtering out ${field.foreignKey} item with invalid name:`, item);
+                  return false;
+                }
+                
+                return true;
+              })
               .map(item => ({
-                value: item.id.toString(),
-                label: item.name || item.id.toString()
+                value: item.id.toString().trim(),
+                label: item.name.trim()
               }))
-              .filter(option => 
-                option.value && 
-                typeof option.value === 'string' && 
-                option.value.trim() !== '' &&
-                option.label &&
-                typeof option.label === 'string' &&
-                option.label.trim() !== ''
-              );
+              .filter(option => option.value.length > 0 && option.label.length > 0);
           }
         } catch (error) {
           console.error(`Error loading ${field.foreignKey} options:`, error);

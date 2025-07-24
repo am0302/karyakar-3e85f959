@@ -50,23 +50,35 @@ export const useDynamicRoles = () => {
 
   const getRoleOptions = () => {
     return roles
-      .filter(role => 
-        role && 
-        role.role_name && 
-        typeof role.role_name === 'string' && 
-        role.role_name.trim() !== '' &&
-        role.display_name &&
-        typeof role.display_name === 'string' &&
-        role.display_name.trim() !== ''
-      )
+      .filter(role => {
+        // Ultra-strict filtering to prevent empty values
+        if (!role || typeof role !== 'object') return false;
+        
+        if (!role.role_name || typeof role.role_name !== 'string' || role.role_name.trim() === '') {
+          console.warn('useDynamicRoles: Filtering out role with invalid role_name:', role);
+          return false;
+        }
+        
+        if (!role.display_name || typeof role.display_name !== 'string' || role.display_name.trim() === '') {
+          console.warn('useDynamicRoles: Filtering out role with invalid display_name:', role);
+          return false;
+        }
+        
+        return true;
+      })
       .map(role => ({
-        value: role.role_name,
-        label: role.display_name || role.role_name
-      }));
+        value: role.role_name.trim(),
+        label: (role.display_name || role.role_name).trim()
+      }))
+      .filter(option => option.value.length > 0 && option.label.length > 0);
   };
 
   const getRoleDisplayName = (roleName: string) => {
-    const role = roles.find(r => r.role_name === roleName);
+    if (!roleName || typeof roleName !== 'string' || roleName.trim() === '') {
+      return 'Unknown Role';
+    }
+    
+    const role = roles.find(r => r.role_name === roleName.trim());
     return role?.display_name || roleName;
   };
 
