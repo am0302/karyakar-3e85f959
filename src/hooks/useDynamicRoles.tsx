@@ -50,7 +50,15 @@ export const useDynamicRoles = () => {
 
   const getRoleOptions = () => {
     return roles
-      .filter(role => role.role_name && role.role_name.trim() !== '') // Filter out empty role names
+      .filter(role => 
+        role && 
+        role.role_name && 
+        typeof role.role_name === 'string' && 
+        role.role_name.trim() !== '' &&
+        role.display_name &&
+        typeof role.display_name === 'string' &&
+        role.display_name.trim() !== ''
+      )
       .map(role => ({
         value: role.role_name,
         label: role.display_name || role.role_name
