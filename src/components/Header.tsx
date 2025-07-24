@@ -2,13 +2,13 @@
 import { Bell, Menu, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "next-themes";
-import { UserProfile } from "./UserProfile";
+import UserProfile from "./UserProfile";
 
 interface HeaderProps {
   onMenuClick: () => void;
 }
 
-export const Header = ({ onMenuClick }: HeaderProps) => {
+const Header = ({ onMenuClick }: HeaderProps) => {
   const { theme, setTheme } = useTheme();
 
   return (
@@ -45,3 +45,5 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
     </header>
   );
 };
+
+export default Header;
