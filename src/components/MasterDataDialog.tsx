@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,10 +26,17 @@ interface MasterDataDialogProps {
     options?: Array<{ value: string; label: string }>;
     foreignKey?: string;
   }>;
-  onSuccess: () => void;
+  onSuccess?: () => void;
+  autoLoad?: boolean;
 }
 
-export const MasterDataDialog = ({ title, table, fields, onSuccess }: MasterDataDialogProps) => {
+export const MasterDataDialog = ({ 
+  title, 
+  table, 
+  fields, 
+  onSuccess,
+  autoLoad = false 
+}: MasterDataDialogProps) => {
   const [open, setOpen] = useState(false);
   const { foreignKeyOptions, loadForeignKeyOptions } = useForeignKeyOptions(fields);
   const {
@@ -46,55 +52,95 @@ export const MasterDataDialog = ({ title, table, fields, onSuccess }: MasterData
     resetForm,
   } = useMasterData(table, title, onSuccess);
 
+  // Auto-load existing data when component mounts if autoLoad is true
+  useEffect(() => {
+    if (autoLoad) {
+      loadExistingData();
+      loadForeignKeyOptions();
+    }
+  }, [autoLoad]);
+
   useEffect(() => {
     if (open) {
-      loadForeignKeyOptions();
-      loadExistingData();
+      if (!autoLoad) {
+        loadForeignKeyOptions();
+        loadExistingData();
+      }
     }
-  }, [open]);
+  }, [open, autoLoad]);
+
+  const getDisplayName = (item: any) => {
+    if (table === 'custom_roles') {
+      return item.display_name || item.role_name;
+    }
+    return item.name;
+  };
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => {
-      setOpen(isOpen);
-      if (!isOpen) resetForm();
-    }}>
-      <DialogTrigger asChild>
-        <Button size="sm">
-          <Plus className="h-4 w-4 mr-2" />
-          Add {title}
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{editingItem ? 'Edit' : 'Add New'} {title}</DialogTitle>
-        </DialogHeader>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Form Section */}
-          <div>
-            <MasterDataForm
-              fields={fields}
-              formData={formData}
-              foreignKeyOptions={foreignKeyOptions}
-              editingItem={editingItem}
-              loading={loading}
-              onFormDataChange={updateFormData}
-              onSubmit={handleSubmit}
-              onCancel={() => setOpen(false)}
-            />
+    <div className="space-y-4">
+      {/* Show existing data if autoLoad is true */}
+      {autoLoad && existingData.length > 0 && (
+        <div className="bg-white rounded-lg border">
+          <div className="p-4 border-b">
+            <h3 className="text-lg font-semibold">Existing {title}s</h3>
           </div>
-
-          {/* Existing Data Section */}
-          <div>
+          <div className="p-4">
             <MasterDataTable
               title={title}
               data={existingData}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              getDisplayName={getDisplayName}
             />
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      )}
+
+      <Dialog open={open} onOpenChange={(isOpen) => {
+        setOpen(isOpen);
+        if (!isOpen) resetForm();
+      }}>
+        <DialogTrigger asChild>
+          <Button size="sm">
+            <Plus className="h-4 w-4 mr-2" />
+            Add {title}
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingItem ? 'Edit' : 'Add New'} {title}</DialogTitle>
+          </DialogHeader>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Form Section */}
+            <div>
+              <MasterDataForm
+                fields={fields}
+                formData={formData}
+                foreignKeyOptions={foreignKeyOptions}
+                editingItem={editingItem}
+                loading={loading}
+                onFormDataChange={updateFormData}
+                onSubmit={handleSubmit}
+                onCancel={() => setOpen(false)}
+              />
+            </div>
+
+            {/* Existing Data Section - only show if not autoLoad */}
+            {!autoLoad && (
+              <div>
+                <MasterDataTable
+                  title={title}
+                  data={existingData}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  getDisplayName={getDisplayName}
+                />
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 };

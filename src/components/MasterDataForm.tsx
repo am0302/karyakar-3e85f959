@@ -36,39 +36,67 @@ export const MasterDataForm = ({
   onSubmit,
   onCancel,
 }: MasterDataFormProps) => {
+  const renderField = (field: FormField) => {
+    if (field.type === 'textarea') {
+      return (
+        <Textarea
+          id={field.name}
+          value={formData[field.name] || ''}
+          onChange={(e) => onFormDataChange(field.name, e.target.value)}
+          required={field.required}
+          className="min-h-[80px]"
+        />
+      );
+    }
+
+    if (field.type === 'select') {
+      // Handle static options
+      if (field.options) {
+        return (
+          <SearchableSelect
+            options={field.options}
+            value={formData[field.name] || ''}
+            onValueChange={(value) => onFormDataChange(field.name, value)}
+            placeholder={`Select ${field.label}`}
+          />
+        );
+      }
+      
+      // Handle foreign key options
+      if (field.foreignKey) {
+        return (
+          <SearchableSelect
+            options={foreignKeyOptions[field.name] || []}
+            value={formData[field.name] || ''}
+            onValueChange={(value) => onFormDataChange(field.name, value)}
+            placeholder={`Select ${field.label}`}
+          />
+        );
+      }
+    }
+
+    return (
+      <Input
+        id={field.name}
+        type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : field.type === 'time' ? 'time' : 'text'}
+        value={formData[field.name] || ''}
+        onChange={(e) => onFormDataChange(field.name, e.target.value)}
+        required={field.required}
+      />
+    );
+  };
+
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       {fields.map((field) => (
         <div key={field.name} className="space-y-2">
-          <Label htmlFor={field.name}>
+          <Label htmlFor={field.name} className="text-sm font-medium">
             {field.label} {field.required && <span className="text-red-500">*</span>}
           </Label>
-          {field.type === 'textarea' ? (
-            <Textarea
-              id={field.name}
-              value={formData[field.name] || ''}
-              onChange={(e) => onFormDataChange(field.name, e.target.value)}
-              required={field.required}
-            />
-          ) : field.type === 'select' && field.foreignKey ? (
-            <SearchableSelect
-              options={foreignKeyOptions[field.name] || []}
-              value={formData[field.name] || ''}
-              onValueChange={(value) => onFormDataChange(field.name, value)}
-              placeholder={`Select ${field.label}`}
-            />
-          ) : (
-            <Input
-              id={field.name}
-              type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : field.type === 'time' ? 'time' : 'text'}
-              value={formData[field.name] || ''}
-              onChange={(e) => onFormDataChange(field.name, e.target.value)}
-              required={field.required}
-            />
-          )}
+          {renderField(field)}
         </div>
       ))}
-      <div className="flex justify-end space-x-2">
+      <div className="flex justify-end space-x-2 pt-4">
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>

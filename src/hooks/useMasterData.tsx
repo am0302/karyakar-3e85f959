@@ -16,7 +16,7 @@ type TableInsertTypes = {
   custom_roles: Database['public']['Tables']['custom_roles']['Insert'];
 };
 
-export const useMasterData = (table: TableName, title: string, onSuccess: () => void) => {
+export const useMasterData = (table: TableName, title: string, onSuccess?: () => void) => {
   const [existingData, setExistingData] = useState<any[]>([]);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [formData, setFormData] = useState<Partial<TableInsertTypes[TableName]>>({});
@@ -91,8 +91,8 @@ export const useMasterData = (table: TableName, title: string, onSuccess: () => 
 
       setFormData({});
       setEditingItem(null);
-      onSuccess();
       loadExistingData();
+      if (onSuccess) onSuccess();
     } catch (error: any) {
       toast({
         title: "Error",
@@ -147,7 +147,7 @@ export const useMasterData = (table: TableName, title: string, onSuccess: () => 
       });
 
       loadExistingData();
-      onSuccess();
+      if (onSuccess) onSuccess();
     } catch (error: any) {
       toast({
         title: "Error",

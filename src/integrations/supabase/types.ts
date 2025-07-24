@@ -134,6 +134,8 @@ export type Database = {
           is_active: boolean | null
           is_system_role: boolean | null
           role_name: string
+          status: string | null
+          type: string | null
           updated_at: string
         }
         Insert: {
@@ -144,6 +146,8 @@ export type Database = {
           is_active?: boolean | null
           is_system_role?: boolean | null
           role_name: string
+          status?: string | null
+          type?: string | null
           updated_at?: string
         }
         Update: {
@@ -154,6 +158,8 @@ export type Database = {
           is_active?: boolean | null
           is_system_role?: boolean | null
           role_name?: string
+          status?: string | null
+          type?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -1072,6 +1078,10 @@ export type Database = {
         Args: { room_id: string; user_id: string }
         Returns: boolean
       }
+      sync_custom_roles_with_enum: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       task_priority: "low" | "medium" | "high" | "urgent"
@@ -1084,6 +1094,9 @@ export type Database = {
         | "mandal_sanchalak"
         | "karyakar"
         | "sevak"
+        | "admin"
+        | "moderator"
+        | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1221,6 +1234,9 @@ export const Constants = {
         "mandal_sanchalak",
         "karyakar",
         "sevak",
+        "admin",
+        "moderator",
+        "user",
       ],
     },
   },

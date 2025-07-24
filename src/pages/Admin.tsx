@@ -5,47 +5,53 @@ import { RoleHierarchyManager } from "@/components/RoleHierarchyManager";
 import { UserLocationAssignment } from "@/components/UserLocationAssignment";
 import { MasterDataDialog } from "@/components/MasterDataDialog";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { Shield, Network, MapPin, Users, Briefcase, Star, Database } from "lucide-react";
+import { Shield, Network, MapPin, Users, Briefcase, Star } from "lucide-react";
 
 const Admin = () => {
   const handleSuccess = () => {
-    // Refresh data after successful operations
-    window.location.reload();
+    // Just show success message, don't reload the page
+    console.log("Operation successful");
   };
 
   return (
     <ProtectedRoute module="admin" action="view">
-      <div className="space-y-6 p-6">
+      <div className="space-y-6 p-4 sm:p-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Admin Panel</h1>
-          <p className="text-gray-600">Manage system settings, permissions, and user roles</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Admin Panel</h1>
+          <p className="text-gray-600 mt-1">Manage system settings, permissions, and user roles</p>
         </div>
 
         <Tabs defaultValue="permissions" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="permissions" className="flex items-center gap-2">
-              <Shield className="h-4 w-4" />
+          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 gap-1">
+            <TabsTrigger value="permissions" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+              <Shield className="h-3 w-3 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline">Permissions</span>
+              <span className="sm:hidden">Perm</span>
             </TabsTrigger>
-            <TabsTrigger value="hierarchy" className="flex items-center gap-2">
-              <Network className="h-4 w-4" />
+            <TabsTrigger value="hierarchy" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+              <Network className="h-3 w-3 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline">Role Hierarchy</span>
+              <span className="sm:hidden">Roles</span>
             </TabsTrigger>
-            <TabsTrigger value="locations" className="flex items-center gap-2">
-              <MapPin className="h-4 w-4" />
+            <TabsTrigger value="locations" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+              <MapPin className="h-3 w-3 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline">Location Assignments</span>
+              <span className="sm:hidden">Locations</span>
             </TabsTrigger>
-            <TabsTrigger value="roles" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
+            <TabsTrigger value="roles" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+              <Users className="h-3 w-3 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline">User Roles</span>
+              <span className="sm:hidden">Users</span>
             </TabsTrigger>
-            <TabsTrigger value="professions" className="flex items-center gap-2">
-              <Briefcase className="h-4 w-4" />
+            <TabsTrigger value="professions" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+              <Briefcase className="h-3 w-3 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline">Professions</span>
+              <span className="sm:hidden">Prof</span>
             </TabsTrigger>
-            <TabsTrigger value="seva-types" className="flex items-center gap-2">
-              <Star className="h-4 w-4" />
+            <TabsTrigger value="seva-types" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+              <Star className="h-3 w-3 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline">Seva Types</span>
+              <span className="sm:hidden">Seva</span>
             </TabsTrigger>
           </TabsList>
 
@@ -62,12 +68,16 @@ const Admin = () => {
           </TabsContent>
 
           <TabsContent value="roles" className="space-y-6">
-            <div className="bg-white p-6 rounded-lg shadow">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-xl font-semibold">User Roles Management</h2>
-                  <p className="text-gray-600">Manage custom user roles and permissions</p>
+            <div className="bg-white rounded-lg shadow">
+              <div className="p-4 sm:p-6 border-b">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg sm:text-xl font-semibold">User Roles Management</h2>
+                    <p className="text-gray-600 text-sm sm:text-base">Manage custom user roles and permissions</p>
+                  </div>
                 </div>
+              </div>
+              <div className="p-4 sm:p-6">
                 <MasterDataDialog
                   title="User Role"
                   table="custom_roles"
@@ -75,20 +85,43 @@ const Admin = () => {
                     { name: 'role_name', label: 'Role Name', type: 'text', required: true },
                     { name: 'display_name', label: 'Display Name', type: 'text', required: true },
                     { name: 'description', label: 'Description', type: 'textarea' },
+                    { 
+                      name: 'type', 
+                      label: 'Type', 
+                      type: 'select', 
+                      options: [
+                        { value: 'system', label: 'System' },
+                        { value: 'custom', label: 'Custom' }
+                      ]
+                    },
+                    { 
+                      name: 'status', 
+                      label: 'Status', 
+                      type: 'select', 
+                      options: [
+                        { value: 'active', label: 'Active' },
+                        { value: 'inactive', label: 'Inactive' }
+                      ]
+                    },
                   ]}
                   onSuccess={handleSuccess}
+                  autoLoad={true}
                 />
               </div>
             </div>
           </TabsContent>
 
           <TabsContent value="professions" className="space-y-6">
-            <div className="bg-white p-6 rounded-lg shadow">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-xl font-semibold">Professions Management</h2>
-                  <p className="text-gray-600">Manage available professions for karyakars</p>
+            <div className="bg-white rounded-lg shadow">
+              <div className="p-4 sm:p-6 border-b">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg sm:text-xl font-semibold">Professions Management</h2>
+                    <p className="text-gray-600 text-sm sm:text-base">Manage available professions for karyakars</p>
+                  </div>
                 </div>
+              </div>
+              <div className="p-4 sm:p-6">
                 <MasterDataDialog
                   title="Profession"
                   table="professions"
@@ -97,18 +130,23 @@ const Admin = () => {
                     { name: 'description', label: 'Description', type: 'textarea' },
                   ]}
                   onSuccess={handleSuccess}
+                  autoLoad={true}
                 />
               </div>
             </div>
           </TabsContent>
 
           <TabsContent value="seva-types" className="space-y-6">
-            <div className="bg-white p-6 rounded-lg shadow">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-xl font-semibold">Seva Types Management</h2>
-                  <p className="text-gray-600">Manage available seva types for karyakars</p>
+            <div className="bg-white rounded-lg shadow">
+              <div className="p-4 sm:p-6 border-b">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg sm:text-xl font-semibold">Seva Types Management</h2>
+                    <p className="text-gray-600 text-sm sm:text-base">Manage available seva types for karyakars</p>
+                  </div>
                 </div>
+              </div>
+              <div className="p-4 sm:p-6">
                 <MasterDataDialog
                   title="Seva Type"
                   table="seva_types"
@@ -117,6 +155,7 @@ const Admin = () => {
                     { name: 'description', label: 'Description', type: 'textarea' },
                   ]}
                   onSuccess={handleSuccess}
+                  autoLoad={true}
                 />
               </div>
             </div>
