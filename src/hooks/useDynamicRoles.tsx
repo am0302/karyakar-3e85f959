@@ -49,10 +49,12 @@ export const useDynamicRoles = () => {
   }, []);
 
   const getRoleOptions = () => {
-    return roles.map(role => ({
-      value: role.role_name,
-      label: role.display_name
-    }));
+    return roles
+      .filter(role => role.role_name && role.role_name.trim() !== '') // Filter out empty role names
+      .map(role => ({
+        value: role.role_name,
+        label: role.display_name || role.role_name
+      }));
   };
 
   const getRoleDisplayName = (roleName: string) => {
