@@ -11,7 +11,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { User, Mail, Phone, Calendar, MapPin, Save, Upload } from 'lucide-react';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 const UserProfile = () => {
   const { user, refreshUser } = useAuth();
@@ -124,30 +123,10 @@ const UserProfile = () => {
   }
 
   return (
-    <div className="container mx-auto p-4">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
-          <p className="text-gray-600">Manage your personal information</p>
-        </div>
-        
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Avatar className="h-8 w-8 cursor-pointer">
-              <AvatarImage src={profile.profile_photo_url} alt={user?.full_name || 'User'} />
-              <AvatarFallback>{getInitials(user?.full_name || 'U')}</AvatarFallback>
-            </Avatar>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <div className="px-3 py-2">
-              <p className="text-sm font-medium">{user?.full_name}</p>
-              <p className="text-xs text-muted-foreground">{user?.email}</p>
-            </div>
-            <DropdownMenuItem>Profile</DropdownMenuItem>
-            <DropdownMenuItem>Settings</DropdownMenuItem>
-            <DropdownMenuItem>Logout</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
+        <p className="text-gray-600">Manage your personal information</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -269,7 +248,7 @@ const UserProfile = () => {
       </div>
 
       {/* Additional Information */}
-      <Card className="mt-6">
+      <Card>
         <CardHeader>
           <CardTitle>Account Information</CardTitle>
           <CardDescription>
@@ -299,7 +278,7 @@ const UserProfile = () => {
       </Card>
 
       {!canEdit && (
-        <Card className="mt-6">
+        <Card>
           <CardContent className="text-center py-8">
             <h3 className="text-lg font-medium text-gray-900 mb-2">Limited Access</h3>
             <p className="text-gray-600">
