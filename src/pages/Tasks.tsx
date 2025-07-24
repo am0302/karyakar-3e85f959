@@ -119,7 +119,19 @@ const Tasks = () => {
         .eq('is_active', true);
 
       if (error) throw error;
-      setProfiles(data || []);
+      
+      // Filter out profiles with empty or invalid IDs
+      const validProfiles = (data || []).filter(profile => 
+        profile && 
+        profile.id && 
+        typeof profile.id === 'string' && 
+        profile.id.trim() !== '' &&
+        profile.full_name &&
+        typeof profile.full_name === 'string' &&
+        profile.full_name.trim() !== ''
+      );
+      
+      setProfiles(validProfiles);
     } catch (error: any) {
       console.error('Error fetching profiles:', error);
     }
@@ -255,7 +267,7 @@ const Tasks = () => {
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Status</SelectItem>
+            <SelectItem value="all_status">All Status</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="in_progress">In Progress</SelectItem>
             <SelectItem value="completed">Completed</SelectItem>
@@ -266,7 +278,7 @@ const Tasks = () => {
             <SelectValue placeholder="Priority" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Priority</SelectItem>
+            <SelectItem value="all_priority">All Priority</SelectItem>
             <SelectItem value="low">Low</SelectItem>
             <SelectItem value="medium">Medium</SelectItem>
             <SelectItem value="high">High</SelectItem>
@@ -362,11 +374,13 @@ const Tasks = () => {
                     <SelectValue placeholder="Select a person" />
                   </SelectTrigger>
                   <SelectContent>
-                    {profiles.map((profile) => (
-                      <SelectItem key={profile.id} value={profile.id}>
-                        {profile.full_name} ({profile.role})
-                      </SelectItem>
-                    ))}
+                    {profiles
+                      .filter(profile => profile.id && profile.id.trim() !== '')
+                      .map((profile) => (
+                        <SelectItem key={profile.id} value={profile.id}>
+                          {profile.full_name} ({profile.role})
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
