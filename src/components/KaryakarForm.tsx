@@ -10,7 +10,6 @@ import { useDynamicRoles } from '@/hooks/useDynamicRoles';
 import type { Database } from '@/integrations/supabase/types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
-type UserRole = Database['public']['Enums']['user_role'];
 
 interface KaryakarFormProps {
   formData: {
@@ -27,7 +26,7 @@ interface KaryakarFormProps {
     village_id: string;
     mandal_id: string;
     seva_type_id: string;
-    role: UserRole;
+    role: string;
     profile_photo_url: string;
   };
   setFormData: (data: any) => void;
@@ -346,7 +345,7 @@ export const KaryakarForm = ({
             <SearchableSelect
               options={getRoleOptions()}
               value={formData.role || 'sevak'}
-              onValueChange={(value) => handleInputChange('role', value as UserRole)}
+              onValueChange={(value) => handleInputChange('role', value)}
               placeholder="Select Role"
             />
           </div>
