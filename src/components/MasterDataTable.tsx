@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -7,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { Pencil, Trash } from "lucide-react";
 
 interface MasterDataTableProps {
@@ -14,7 +16,7 @@ interface MasterDataTableProps {
   data: any[];
   onEdit: (item: any) => void;
   onDelete: (id: string) => void;
-  getDisplayName?: (item: any) => string; // 👈 added
+  getDisplayName?: (item: any) => string;
 }
 
 export const MasterDataTable = ({
@@ -24,6 +26,8 @@ export const MasterDataTable = ({
   onDelete,
   getDisplayName,
 }: MasterDataTableProps) => {
+  const isRoleTable = title.toLowerCase().includes('role');
+
   return (
     <div>
       <h3 className="text-lg font-semibold mb-4">Existing {title}s</h3>
@@ -32,19 +36,38 @@ export const MasterDataTable = ({
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
+              {isRoleTable && <TableHead>Type</TableHead>}
+              {isRoleTable && <TableHead>Status</TableHead>}
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {data.map((item) => (
               <TableRow key={item.id}>
-                <TableCell>{getDisplayName ? getDisplayName(item) : item.name}</TableCell>
+                <TableCell className="font-medium">
+                  {getDisplayName ? getDisplayName(item) : item.name}
+                </TableCell>
+                {isRoleTable && (
+                  <TableCell>
+                    <Badge variant={item.is_system_role ? "secondary" : "default"}>
+                      {item.is_system_role ? 'System' : 'Custom'}
+                    </Badge>
+                  </TableCell>
+                )}
+                {isRoleTable && (
+                  <TableCell>
+                    <Badge variant={item.is_active ? "default" : "secondary"}>
+                      {item.is_active ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </TableCell>
+                )}
                 <TableCell>
                   <div className="flex space-x-2">
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => onEdit(item)}
+                      disabled={isRoleTable && item.is_system_role}
                     >
                       <Pencil className="h-3 w-3" />
                     </Button>
@@ -52,6 +75,7 @@ export const MasterDataTable = ({
                       size="sm"
                       variant="outline"
                       onClick={() => onDelete(item.id)}
+                      disabled={isRoleTable && item.is_system_role}
                     >
                       <Trash className="h-3 w-3" />
                     </Button>

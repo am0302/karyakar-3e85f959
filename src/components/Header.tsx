@@ -1,90 +1,47 @@
 
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { useAuth } from '@/components/AuthProvider';
-import { SlideOutMenu } from '@/components/SlideOutMenu';
-import { LogOut, Settings, User } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Bell, Menu, Moon, Sun } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useTheme } from "next-themes";
+import { UserProfile } from "./UserProfile";
 
-const Header = () => {
-  const { user, signOut } = useAuth();
+interface HeaderProps {
+  onMenuClick: () => void;
+}
 
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  };
+export const Header = ({ onMenuClick }: HeaderProps) => {
+  const { theme, setTheme } = useTheme();
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-12 lg:h-14 items-center justify-between px-3 lg:px-4">
-        <div className="flex items-center space-x-2 lg:space-x-4">
-          <SlideOutMenu />
-          <Link to="/" className="flex items-center space-x-2">
-            <h1 className="text-lg lg:text-xl font-bold">Karyakar Portal</h1>
-          </Link>
-        </div>
-
-        {user && (
-          <div className="flex items-center space-x-2 lg:space-x-4">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={user.profile_photo_url || ''} alt={user.email || ''} />
-                    <AvatarFallback>
-                      {user.full_name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56 z-50 bg-white" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">
-                      {user.full_name || user.email}
-                    </p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      {user.email}
-                    </p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/profile" className="flex items-center">
-                    <User className="mr-2 h-4 w-4" />
-                    Profile
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/settings" className="flex items-center">
-                    <Settings className="mr-2 h-4 w-4" />
-                    Settings
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Log out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        )}
+    <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+      <div className="flex items-center">
+        <Button variant="ghost" size="icon" onClick={onMenuClick} className="md:hidden">
+          <Menu className="h-5 w-5" />
+        </Button>
+        <h1 className="text-xl font-semibold ml-2 md:ml-0">Karyakar Management</h1>
+      </div>
+      
+      <div className="flex items-center space-x-2">
+        <Button variant="ghost" size="icon" className="relative">
+          <Bell className="h-5 w-5" />
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+            3
+          </span>
+        </Button>
+        
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+        >
+          {theme === "dark" ? (
+            <Sun className="h-5 w-5" />
+          ) : (
+            <Moon className="h-5 w-5" />
+          )}
+        </Button>
+        
+        <UserProfile />
       </div>
     </header>
   );
 };
-
-export default Header;
