@@ -1,90 +1,84 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { 
-  Plus, 
-  Download, 
-  Grid3X3, 
-  List,
-  User,
-  Search
-} from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { KaryakarForm } from '@/components/KaryakarForm';
-import { KaryakarFilters } from '@/components/KaryakarFilters';
-import { KaryakarStats } from '@/components/KaryakarStats';
-import { KaryakarTableView } from '@/components/KaryakarTableView';
-import { KaryakarGridView } from '@/components/KaryakarGridView';
 import { useAuth } from '@/components/AuthProvider';
-import { usePermissions } from '@/hooks/usePermissions';
-import type { Database } from '@/integrations/supabase/types';
+import { 
+  Users, 
+  Plus, 
+  Search, 
+  Grid, 
+  List, 
+  Download,
+  Filter,
+  MoreVertical
+} from 'lucide-react';
+import KaryakarForm from '@/components/KaryakarForm';
+import KaryakarFilters from '@/components/KaryakarFilters';
+import KaryakarStats from '@/components/KaryakarStats';
+import KaryakarTableView from '@/components/KaryakarTableView';
+import KaryakarGridView from '@/components/KaryakarGridView';
 
-type Profile = Database['public']['Tables']['profiles']['Row'] & {
-  professions?: { name: string } | null;
-  seva_types?: { name: string } | null;
-  mandirs?: { name: string } | null;
-  kshetras?: { name: string } | null;
-  villages?: { name: string } | null;
-  mandals?: { name: string } | null;
-};
-
-type UserRole = Database['public']['Enums']['user_role'];
+interface Profile {
+  id: string;
+  full_name: string;
+  mobile_number: string;
+  email?: string;
+  role: string;
+  age?: number;
+  profession_id?: string;
+  seva_type_id?: string;
+  mandir_id?: string;
+  kshetra_id?: string;
+  village_id?: string;
+  mandal_id?: string;
+  is_active: boolean;
+  created_at: string;
+  professions?: {
+    name: string;
+  } | null;
+  seva_types?: {
+    name: string;
+  } | null;
+  mandirs?: {
+    name: string;
+  } | null;
+  kshetras?: {
+    name: string;
+  } | null;
+  villages?: {
+    name: string;
+  } | null;
+  mandals?: {
+    name: string;
+  } | null;
+}
 
 const Karyakars = () => {
   const { user } = useAuth();
-  const { hasPermission } = usePermissions();
   const { toast } = useToast();
-  const [karyakars, setKaryakars] = useState<Profile[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [filteredProfiles, setFilteredProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedRole, setSelectedRole] = useState<string>('');
-  const [selectedStatus, setSelectedStatus] = useState<string>('');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [showRegistrationForm, setShowRegistrationForm] = useState(false);
-  const [editingKaryakar, setEditingKaryakar] = useState<Profile | null>(null);
-  
-  // Form states
-  const [mandirs, setMandirs] = useState<Array<{ id: string; name: string }>>([]);
-  const [kshetras, setKshetras] = useState<Array<{ id: string; name: string }>>([]);
-  const [villages, setVillages] = useState<Array<{ id: string; name: string }>>([]);
-  const [mandals, setMandals] = useState<Array<{ id: string; name: string }>>([]);
-  const [professions, setProfessions] = useState<Array<{ id: string; name: string }>>([]);
-  const [sevaTypes, setSevaTypes] = useState<Array<{ id: string; name: string }>>([]);
-
-  const [formData, setFormData] = useState({
-    full_name: '',
-    email: '',
-    mobile_number: '',
-    whatsapp_number: '',
-    is_whatsapp_same_as_mobile: false,
-    date_of_birth: '',
-    age: '',
-    profession_id: '',
-    mandir_id: '',
-    kshetra_id: '',
-    village_id: '',
-    mandal_id: '',
-    seva_type_id: '',
-    role: 'sevak' as UserRole,
-    profile_photo_url: ''
-  });
-
-  const canAdd = hasPermission('karyakars', 'add');
-  const canEdit = hasPermission('karyakars', 'edit');
-  const canDelete = hasPermission('karyakars', 'delete');
-  const canView = hasPermission('karyakars', 'view');
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
-    if (canView) {
-      fetchKaryakars();
-      fetchMasterData();
-    }
-  }, [canView]);
+    fetchProfiles();
+  }, []);
 
-  const fetchKaryakars = async () => {
+  useEffect(() => {
+    filterProfiles();
+  }, [profiles, searchTerm]);
+
+  const fetchProfiles = async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -98,20 +92,28 @@ const Karyakars = () => {
           villages(name),
           mandals(name)
         `)
+        .eq('is_active', true)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching karyakars:', error);
-        throw error;
-      }
+      if (error) throw error;
 
-      console.log('Fetched karyakars:', data);
-      setKaryakars(data || []);
+      // Transform the data to handle potential query errors
+      const transformedProfiles = (data || []).map(profile => ({
+        ...profile,
+        professions: profile.professions && !profile.professions.error ? profile.professions : null,
+        seva_types: profile.seva_types && !profile.seva_types.error ? profile.seva_types : null,
+        mandirs: profile.mandirs && !profile.mandirs.error ? profile.mandirs : null,
+        kshetras: profile.kshetras && !profile.kshetras.error ? profile.kshetras : null,
+        villages: profile.villages && !profile.villages.error ? profile.villages : null,
+        mandals: profile.mandals && !profile.mandals.error ? profile.mandals : null
+      }));
+
+      setProfiles(transformedProfiles);
     } catch (error: any) {
-      console.error('Failed to fetch karyakars:', error);
+      console.error('Error fetching profiles:', error);
       toast({
         title: 'Error',
-        description: `Failed to fetch karyakars: ${error.message}`,
+        description: 'Failed to fetch karyakar profiles',
         variant: 'destructive',
       });
     } finally {
@@ -119,383 +121,199 @@ const Karyakars = () => {
     }
   };
 
-  const fetchMasterData = async () => {
-    try {
-      const [mandirsRes, kshetrasRes, villagesRes, mandalsRes, professionsRes, sevaTypesRes] = await Promise.all([
-        supabase.from('mandirs').select('id, name').eq('is_active', true).order('name'),
-        supabase.from('kshetras').select('id, name').eq('is_active', true).order('name'),
-        supabase.from('villages').select('id, name').eq('is_active', true).order('name'),
-        supabase.from('mandals').select('id, name').eq('is_active', true).order('name'),
-        supabase.from('professions').select('id, name').eq('is_active', true).order('name'),
-        supabase.from('seva_types').select('id, name').eq('is_active', true).order('name')
-      ]);
+  const filterProfiles = () => {
+    let filtered = profiles;
 
-      setMandirs(mandirsRes.data || []);
-      setKshetras(kshetrasRes.data || []);
-      setVillages(villagesRes.data || []);
-      setMandals(mandalsRes.data || []);
-      setProfessions(professionsRes.data || []);
-      setSevaTypes(sevaTypesRes.data || []);
-    } catch (error: any) {
-      console.error('Error fetching master data:', error);
+    if (searchTerm) {
+      filtered = filtered.filter(profile =>
+        profile.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        profile.mobile_number.includes(searchTerm) ||
+        profile.email?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
+
+    setFilteredProfiles(filtered);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!canAdd && !editingKaryakar) {
-      toast({
-        title: 'Error',
-        description: 'You do not have permission to add karyakars',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (!canEdit && editingKaryakar) {
-      toast({
-        title: 'Error',
-        description: 'You do not have permission to edit karyakars',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    try {
-      console.log('Submitting form data:', formData);
-      
-      const age = formData.age ? parseInt(formData.age) : null;
-      const dataToSubmit = {
-        full_name: formData.full_name,
-        email: formData.email || null,
-        mobile_number: formData.mobile_number,
-        whatsapp_number: formData.is_whatsapp_same_as_mobile ? formData.mobile_number : formData.whatsapp_number,
-        is_whatsapp_same_as_mobile: formData.is_whatsapp_same_as_mobile,
-        date_of_birth: formData.date_of_birth || null,
-        age,
-        profession_id: formData.profession_id || null,
-        mandir_id: formData.mandir_id || null,
-        kshetra_id: formData.kshetra_id || null,
-        village_id: formData.village_id || null,
-        mandal_id: formData.mandal_id || null,
-        seva_type_id: formData.seva_type_id || null,
-        role: formData.role,
-        profile_photo_url: formData.profile_photo_url || null,
-        is_active: true,
-        updated_at: new Date().toISOString(),
-      };
-
-      console.log('Data to submit:', dataToSubmit);
-
-      let result;
-      if (editingKaryakar) {
-        console.log('Updating karyakar with ID:', editingKaryakar.id);
-        result = await supabase
-          .from('profiles')
-          .update(dataToSubmit)
-          .eq('id', editingKaryakar.id)
-          .select();
-        
-        console.log('Update result:', result);
-      } else {
-        console.log('Creating new karyakar');
-        result = await supabase
-          .from('profiles')
-          .insert([{
-            ...dataToSubmit,
-            id: crypto.randomUUID(),
-            created_at: new Date().toISOString(),
-          }])
-          .select();
-        
-        console.log('Insert result:', result);
-      }
-
-      if (result.error) {
-        console.error('Database operation error:', result.error);
-        throw result.error;
-      }
-
-      toast({
-        title: 'Success',
-        description: `Karyakar ${editingKaryakar ? 'updated' : 'registered'} successfully`,
-      });
-
-      setShowRegistrationForm(false);
-      setEditingKaryakar(null);
-      resetForm();
-      await fetchKaryakars(); // Refresh the list
-    } catch (error: any) {
-      console.error('Error saving karyakar:', error);
-      toast({
-        title: 'Error',
-        description: `Failed to ${editingKaryakar ? 'update' : 'create'} karyakar: ${error.message}`,
-        variant: 'destructive',
-      });
-    }
+  const handleProfileSaved = () => {
+    fetchProfiles();
+    setShowForm(false);
+    setSelectedProfile(null);
   };
 
-  const resetForm = () => {
-    setFormData({
-      full_name: '',
-      email: '',
-      mobile_number: '',
-      whatsapp_number: '',
-      is_whatsapp_same_as_mobile: false,
-      date_of_birth: '',
-      age: '',
-      profession_id: '',
-      mandir_id: '',
-      kshetra_id: '',
-      village_id: '',
-      mandal_id: '',
-      seva_type_id: '',
-      role: 'sevak',
-      profile_photo_url: ''
-    });
+  const handleEdit = (profile: Profile) => {
+    setSelectedProfile(profile);
+    setShowForm(true);
   };
 
-  const handleEdit = (karyakar: Profile) => {
-    if (!canEdit) {
-      toast({
-        title: 'Error',
-        description: 'You do not have permission to edit karyakars',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    console.log('Editing karyakar:', karyakar);
-    setEditingKaryakar(karyakar);
-    setShowRegistrationForm(true);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!canDelete) {
-      toast({
-        title: 'Error',
-        description: 'You do not have permission to delete karyakars',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (!confirm('Are you sure you want to delete this karyakar?')) return;
+  const handleDelete = async (profileId: string) => {
+    if (!confirm('Are you sure you want to delete this profile?')) return;
 
     try {
       const { error } = await supabase
         .from('profiles')
         .update({ is_active: false })
-        .eq('id', id);
+        .eq('id', profileId);
 
       if (error) throw error;
 
       toast({
         title: 'Success',
-        description: 'Karyakar deactivated successfully',
+        description: 'Profile deleted successfully',
       });
 
-      fetchKaryakars();
+      fetchProfiles();
     } catch (error: any) {
-      console.error('Error deleting karyakar:', error);
+      console.error('Error deleting profile:', error);
       toast({
         title: 'Error',
-        description: `Failed to delete karyakar: ${error.message}`,
+        description: 'Failed to delete profile',
         variant: 'destructive',
       });
     }
   };
 
-  const exportData = async () => {
-    try {
-      const csvContent = [
-        ['Name', 'Mobile', 'Email', 'Role', 'Profession', 'Mandir', 'Status'].join(','),
-        ...filteredKaryakars.map(k => [
-          k.full_name,
-          k.mobile_number,
-          k.email || '',
-          k.role,
-          k.professions?.name || '',
-          k.mandirs?.name || '',
-          k.is_active ? 'Active' : 'Inactive'
-        ].join(','))
-      ].join('\n');
+  const exportData = () => {
+    const csv = [
+      ['Name', 'Mobile', 'Email', 'Role', 'Profession', 'Seva Type'].join(','),
+      ...filteredProfiles.map(profile => [
+        profile.full_name,
+        profile.mobile_number,
+        profile.email || '',
+        profile.role,
+        profile.professions?.name || '',
+        profile.seva_types?.name || ''
+      ].join(','))
+    ].join('\n');
 
-      const blob = new Blob([csvContent], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'karyakars.csv';
-      a.click();
-      window.URL.revokeObjectURL(url);
-
-      toast({
-        title: 'Success',
-        description: 'Data exported successfully',
-      });
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to export data',
-        variant: 'destructive',
-      });
-    }
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.setAttribute('hidden', '');
+    a.setAttribute('href', url);
+    a.setAttribute('download', 'karyakars.csv');
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
-
-  const filteredKaryakars = karyakars.filter(karyakar => {
-    const matchesSearch = karyakar.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         karyakar.mobile_number.includes(searchTerm);
-    const matchesRole = !selectedRole || karyakar.role === selectedRole;
-    const matchesStatus = !selectedStatus || 
-                         (selectedStatus === 'active' && karyakar.is_active) ||
-                         (selectedStatus === 'inactive' && !karyakar.is_active);
-    
-    return matchesSearch && matchesRole && matchesStatus;
-  });
 
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading karyakars...</div>;
   }
 
-  if (!canView) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Access Denied</h3>
-          <p className="text-gray-600">You do not have permission to view karyakars.</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Karyakars</h1>
-          <p className="text-gray-600">Manage karyakar registrations and profiles</p>
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <Users className="h-6 w-6" />
+          <h1 className="text-3xl font-bold">Karyakars</h1>
+          <Badge variant="secondary">{filteredProfiles.length}</Badge>
         </div>
-        
-        <div className="flex flex-wrap gap-2">
-          {canAdd && (
-            <Dialog open={showRegistrationForm} onOpenChange={setShowRegistrationForm}>
-              <DialogTrigger asChild>
-                <Button onClick={() => {
-                  resetForm();
-                  setEditingKaryakar(null);
-                }}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  <span className="hidden sm:inline">Register Karyakar</span>
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>
-                    {editingKaryakar ? 'Edit Karyakar' : 'Register New Karyakar'}
-                  </DialogTitle>
-                  <DialogDescription>
-                    Fill in the details to {editingKaryakar ? 'update' : 'register'} a karyakar
-                  </DialogDescription>
-                </DialogHeader>
-
-                <KaryakarForm
-                  formData={formData}
-                  setFormData={setFormData}
-                  onSubmit={handleSubmit}
-                  onCancel={() => {
-                    setShowRegistrationForm(false);
-                    setEditingKaryakar(null);
-                    resetForm();
-                  }}
-                  editingKaryakar={editingKaryakar}
-                  mandirs={mandirs}
-                  kshetras={kshetras}
-                  villages={villages}
-                  mandals={mandals}
-                  professions={professions}
-                  sevaTypes={sevaTypes}
-                />
-              </DialogContent>
-            </Dialog>
-          )}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            <Filter className="h-4 w-4 mr-2" />
+            Filters
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportData}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+          <Button onClick={() => setShowForm(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Karyakar
+          </Button>
         </div>
       </div>
 
-      <Card>
-        <KaryakarStats totalCount={filteredKaryakars.length} />
-        
-        <CardContent>
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-              >
-                {viewMode === 'grid' ? <List className="h-4 w-4" /> : <Grid3X3 className="h-4 w-4" />}
-                <span className="hidden sm:inline ml-2">
-                  {viewMode === 'grid' ? 'List View' : 'Grid View'}
-                </span>
-              </Button>
-              <Button variant="outline" size="sm" onClick={exportData}>
-                <Download className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Export</span>
-              </Button>
-            </div>
+      {/* Stats */}
+      <KaryakarStats profiles={profiles} />
 
-            {/* Quick search */}
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <div className="relative flex-1 sm:w-64">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search karyakars..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-          </div>
+      {/* Filters */}
+      {showFilters && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Filters</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <KaryakarFilters onFilter={(filters) => {
+              // Apply filters logic here
+              console.log('Filters applied:', filters);
+            }} />
+          </CardContent>
+        </Card>
+      )}
 
-          <KaryakarFilters
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            selectedRole={selectedRole}
-            setSelectedRole={setSelectedRole}
-            selectedStatus={selectedStatus}
-            setSelectedStatus={setSelectedStatus}
+      {/* Search and View Controls */}
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <Search className="h-4 w-4 text-gray-500" />
+          <Input
+            placeholder="Search karyakars..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-64"
           />
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={viewMode === 'table' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('table')}
+          >
+            <List className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === 'grid' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('grid')}
+          >
+            <Grid className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
 
-          {viewMode === 'grid' ? (
-            <KaryakarGridView
-              karyakars={filteredKaryakars}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
-          ) : (
-            <KaryakarTableView
-              karyakars={filteredKaryakars}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
-          )}
+      {/* Content */}
+      {viewMode === 'table' ? (
+        <KaryakarTableView
+          profiles={filteredProfiles}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+      ) : (
+        <KaryakarGridView
+          profiles={filteredProfiles}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+      )}
 
-          {filteredKaryakars.length === 0 && (
-            <div className="text-center py-8">
-              <User className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No karyakars found</h3>
-              <p className="text-gray-600">
-                {searchTerm || selectedRole || selectedStatus
-                  ? 'Try adjusting your search filters'
-                  : canAdd 
-                    ? 'Get started by registering your first karyakar'
-                    : 'No karyakars available to view'}
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Form Modal */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-semibold mb-4">
+              {selectedProfile ? 'Edit Karyakar' : 'Add New Karyakar'}
+            </h2>
+            <KaryakarForm
+              profile={selectedProfile}
+              onSave={handleProfileSaved}
+              onCancel={() => {
+                setShowForm(false);
+                setSelectedProfile(null);
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

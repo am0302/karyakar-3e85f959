@@ -202,7 +202,16 @@ const Communication = () => {
       if (roomsError) throw roomsError;
 
       console.log('Fetched chat rooms:', rooms);
-      setChatRooms(rooms || []);
+      
+      // Transform the data to handle potential query errors
+      const transformedRooms = (rooms || []).map(room => ({
+        ...room,
+        chat_participants: Array.isArray(room.chat_participants) 
+          ? room.chat_participants.filter(p => p.profiles && !p.profiles.error)
+          : []
+      }));
+      
+      setChatRooms(transformedRooms);
     } catch (error: any) {
       console.error('Error fetching chat rooms:', error);
       toast({
