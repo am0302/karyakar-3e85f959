@@ -22,7 +22,8 @@ import {
 } from 'lucide-react';
 
 type TaskStatus = 'pending' | 'in_progress' | 'completed';
-type TaskPriority = 'low' | 'medium' | 'high';
+type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+type TaskType = 'personal' | 'delegated' | 'broadcasted';
 
 interface TaskProfile {
   full_name: string;
@@ -38,6 +39,7 @@ interface Task {
   assigned_to: string;
   assigned_by: string;
   created_at: string;
+  task_type: TaskType;
   profiles?: TaskProfile | null;
   assigned_to_profile?: TaskProfile | null;
 }
@@ -64,7 +66,7 @@ const Tasks = () => {
     title: '',
     description: '',
     priority: 'medium' as TaskPriority,
-    task_type: 'general' as 'general' | 'personal',
+    task_type: 'personal' as TaskType,
     due_date: '',
     assigned_to: '',
   });
@@ -144,18 +146,16 @@ const Tasks = () => {
     try {
       const { error } = await supabase
         .from('tasks')
-        .insert([
-          {
-            title: formData.title,
-            description: formData.description,
-            assigned_by: user.id,
-            assigned_to: formData.assigned_to,
-            priority: formData.priority,
-            task_type: formData.task_type as 'general' | 'personal',
-            due_date: formData.due_date,
-            status: 'pending' as TaskStatus,
-          },
-        ]);
+        .insert({
+          title: formData.title,
+          description: formData.description,
+          assigned_by: user.id,
+          assigned_to: formData.assigned_to,
+          priority: formData.priority,
+          task_type: formData.task_type,
+          due_date: formData.due_date,
+          status: 'pending' as TaskStatus,
+        });
 
       if (error) throw error;
 
@@ -168,7 +168,7 @@ const Tasks = () => {
         title: '',
         description: '',
         priority: 'medium',
-        task_type: 'general',
+        task_type: 'personal',
         due_date: '',
         assigned_to: '',
       });
@@ -282,6 +282,7 @@ const Tasks = () => {
             <SelectItem value="low">Low</SelectItem>
             <SelectItem value="medium">Medium</SelectItem>
             <SelectItem value="high">High</SelectItem>
+            <SelectItem value="urgent">Urgent</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -397,6 +398,7 @@ const Tasks = () => {
                     <SelectItem value="low">Low</SelectItem>
                     <SelectItem value="medium">Medium</SelectItem>
                     <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="urgent">Urgent</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -404,14 +406,15 @@ const Tasks = () => {
                 <Label htmlFor="task_type">Task Type</Label>
                 <Select 
                   value={formData.task_type} 
-                  onValueChange={(value: 'general' | 'personal') => setFormData({ ...formData, task_type: value })}
+                  onValueChange={(value: TaskType) => setFormData({ ...formData, task_type: value })}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="general">General</SelectItem>
                     <SelectItem value="personal">Personal</SelectItem>
+                    <SelectItem value="delegated">Delegated</SelectItem>
+                    <SelectItem value="broadcasted">Broadcasted</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
