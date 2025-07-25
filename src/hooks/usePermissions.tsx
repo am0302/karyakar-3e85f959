@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
+import { securityLogger } from '@/utils/securityValidation';
 
 export const usePermissions = () => {
   const { user } = useAuth();
@@ -140,6 +141,12 @@ export const usePermissions = () => {
     
     const hasAccess = modulePermissions[action] || false;
     console.log(`Permission check - Module: ${module}, Action: ${action}, Access: ${hasAccess}`);
+    
+    // Log unauthorized access attempts
+    if (!hasAccess) {
+      securityLogger.logUnauthorizedAccess(module, action);
+    }
+    
     return hasAccess;
   };
 

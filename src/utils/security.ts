@@ -1,122 +1,98 @@
 
-// Security utilities for input validation and XSS protection
 import DOMPurify from 'dompurify';
 
-// Input validation functions
-export const validateInput = {
-  // Validate text input with length limits
-  text: (value: string, maxLength: number = 255): boolean => {
-    if (typeof value !== 'string') return false;
-    return value.length <= maxLength && value.trim().length > 0;
-  },
-
-  // Validate email format
-  email: (value: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(value) && value.length <= 254;
-  },
-
-  // Validate phone number (basic validation)
-  phone: (value: string): boolean => {
-    const phoneRegex = /^[\d\s\-\+\(\)]+$/;
-    return phoneRegex.test(value) && value.length >= 10 && value.length <= 15;
-  },
-
-  // Validate UUID format
-  uuid: (value: string): boolean => {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    return uuidRegex.test(value);
-  },
-
-  // Validate file upload
-  file: (file: File, allowedTypes: string[], maxSize: number = 5 * 1024 * 1024): boolean => {
-    if (!file) return false;
-    
-    // Check file type
-    const fileType = file.type.toLowerCase();
-    if (!allowedTypes.some(type => fileType.includes(type))) return false;
-    
-    // Check file size
-    if (file.size > maxSize) return false;
-    
-    return true;
-  }
-};
-
-// XSS protection utilities
 export const sanitizeInput = {
-  // Sanitize HTML content
-  html: (content: string): string => {
-    if (typeof content !== 'string') return '';
-    return DOMPurify.sanitize(content, {
-      ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'p', 'br'],
+  // Sanitize display names and user inputs
+  displayName: (input: string): string => {
+    if (!input) return '';
+    return DOMPurify.sanitize(input.trim(), { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
+  },
+
+  // Sanitize text content
+  text: (input: string): string => {
+    if (!input) return '';
+    return DOMPurify.sanitize(input, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
+  },
+
+  // Sanitize HTML content with basic formatting
+  html: (input: string): string => {
+    if (!input) return '';
+    return DOMPurify.sanitize(input, {
+      ALLOWED_TAGS: ['b', 'i', 'u', 'strong', 'em', 'p', 'br', 'ul', 'ol', 'li'],
       ALLOWED_ATTR: []
     });
   },
 
-  // Sanitize plain text (remove HTML tags)
-  text: (content: string): string => {
-    if (typeof content !== 'string') return '';
-    return DOMPurify.sanitize(content, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
+  // Sanitize URLs
+  url: (input: string): string => {
+    if (!input) return '';
+    const sanitized = DOMPurify.sanitize(input, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
+    
+    // Only allow http/https URLs
+    if (sanitized.match(/^https?:\/\//)) {
+      return sanitized;
+    }
+    
+    return '';
   },
 
-  // Sanitize user display name
-  displayName: (name: string): string => {
-    if (typeof name !== 'string') return '';
-    return DOMPurify.sanitize(name.trim(), { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
+  // Sanitize file names
+  fileName: (input: string): string => {
+    if (!input) return '';
+    return input.replace(/[^a-zA-Z0-9._-]/g, '').substring(0, 255);
   }
 };
 
-// Rate limiting utility (client-side)
-export const rateLimiter = {
-  attempts: new Map<string, { count: number; lastAttempt: number }>(),
-
-  canAttempt: (key: string, maxAttempts: number = 5, windowMs: number = 15 * 60 * 1000): boolean => {
-    const now = Date.now();
-    const record = rateLimiter.attempts.get(key);
-
-    if (!record) {
-      rateLimiter.attempts.set(key, { count: 1, lastAttempt: now });
-      return true;
-    }
-
-    // Reset if window has passed
-    if (now - record.lastAttempt > windowMs) {
-      rateLimiter.attempts.set(key, { count: 1, lastAttempt: now });
-      return true;
-    }
-
-    // Check if within limits
-    if (record.count >= maxAttempts) {
-      return false;
-    }
-
-    // Increment counter
-    record.count++;
-    record.lastAttempt = now;
-    return true;
-  },
-
-  reset: (key: string): void => {
-    rateLimiter.attempts.delete(key);
-  }
-};
-
-// Security headers utility
+// Enhanced security headers helper
 export const securityHeaders = {
-  // Generate CSP nonce
-  generateNonce: (): string => {
-    const array = new Uint8Array(16);
-    crypto.getRandomValues(array);
-    return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+  // Content Security Policy
+  csp: {
+    'default-src': "'self'",
+    'script-src': "'self' 'unsafe-inline' 'unsafe-eval'",
+    'style-src': "'self' 'unsafe-inline'",
+    'img-src': "'self' data: https:",
+    'connect-src': "'self' https://schuyrbqprqkdwrrjppj.supabase.co wss://schuyrbqprqkdwrrjppj.supabase.co",
+    'font-src': "'self' https:",
+    'object-src': "'none'",
+    'media-src': "'self'",
+    'frame-src': "'none'"
   },
 
-  // Validate origin
-  validateOrigin: (origin: string): boolean => {
-    const allowedOrigins = [
-      'https://schuyrbqprqkdwrrjppj.supabase.co',
-      window.location.origin
-    ];
-    return allowedOrigins.includes(origin);
+  // Security headers
+  headers: {
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'X-XSS-Protection': '1; mode=block',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
   }
+};
+
+// Input validation patterns
+export const validationPatterns = {
+  email: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+  phone: /^\+?[\d\s\-\(\)]{10,15}$/,
+  name: /^[a-zA-Z\s]{2,50}$/,
+  alphanumeric: /^[a-zA-Z0-9]+$/,
+  safeString: /^[a-zA-Z0-9\s\-_.]{1,255}$/
+};
+
+// Rate limiting configuration
+export const rateLimits = {
+  login: { attempts: 5, windowMs: 300000 }, // 5 attempts per 5 minutes
+  passwordReset: { attempts: 3, windowMs: 600000 }, // 3 attempts per 10 minutes
+  roleChange: { attempts: 10, windowMs: 3600000 }, // 10 attempts per hour
+  fileUpload: { attempts: 20, windowMs: 3600000 } // 20 uploads per hour
+};
+
+// Security event types
+export const securityEventTypes = {
+  FAILED_LOGIN: 'failed_login',
+  SUCCESSFUL_LOGIN: 'successful_login',
+  LOGOUT: 'logout',
+  ROLE_CHANGE: 'role_change',
+  UNAUTHORIZED_ACCESS: 'unauthorized_access',
+  VALIDATION_FAILURE: 'validation_failure',
+  FILE_UPLOAD_FAILURE: 'file_upload_failure',
+  RATE_LIMIT_EXCEEDED: 'rate_limit_exceeded'
 };

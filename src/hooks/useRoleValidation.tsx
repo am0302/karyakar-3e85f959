@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { useToast } from '@/hooks/use-toast';
+import { securityLogger } from '@/utils/securityValidation';
 
 export const useRoleValidation = () => {
   const { user } = useAuth();
@@ -11,6 +12,7 @@ export const useRoleValidation = () => {
 
   const validateRoleAssignment = async (targetRole: string): Promise<boolean> => {
     if (!user) {
+      await securityLogger.logUnauthorizedAccess('user_management', 'role_assignment');
       toast({
         title: 'Error',
         description: 'User not authenticated',
@@ -22,15 +24,16 @@ export const useRoleValidation = () => {
     try {
       setLoading(true);
       
-      // Use the function directly with rpc call
+      // Use the enhanced security function
       const { data, error } = await supabase
-        .rpc('validate_role_assignment' as any, {
+        .rpc('validate_role_assignment', {
           _assigner_id: user.id,
           _target_role: targetRole
         });
 
       if (error) {
         console.error('Role validation error:', error);
+        await securityLogger.logUnauthorizedAccess('user_management', 'role_assignment');
         toast({
           title: 'Error',
           description: 'Failed to validate role assignment',
@@ -40,6 +43,7 @@ export const useRoleValidation = () => {
       }
 
       if (!data) {
+        await securityLogger.logUnauthorizedAccess('user_management', 'role_assignment');
         toast({
           title: 'Access Denied',
           description: 'You do not have permission to assign this role',
@@ -51,6 +55,7 @@ export const useRoleValidation = () => {
       return true;
     } catch (error: any) {
       console.error('Role validation error:', error);
+      await securityLogger.logUnauthorizedAccess('user_management', 'role_assignment');
       toast({
         title: 'Error',
         description: 'Failed to validate role assignment',
@@ -93,9 +98,14 @@ export const useRoleValidation = () => {
     }
   };
 
+  const logRoleChange = async (targetUserId: string, oldRole: string, newRole: string, reason?: string) => {
+    await securityLogger.logRoleChange(targetUserId, oldRole, newRole, reason);
+  };
+
   return {
     validateRoleAssignment,
     getAssignableRoles,
+    logRoleChange,
     loading
   };
 };

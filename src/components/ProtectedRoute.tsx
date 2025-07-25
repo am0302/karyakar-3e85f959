@@ -3,6 +3,7 @@ import { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/components/AuthProvider';
+import { securityLogger } from '@/utils/securityValidation';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -33,6 +34,9 @@ export const ProtectedRoute = ({ children, module, action = 'view' }: ProtectedR
 
   // Check if user has permission
   if (!hasPermission(module, action)) {
+    // Log unauthorized access attempt
+    securityLogger.logUnauthorizedAccess(module, action);
+    
     return (
       <div className="flex flex-col items-center justify-center h-64 p-4">
         <div className="text-center">
