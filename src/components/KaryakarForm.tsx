@@ -148,7 +148,7 @@ export const KaryakarForm: React.FC<KaryakarFormProps> = ({
         village_id: formData.village_id || null,
         mandal_id: formData.mandal_id || null,
         seva_type_id: formData.seva_type_id || null,
-        role: formData.role as 'user' | 'super_admin' | 'sant_nirdeshak' | 'sah_nirdeshak' | 'mandal_sanchalak' | 'karyakar' | 'sevak' | 'admin' | 'moderator',
+        role: formData.custom_role_id || null,
         profile_photo_url: formData.profile_photo_url || null
       };
 

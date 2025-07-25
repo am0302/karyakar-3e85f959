@@ -1087,16 +1087,7 @@ export type Database = {
       task_priority: "low" | "medium" | "high" | "urgent"
       task_status: "pending" | "in_progress" | "completed"
       task_type: "personal" | "delegated" | "broadcasted"
-      user_role:
-        | "super_admin"
-        | "sant_nirdeshak"
-        | "sah_nirdeshak"
-        | "mandal_sanchalak"
-        | "karyakar"
-        | "sevak"
-        | "admin"
-        | "moderator"
-        | "user"
+      
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1227,16 +1218,7 @@ export const Constants = {
       task_priority: ["low", "medium", "high", "urgent"],
       task_status: ["pending", "in_progress", "completed"],
       task_type: ["personal", "delegated", "broadcasted"],
-      user_role: [
-        "super_admin",
-        "sant_nirdeshak",
-        "sah_nirdeshak",
-        "mandal_sanchalak",
-        "karyakar",
-        "sevak",
-        "admin",
-        "moderator",
-        "user",
+      
       ],
     },
   },
