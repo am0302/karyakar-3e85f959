@@ -27,23 +27,6 @@ interface KaryakarFormData {
   role: string;
   profile_photo_url: string;
 }
-const [formData, setFormData] = useState({
-  full_name: '',
-  email: '',
-  mobile_number: '',
-  whatsapp_number: '',
-  is_whatsapp_same_as_mobile: false,
-  date_of_birth: '',
-  age: '',
-  profession_id: '',
-  seva_type_id: '',
-  mandir_id: '',
-  kshetra_id: '',
-  village_id: '',
-  mandal_id: '',
-  role: '',
-  profile_photo_url: '',
-});
 
 interface KaryakarFormProps {
   formData: KaryakarFormData;
@@ -111,60 +94,40 @@ export const KaryakarForm: React.FC<KaryakarFormProps> = ({
       });
     }
   };
-const handleInputChange = (field: string, value: any) => {
-  setFormData((prev) => ({
-    ...prev,
-    [field]: value,
-    ...(field === 'mobile_number' && formData.is_whatsapp_same_as_mobile
-      ? { whatsapp_number: value }
-      : {}),
-  }));
-};
 
- /* const handleInputChange = (field: keyof KaryakarFormData, value: string | boolean) => {
-    // Handle boolean fields separately
-    if (field === 'is_whatsapp_same_as_mobile') {
+  const handleInputChange = (field: string, value: string | boolean) => {
+    setFormData((prev) => {
       const updatedData = {
-        ...formData,
-        [field]: value as boolean
+        ...prev,
+        [field]: value
       };
-      
+
       // Auto-populate WhatsApp number if checkbox is checked
-      if (value === true) {
-        updatedData.whatsapp_number = formData.mobile_number;
+      if (field === 'is_whatsapp_same_as_mobile' && value === true) {
+        updatedData.whatsapp_number = prev.mobile_number;
       }
-      
-      setFormData(updatedData);
-      return;
-    }
-*/
-    // Handle string fields
-    const stringValue = value as string;
-    let updatedData = {
-      ...formData,
-      [field]: stringValue
-    };
 
-    // Auto-populate WhatsApp number when mobile number changes and checkbox is checked
-    if (field === 'mobile_number' && formData.is_whatsapp_same_as_mobile) {
-      updatedData.whatsapp_number = stringValue;
-    }
-
-    // Calculate age from date of birth
-    if (field === 'date_of_birth' && stringValue) {
-      const birthDate = new Date(stringValue);
-      const today = new Date();
-      let age = today.getFullYear() - birthDate.getFullYear();
-      const monthDiff = today.getMonth() - birthDate.getMonth();
-      
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-        age--;
+      // Auto-populate WhatsApp number when mobile number changes and checkbox is checked
+      if (field === 'mobile_number' && prev.is_whatsapp_same_as_mobile) {
+        updatedData.whatsapp_number = value as string;
       }
-      
-      updatedData.age = age.toString();
-    }
 
-    setFormData(updatedData);
+      // Calculate age from date of birth
+      if (field === 'date_of_birth' && value) {
+        const birthDate = new Date(value as string);
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+        
+        updatedData.age = age.toString();
+      }
+
+      return updatedData;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -172,6 +135,7 @@ const handleInputChange = (field: string, value: any) => {
     setLoading(true);
 
     try {
+      // Prepare data for database
       const dataToSubmit = {
         full_name: formData.full_name,
         email: formData.email || null,
@@ -186,7 +150,7 @@ const handleInputChange = (field: string, value: any) => {
         village_id: formData.village_id || null,
         mandal_id: formData.mandal_id || null,
         seva_type_id: formData.seva_type_id || null,
-        role: formData.role as any, // Cast to any to handle enum types
+        role: formData.role as 'user' | 'super_admin' | 'sant_nirdeshak' | 'sah_nirdeshak' | 'mandal_sanchalak' | 'karyakar' | 'sevak' | 'admin' | 'moderator',
         profile_photo_url: formData.profile_photo_url || null
       };
 
@@ -211,7 +175,7 @@ const handleInputChange = (field: string, value: any) => {
 
         const { error } = await supabase
           .from('profiles')
-          .insert([insertData]);
+          .insert(insertData);
 
         if (error) throw error;
 
