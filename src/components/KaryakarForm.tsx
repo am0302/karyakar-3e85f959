@@ -27,6 +27,23 @@ interface KaryakarFormData {
   role: string;
   profile_photo_url: string;
 }
+const [formData, setFormData] = useState({
+  full_name: '',
+  email: '',
+  mobile_number: '',
+  whatsapp_number: '',
+  is_whatsapp_same_as_mobile: false,
+  date_of_birth: '',
+  age: '',
+  profession_id: '',
+  seva_type_id: '',
+  mandir_id: '',
+  kshetra_id: '',
+  village_id: '',
+  mandal_id: '',
+  role: '',
+  profile_photo_url: '',
+});
 
 interface KaryakarFormProps {
   formData: KaryakarFormData;
@@ -94,8 +111,17 @@ export const KaryakarForm: React.FC<KaryakarFormProps> = ({
       });
     }
   };
+const handleInputChange = (field: string, value: any) => {
+  setFormData((prev) => ({
+    ...prev,
+    [field]: value,
+    ...(field === 'mobile_number' && formData.is_whatsapp_same_as_mobile
+      ? { whatsapp_number: value }
+      : {}),
+  }));
+};
 
-  const handleInputChange = (field: keyof KaryakarFormData, value: string | boolean) => {
+ /* const handleInputChange = (field: keyof KaryakarFormData, value: string | boolean) => {
     // Handle boolean fields separately
     if (field === 'is_whatsapp_same_as_mobile') {
       const updatedData = {
@@ -111,7 +137,7 @@ export const KaryakarForm: React.FC<KaryakarFormProps> = ({
       setFormData(updatedData);
       return;
     }
-
+*/
     // Handle string fields
     const stringValue = value as string;
     let updatedData = {
