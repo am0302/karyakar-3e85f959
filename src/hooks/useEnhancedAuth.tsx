@@ -118,7 +118,7 @@ export const useEnhancedAuth = () => {
       const { data: targetRoleHierarchy } = await supabase
         .from('role_hierarchy')
         .select('level')
-        .eq('role', newRole)
+        .eq('role', newRole as any) // Cast to any to avoid TypeScript error
         .single();
 
       if (!currentRoleHierarchy || !targetRoleHierarchy) {
