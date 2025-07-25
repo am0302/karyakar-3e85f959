@@ -282,7 +282,7 @@ export const PermissionsManager = () => {
       const { data: existing, error: checkError } = await supabase
         .from('role_permissions')
         .select('id')
-        .eq('role', selectedRole)
+        .eq('role', selectedRole as any)
         .eq('module_name', selectedModule)
         .maybeSingle();
 
