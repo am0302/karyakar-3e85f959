@@ -208,13 +208,12 @@ export const KaryakarForm: React.FC<KaryakarFormProps> = ({
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-
           <Label htmlFor="full_name">Full Name *</Label>
           <Input
             id="full_name"
             type="text"
             value={formData.full_name}
-            onChange={(e) => setFormData({ ...formdata, full_name: e.target.value})}
+            onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
             required
           />
         </div>
