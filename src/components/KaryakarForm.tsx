@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +8,8 @@ import { SearchableSelect } from '@/components/SearchableSelect';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, Link, User } from 'lucide-react';
 import { useDynamicRoles } from '@/hooks/useDynamicRoles';
+import { useAuth } from '@/components/AuthProvider';
+import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
@@ -54,8 +57,54 @@ export const KaryakarForm = ({
   professions,
   sevaTypes
 }: KaryakarFormProps) => {
+  const { user } = useAuth();
   const [photoMethod, setPhotoMethod] = useState<'upload' | 'url'>('url');
   const { getRoleOptions, loading: rolesLoading } = useDynamicRoles();
+  const [locationData, setLocationData] = useState({
+    mandirs: [],
+    kshetras: [],
+    villages: [],
+    mandals: [],
+    professions: [],
+    sevaTypes: []
+  });
+
+  // Check if user can edit roles
+  const canEditRoles = user?.user_metadata?.role === 'super_admin' || 
+                      user?.user_metadata?.role === 'sant_nirdeshak' ||
+                      user?.user_metadata?.role === 'sah_nirdeshak';
+
+  // Check if editing own profile
+  const isEditingOwnProfile = editingKaryakar?.id === user?.id;
+
+  // Fetch location data
+  useEffect(() => {
+    const fetchLocationData = async () => {
+      try {
+        const [mandirData, kshetraData, villageData, mandalData, professionData, sevaTypeData] = await Promise.all([
+          supabase.from('mandirs').select('id, name').eq('is_active', true),
+          supabase.from('kshetras').select('id, name').eq('is_active', true),
+          supabase.from('villages').select('id, name').eq('is_active', true),
+          supabase.from('mandals').select('id, name').eq('is_active', true),
+          supabase.from('professions').select('id, name').eq('is_active', true),
+          supabase.from('seva_types').select('id, name').eq('is_active', true)
+        ]);
+
+        setLocationData({
+          mandirs: mandirData.data || [],
+          kshetras: kshetraData.data || [],
+          villages: villageData.data || [],
+          mandals: mandalData.data || [],
+          professions: professionData.data || [],
+          sevaTypes: sevaTypeData.data || []
+        });
+      } catch (error) {
+        console.error('Error fetching location data:', error);
+      }
+    };
+
+    fetchLocationData();
+  }, []);
 
   // Update form data when editing karyakar changes
   useEffect(() => {
@@ -289,7 +338,7 @@ export const KaryakarForm = ({
             <div>
               <Label>Profession</Label>
               <SearchableSelect
-                options={getFilteredOptions(professions)}
+                options={getFilteredOptions(locationData.professions)}
                 value={formData.profession_id || ''}
                 onValueChange={(value) => handleInputChange('profession_id', value)}
                 placeholder="Select Profession"
@@ -299,7 +348,7 @@ export const KaryakarForm = ({
             <div>
               <Label>Seva Type</Label>
               <SearchableSelect
-                options={getFilteredOptions(sevaTypes)}
+                options={getFilteredOptions(locationData.sevaTypes)}
                 value={formData.seva_type_id || ''}
                 onValueChange={(value) => handleInputChange('seva_type_id', value)}
                 placeholder="Select Seva Type"
@@ -320,7 +369,7 @@ export const KaryakarForm = ({
             <div>
               <Label>Mandir</Label>
               <SearchableSelect
-                options={getFilteredOptions(mandirs)}
+                options={getFilteredOptions(locationData.mandirs)}
                 value={formData.mandir_id || ''}
                 onValueChange={(value) => handleInputChange('mandir_id', value)}
                 placeholder="Select Mandir"
@@ -330,7 +379,7 @@ export const KaryakarForm = ({
             <div>
               <Label>Kshetra</Label>
               <SearchableSelect
-                options={getFilteredOptions(kshetras)}
+                options={getFilteredOptions(locationData.kshetras)}
                 value={formData.kshetra_id || ''}
                 onValueChange={(value) => handleInputChange('kshetra_id', value)}
                 placeholder="Select Kshetra"
@@ -342,7 +391,7 @@ export const KaryakarForm = ({
             <div>
               <Label>Village</Label>
               <SearchableSelect
-                options={getFilteredOptions(villages)}
+                options={getFilteredOptions(locationData.villages)}
                 value={formData.village_id || ''}
                 onValueChange={(value) => handleInputChange('village_id', value)}
                 placeholder="Select Village"
@@ -352,7 +401,7 @@ export const KaryakarForm = ({
             <div>
               <Label>Mandal</Label>
               <SearchableSelect
-                options={getFilteredOptions(mandals)}
+                options={getFilteredOptions(locationData.mandals)}
                 value={formData.mandal_id || ''}
                 onValueChange={(value) => handleInputChange('mandal_id', value)}
                 placeholder="Select Mandal"
@@ -362,24 +411,26 @@ export const KaryakarForm = ({
         </CardContent>
       </Card>
 
-      {/* Role Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Role Information</CardTitle>
-          <CardDescription>Assign role to the karyakar</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div>
-            <Label>Role</Label>
-            <SearchableSelect
-              options={validRoleOptions}
-              value={formData.role || 'sevak'}
-              onValueChange={(value) => handleInputChange('role', value)}
-              placeholder="Select Role"
-            />
-          </div>
-        </CardContent>
-      </Card>
+      {/* Role Information - Only show if user has permission and not editing own profile */}
+      {canEditRoles && !isEditingOwnProfile && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Role Information</CardTitle>
+            <CardDescription>Assign role to the karyakar</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div>
+              <Label>Role</Label>
+              <SearchableSelect
+                options={validRoleOptions}
+                value={formData.role || 'sevak'}
+                onValueChange={(value) => handleInputChange('role', value)}
+                placeholder="Select Role"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="flex justify-end space-x-2">
         <Button type="button" variant="outline" onClick={onCancel}>

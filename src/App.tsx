@@ -2,11 +2,10 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/components/AuthProvider";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { Layout } from "@/components/Layout";
-import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Karyakars from "./pages/Karyakars";
@@ -29,7 +28,7 @@ function App() {
             <SidebarProvider>
               <Toaster />
               <Routes>
-                <Route path="/" element={<Index />} />
+                <Route path="/" element={<Navigate to="/auth" replace />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/" element={<Layout />}>
                   <Route path="dashboard" element={<Dashboard />} />

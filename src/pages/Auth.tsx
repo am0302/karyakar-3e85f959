@@ -8,13 +8,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, Lock, Chrome } from "lucide-react";
+import { Mail, Lock, Chrome, User } from "lucide-react";
 
 const Auth = () => {
   const { user, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const { toast } = useToast();
 
   if (user) {
@@ -35,8 +37,17 @@ const Auth = () => {
   };
 
   const handleEmailSignUp = async () => {
+    if (!fullName.trim()) {
+      toast({
+        title: "Full Name Required",
+        description: "Please enter your full name",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
-    const { error } = await signUpWithEmail(email, password);
+    const { error } = await signUpWithEmail(email, password, fullName);
     if (error) {
       toast({
         title: "Sign Up Failed",
@@ -44,10 +55,20 @@ const Auth = () => {
         variant: "destructive",
       });
     } else {
+      setShowSuccess(true);
       toast({
         title: "Success",
-        description: "Check your email for verification link",
+        description: "Account created successfully! Please check your email for verification.",
       });
+      // Reset form and show sign in tab after 2 seconds
+      setTimeout(() => {
+        setShowSuccess(false);
+        setEmail("");
+        setPassword("");
+        setFullName("");
+        // Switch to sign in tab
+        document.querySelector('[value="signin"]')?.click();
+      }, 2000);
     }
     setLoading(false);
   };
@@ -57,6 +78,28 @@ const Auth = () => {
       action();
     }
   };
+
+  if (showSuccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-amber-50 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center space-y-2">
+            <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <CardTitle className="text-2xl font-bold text-gray-900">
+              Account Created Successfully!
+            </CardTitle>
+            <CardDescription>
+              Please check your email for verification. You will be redirected to sign in shortly.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-amber-50 p-4">
@@ -141,6 +184,21 @@ const Auth = () => {
             </TabsContent>
             
             <TabsContent value="signup" className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="signup-name">Full Name</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="signup-name"
+                    type="text"
+                    placeholder="Enter your full name"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    onKeyPress={(e) => handleKeyPress(e, handleEmailSignUp)}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="signup-email">Email</Label>
                 <div className="relative">
