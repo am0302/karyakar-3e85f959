@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useAuth } from './AuthProvider';
 import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 const navigationItems = [
   {
@@ -63,6 +64,30 @@ export function AppSidebar() {
   const location = useLocation();
   const { user } = useAuth();
   const isCollapsed = state === "collapsed";
+  const [userRole, setUserRole] = useState('');
+
+  useEffect(() => {
+    if (user) {
+      fetchUserRole();
+    }
+  }, [user]);
+
+  const fetchUserRole = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+        
+      if (error) throw error;
+      setUserRole(data?.role || '');
+    } catch (error: any) {
+      console.error('Error fetching user role:', error);
+    }
+  };
 
   const isActive = (path: string) => location.pathname === path;
   
@@ -143,7 +168,7 @@ export function AppSidebar() {
         </div>
 
         {/* Admin Section */}
-        {user?.role === 'super_admin' && (
+        {userRole === 'super_admin' && (
           <div className="px-4 pb-4">
             {(!isCollapsed || isMobile) && (
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Administration</p>

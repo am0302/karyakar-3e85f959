@@ -53,19 +53,9 @@ export const MasterDataForm = ({
     if (field.type === 'select') {
       // Handle static options
       if (field.options) {
-        // Apply strict filtering for static options
-        const validOptions = field.options.filter(option => 
-          option && 
-          option.value && 
-          typeof option.value === 'string' && 
-          option.value.trim() !== '' &&
-          option.label &&
-          typeof option.label === 'string' &&
-          option.label.trim() !== ''
-        );
         return (
           <SearchableSelect
-            options={validOptions}
+            options={field.options}
             value={formData[field.name] || ''}
             onValueChange={(value) => onFormDataChange(field.name, value)}
             placeholder={`Select ${field.label}`}
@@ -76,19 +66,9 @@ export const MasterDataForm = ({
       
       // Handle foreign key options
       if (field.foreignKey) {
-        // Apply strict filtering for foreign key options
-        const validOptions = (foreignKeyOptions[field.name] || []).filter(option => 
-          option && 
-          option.value && 
-          typeof option.value === 'string' && 
-          option.value.trim() !== '' &&
-          option.label &&
-          typeof option.label === 'string' &&
-          option.label.trim() !== ''
-        );
         return (
           <SearchableSelect
-            options={validOptions}
+            options={foreignKeyOptions[field.name] || []}
             value={formData[field.name] || ''}
             onValueChange={(value) => onFormDataChange(field.name, value)}
             placeholder={`Select ${field.label}`}

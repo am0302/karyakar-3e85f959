@@ -12,35 +12,23 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { User, Mail, Phone, Calendar, MapPin, Save, Upload } from 'lucide-react';
 
-interface UserProfileData {
-  full_name: string;
-  email: string;
-  mobile_number: string;
-  whatsapp_number: string;
-  date_of_birth: string;
-  age: string;
-  profile_photo_url: string;
-  role: string;
-}
-
 const UserProfile = () => {
   const { user, refreshUser } = useAuth();
   const { hasPermission } = usePermissions();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [profile, setProfile] = useState<UserProfileData>({
+  const [profile, setProfile] = useState({
     full_name: '',
     email: '',
     mobile_number: '',
     whatsapp_number: '',
     date_of_birth: '',
     age: '',
-    profile_photo_url: '',
-    role: ''
+    profile_photo_url: ''
   });
 
-  const canEdit = hasPermission('admin', 'edit') || profile.role === 'super_admin';
+  const canEdit = hasPermission('admin', 'edit') || user?.role === 'super_admin';
 
   useEffect(() => {
     if (user) {
@@ -68,8 +56,7 @@ const UserProfile = () => {
         whatsapp_number: data.whatsapp_number || '',
         date_of_birth: data.date_of_birth || '',
         age: data.age?.toString() || '',
-        profile_photo_url: data.profile_photo_url || '',
-        role: data.role || ''
+        profile_photo_url: data.profile_photo_url || ''
       });
     } catch (error: any) {
       console.error('Error fetching profile:', error);
@@ -155,13 +142,13 @@ const UserProfile = () => {
             <Avatar className="h-24 w-24 mx-auto">
               <AvatarImage src={profile.profile_photo_url} />
               <AvatarFallback className="text-lg">
-                {getInitials(profile.full_name || user?.email || 'U')}
+                {getInitials(profile.full_name || user?.full_name || 'U')}
               </AvatarFallback>
             </Avatar>
             <div>
-              <h3 className="text-lg font-medium">{profile.full_name || user?.email}</h3>
+              <h3 className="text-lg font-medium">{profile.full_name || user?.full_name}</h3>
               <Badge variant="outline" className="mt-1">
-                {profile.role?.replace('_', ' ') || 'User'}
+                {user?.role?.replace('_', ' ') || 'User'}
               </Badge>
             </div>
             {profile.email && (
@@ -272,7 +259,7 @@ const UserProfile = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <h4 className="font-medium text-sm text-gray-500">User Role</h4>
-              <p className="mt-1 capitalize">{profile.role?.replace('_', ' ')}</p>
+              <p className="mt-1 capitalize">{user?.role?.replace('_', ' ')}</p>
             </div>
             <div>
               <h4 className="font-medium text-sm text-gray-500">Account Status</h4>
