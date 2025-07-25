@@ -67,7 +67,10 @@ const Auth = () => {
         setPassword("");
         setFullName("");
         // Switch to sign in tab
-        document.querySelector('[value="signin"]')?.click();
+        const signinTab = document.querySelector('[value="signin"]') as HTMLButtonElement;
+        if (signinTab) {
+          signinTab.click();
+        }
       }, 2000);
     }
     setLoading(false);

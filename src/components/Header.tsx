@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -11,13 +11,44 @@ import {
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
-import { User, Settings, LogOut, Bell } from 'lucide-react';
+import { User, Settings, LogOut, Bell, Home } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { RoleDisplay } from '@/components/RoleDisplay';
+import { supabase } from '@/integrations/supabase/client';
+
+interface UserProfile {
+  full_name: string;
+  profile_photo_url: string | null;
+  role: string;
+}
 
 const Header = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      fetchUserProfile();
+    }
+  }, [user]);
+
+  const fetchUserProfile = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('full_name, profile_photo_url, role')
+        .eq('id', user.id)
+        .single();
+
+      if (error) throw error;
+      setUserProfile(data);
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
 
   const handleSignOut = async () => {
     try {
@@ -34,6 +65,10 @@ const Header = () => {
 
   const handleSettingsClick = () => {
     navigate('/settings');
+  };
+
+  const handleHomeClick = () => {
+    navigate('/');
   };
 
   const getInitials = (name: string) => {
@@ -58,6 +93,12 @@ const Header = () => {
         </div>
 
         <div className="flex items-center space-x-4">
+          {/* Home Button */}
+          <Button variant="ghost" size="sm" onClick={handleHomeClick}>
+            <Home className="h-4 w-4 mr-2" />
+            Home
+          </Button>
+
           {/* Notifications */}
           <Button variant="ghost" size="sm" className="relative">
             <Bell className="h-5 w-5" />
@@ -71,17 +112,17 @@ const Header = () => {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="flex items-center space-x-2 p-2">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={user.profile_photo_url} />
+                  <AvatarImage src={userProfile?.profile_photo_url || ''} />
                   <AvatarFallback>
-                    {getInitials(user.full_name || user.email || 'User')}
+                    {getInitials(userProfile?.full_name || user.email || 'User')}
                   </AvatarFallback>
                 </Avatar>
                 <div className="hidden md:block text-left">
                   <div className="text-sm font-medium">
-                    {user.full_name || user.email}
+                    {userProfile?.full_name || user.email}
                   </div>
                   <div className="text-xs text-gray-500">
-                    <RoleDisplay role={user.role || 'sevak'} />
+                    <RoleDisplay role={userProfile?.role || 'sevak'} />
                   </div>
                 </div>
               </Button>
