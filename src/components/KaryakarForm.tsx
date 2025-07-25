@@ -96,32 +96,37 @@ export const KaryakarForm: React.FC<KaryakarFormProps> = ({
   };
 
   const handleInputChange = (field: keyof KaryakarFormData, value: string | boolean) => {
-    setFormData({
-      ...formData,
-      [field]: value
-    });
-
-    // Auto-populate WhatsApp number if checkbox is checked
-    if (field === 'is_whatsapp_same_as_mobile' && value === true) {
-      setFormData({
+    // Handle boolean fields separately
+    if (field === 'is_whatsapp_same_as_mobile') {
+      const updatedData = {
         ...formData,
-        [field]: value,
-        whatsapp_number: formData.mobile_number
-      });
+        [field]: value as boolean
+      };
+      
+      // Auto-populate WhatsApp number if checkbox is checked
+      if (value === true) {
+        updatedData.whatsapp_number = formData.mobile_number;
+      }
+      
+      setFormData(updatedData);
+      return;
     }
+
+    // Handle string fields
+    const stringValue = value as string;
+    let updatedData = {
+      ...formData,
+      [field]: stringValue
+    };
 
     // Auto-populate WhatsApp number when mobile number changes and checkbox is checked
     if (field === 'mobile_number' && formData.is_whatsapp_same_as_mobile) {
-      setFormData({
-        ...formData,
-        [field]: value,
-        whatsapp_number: value as string
-      });
+      updatedData.whatsapp_number = stringValue;
     }
 
     // Calculate age from date of birth
-    if (field === 'date_of_birth' && value) {
-      const birthDate = new Date(value as string);
+    if (field === 'date_of_birth' && stringValue) {
+      const birthDate = new Date(stringValue);
       const today = new Date();
       let age = today.getFullYear() - birthDate.getFullYear();
       const monthDiff = today.getMonth() - birthDate.getMonth();
@@ -130,12 +135,10 @@ export const KaryakarForm: React.FC<KaryakarFormProps> = ({
         age--;
       }
       
-      setFormData({
-        ...formData,
-        [field]: value,
-        age: age.toString()
-      });
+      updatedData.age = age.toString();
     }
+
+    setFormData(updatedData);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -144,9 +147,21 @@ export const KaryakarForm: React.FC<KaryakarFormProps> = ({
 
     try {
       const dataToSubmit = {
-        ...formData,
+        full_name: formData.full_name,
+        email: formData.email || null,
+        mobile_number: formData.mobile_number,
+        whatsapp_number: formData.is_whatsapp_same_as_mobile ? formData.mobile_number : formData.whatsapp_number || null,
+        is_whatsapp_same_as_mobile: formData.is_whatsapp_same_as_mobile,
+        date_of_birth: formData.date_of_birth || null,
         age: formData.age ? parseInt(formData.age) : null,
-        whatsapp_number: formData.is_whatsapp_same_as_mobile ? formData.mobile_number : formData.whatsapp_number
+        profession_id: formData.profession_id || null,
+        mandir_id: formData.mandir_id || null,
+        kshetra_id: formData.kshetra_id || null,
+        village_id: formData.village_id || null,
+        mandal_id: formData.mandal_id || null,
+        seva_type_id: formData.seva_type_id || null,
+        role: formData.role as any, // Cast to any to handle enum types
+        profile_photo_url: formData.profile_photo_url || null
       };
 
       if (editingKaryakar) {
@@ -162,9 +177,15 @@ export const KaryakarForm: React.FC<KaryakarFormProps> = ({
           description: 'Karyakar updated successfully',
         });
       } else {
+        // For new records, include the user ID
+        const insertData = {
+          ...dataToSubmit,
+          id: user?.id || ''
+        };
+
         const { error } = await supabase
           .from('profiles')
-          .insert([dataToSubmit]);
+          .insert([insertData]);
 
         if (error) throw error;
 
