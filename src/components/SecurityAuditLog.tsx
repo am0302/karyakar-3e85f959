@@ -30,7 +30,7 @@ export const SecurityAuditLog = () => {
     try {
       setLoading(true);
       
-      // Query the audit table directly without joins since the table might not be in types yet
+      // Query the audit table directly with type assertion
       const { data: auditData, error } = await supabase
         .from('role_change_audit' as any)
         .select('*')
@@ -47,17 +47,18 @@ export const SecurityAuditLog = () => {
         return;
       }
 
-      if (!auditData) {
+      if (!auditData || auditData.length === 0) {
         setAuditLogs([]);
         return;
       }
 
-      // Fetch user names separately to avoid join issues
+      // Extract user IDs safely
       const userIds = [...new Set([
-        ...auditData.map(log => log.changed_by),
-        ...auditData.map(log => log.target_user_id)
+        ...auditData.map((log: any) => log.changed_by),
+        ...auditData.map((log: any) => log.target_user_id)
       ])].filter(Boolean);
 
+      // Fetch user names separately
       const { data: users, error: usersError } = await supabase
         .from('profiles')
         .select('id, full_name')
@@ -69,12 +70,17 @@ export const SecurityAuditLog = () => {
 
       const usersMap = new Map(users?.map(user => [user.id, user.full_name]) || []);
 
-      // Transform and sanitize data
-      const sanitizedLogs = auditData.map(log => ({
-        ...log,
+      // Transform and sanitize data with proper typing
+      const sanitizedLogs: AuditLogEntry[] = auditData.map((log: any) => ({
+        id: log.id,
+        changed_by: log.changed_by,
+        target_user_id: log.target_user_id,
+        old_role: log.old_role,
+        new_role: log.new_role,
+        reason: log.reason || 'No reason provided',
+        created_at: log.created_at,
         changer_name: sanitizeInput.displayName(usersMap.get(log.changed_by) || 'Unknown'),
-        target_name: sanitizeInput.displayName(usersMap.get(log.target_user_id) || 'Unknown'),
-        reason: sanitizeInput.text(log.reason || 'No reason provided')
+        target_name: sanitizeInput.displayName(usersMap.get(log.target_user_id) || 'Unknown')
       }));
 
       setAuditLogs(sanitizedLogs);
