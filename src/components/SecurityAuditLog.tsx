@@ -30,13 +30,10 @@ export const SecurityAuditLog = () => {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase
-        .from('role_change_audit')
-        .select(`
-          *,
-          changer:changed_by(full_name),
-          target:target_user_id(full_name)
-        `)
+      // Query the audit table directly without joins since the table might not be in types yet
+      const { data: auditData, error } = await supabase
+        .from('role_change_audit' as any)
+        .select('*')
         .order('created_at', { ascending: false })
         .limit(100);
 
@@ -50,11 +47,33 @@ export const SecurityAuditLog = () => {
         return;
       }
 
+      if (!auditData) {
+        setAuditLogs([]);
+        return;
+      }
+
+      // Fetch user names separately to avoid join issues
+      const userIds = [...new Set([
+        ...auditData.map(log => log.changed_by),
+        ...auditData.map(log => log.target_user_id)
+      ])].filter(Boolean);
+
+      const { data: users, error: usersError } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', userIds);
+
+      if (usersError) {
+        console.error('Error fetching user names:', usersError);
+      }
+
+      const usersMap = new Map(users?.map(user => [user.id, user.full_name]) || []);
+
       // Transform and sanitize data
-      const sanitizedLogs = (data || []).map(log => ({
+      const sanitizedLogs = auditData.map(log => ({
         ...log,
-        changer_name: sanitizeInput.displayName(log.changer?.full_name || 'Unknown'),
-        target_name: sanitizeInput.displayName(log.target?.full_name || 'Unknown'),
+        changer_name: sanitizeInput.displayName(usersMap.get(log.changed_by) || 'Unknown'),
+        target_name: sanitizeInput.displayName(usersMap.get(log.target_user_id) || 'Unknown'),
         reason: sanitizeInput.text(log.reason || 'No reason provided')
       }));
 

@@ -22,8 +22,9 @@ export const useRoleValidation = () => {
     try {
       setLoading(true);
       
+      // Use the function directly with rpc call
       const { data, error } = await supabase
-        .rpc('validate_role_assignment', {
+        .rpc('validate_role_assignment' as any, {
           _assigner_id: user.id,
           _target_role: targetRole
         });
