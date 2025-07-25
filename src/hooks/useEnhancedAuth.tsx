@@ -91,18 +91,43 @@ export const useEnhancedAuth = () => {
     }
 
     try {
-      const { data, error } = await supabase
-        .rpc('validate_role_assignment', {
-          _assigner_id: user.id,
-          _target_role: newRole
-        });
+      // Use a direct query to check role hierarchy instead of RPC
+      const { data: currentUserProfile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
 
-      if (error) {
+      if (!currentUserProfile) {
         await securityLogger.logUnauthorizedAccess('user_management', 'role_change');
-        return { authorized: false, error: 'Role validation failed' };
+        return { authorized: false, error: 'User profile not found' };
       }
 
-      if (!data) {
+      // Super admin can change any role
+      if (currentUserProfile.role === 'super_admin') {
+        return { authorized: true };
+      }
+
+      // Get role hierarchy levels
+      const { data: currentRoleHierarchy } = await supabase
+        .from('role_hierarchy')
+        .select('level')
+        .eq('role', currentUserProfile.role)
+        .single();
+
+      const { data: targetRoleHierarchy } = await supabase
+        .from('role_hierarchy')
+        .select('level')
+        .eq('role', newRole)
+        .single();
+
+      if (!currentRoleHierarchy || !targetRoleHierarchy) {
+        await securityLogger.logUnauthorizedAccess('user_management', 'role_change');
+        return { authorized: false, error: 'Role hierarchy not found' };
+      }
+
+      // User can only assign roles with higher level (lower hierarchy)
+      if (currentRoleHierarchy.level >= targetRoleHierarchy.level) {
         await securityLogger.logUnauthorizedAccess('user_management', 'role_change');
         return { authorized: false, error: 'Insufficient permissions' };
       }

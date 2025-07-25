@@ -24,25 +24,53 @@ export const useRoleValidation = () => {
     try {
       setLoading(true);
       
-      // Use the enhanced security function
-      const { data, error } = await supabase
-        .rpc('validate_role_assignment', {
-          _assigner_id: user.id,
-          _target_role: targetRole
-        });
+      // Get current user profile
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
 
-      if (error) {
-        console.error('Role validation error:', error);
+      if (!userProfile) {
         await securityLogger.logUnauthorizedAccess('user_management', 'role_assignment');
         toast({
           title: 'Error',
-          description: 'Failed to validate role assignment',
+          description: 'User profile not found',
           variant: 'destructive',
         });
         return false;
       }
 
-      if (!data) {
+      // Super admin can assign any role
+      if (userProfile.role === 'super_admin') {
+        return true;
+      }
+
+      // Get role hierarchy levels
+      const { data: currentRoleHierarchy } = await supabase
+        .from('role_hierarchy')
+        .select('level')
+        .eq('role', userProfile.role)
+        .single();
+
+      const { data: targetRoleHierarchy } = await supabase
+        .from('role_hierarchy')
+        .select('level')
+        .eq('role', targetRole)
+        .single();
+
+      if (!currentRoleHierarchy || !targetRoleHierarchy) {
+        await securityLogger.logUnauthorizedAccess('user_management', 'role_assignment');
+        toast({
+          title: 'Error',
+          description: 'Role hierarchy not found',
+          variant: 'destructive',
+        });
+        return false;
+      }
+
+      // User can only assign roles with higher level (lower hierarchy)
+      if (currentRoleHierarchy.level >= targetRoleHierarchy.level) {
         await securityLogger.logUnauthorizedAccess('user_management', 'role_assignment');
         toast({
           title: 'Access Denied',
@@ -72,26 +100,29 @@ export const useRoleValidation = () => {
 
     try {
       // Get current user's role hierarchy level
-      const { data: userHierarchy, error: hierarchyError } = await supabase
-        .rpc('get_user_hierarchy_level', { _user_id: user.id });
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
 
-      if (hierarchyError) {
-        console.error('Error getting user hierarchy:', hierarchyError);
-        return [];
-      }
+      if (!userProfile) return [];
 
-      // Get roles with lower hierarchy levels
-      const { data: roles, error: rolesError } = await supabase
+      const { data: userHierarchy } = await supabase
+        .from('role_hierarchy')
+        .select('level')
+        .eq('role', userProfile.role)
+        .single();
+
+      if (!userHierarchy) return [];
+
+      // Get roles with higher hierarchy levels (lower permissions)
+      const { data: roles } = await supabase
         .from('role_hierarchy')
         .select('role')
-        .gt('level', userHierarchy || 99);
+        .gt('level', userHierarchy.level);
 
-      if (rolesError) {
-        console.error('Error getting assignable roles:', rolesError);
-        return [];
-      }
-
-      return roles.map(r => r.role);
+      return roles?.map(r => r.role) || [];
     } catch (error) {
       console.error('Error getting assignable roles:', error);
       return [];

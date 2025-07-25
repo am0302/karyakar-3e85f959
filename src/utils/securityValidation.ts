@@ -122,15 +122,14 @@ export const securityValidation = {
 export const securityLogger = {
   logSecurityEvent: async (eventType: string, details: any = {}) => {
     try {
-      const { error } = await supabase
-        .from('security_events')
-        .insert({
-          event_type: eventType,
-          user_id: (await supabase.auth.getUser()).data.user?.id,
-          details,
-          ip_address: await getClientIP(),
-          user_agent: navigator.userAgent
-        });
+      // Use raw SQL to insert into security_events table since it's not in types yet
+      const { error } = await supabase.rpc('log_security_event', {
+        event_type: eventType,
+        user_id: (await supabase.auth.getUser()).data.user?.id,
+        details,
+        ip_address: await getClientIP(),
+        user_agent: navigator.userAgent
+      });
 
       if (error) {
         console.error('Failed to log security event:', error);
