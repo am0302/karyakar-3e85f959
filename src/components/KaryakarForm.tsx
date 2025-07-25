@@ -96,38 +96,36 @@ export const KaryakarForm: React.FC<KaryakarFormProps> = ({
   };
 
   const handleInputChange = (field: string, value: string | boolean) => {
-    setFormData((prev) => {
-      const updatedData = {
-        ...prev,
-        [field]: value
-      };
+    const updatedData = {
+      ...formData,
+      [field]: value
+    };
 
-      // Auto-populate WhatsApp number if checkbox is checked
-      if (field === 'is_whatsapp_same_as_mobile' && value === true) {
-        updatedData.whatsapp_number = prev.mobile_number;
+    // Auto-populate WhatsApp number if checkbox is checked
+    if (field === 'is_whatsapp_same_as_mobile' && value === true) {
+      updatedData.whatsapp_number = formData.mobile_number;
+    }
+
+    // Auto-populate WhatsApp number when mobile number changes and checkbox is checked
+    if (field === 'mobile_number' && formData.is_whatsapp_same_as_mobile) {
+      updatedData.whatsapp_number = value as string;
+    }
+
+    // Calculate age from date of birth
+    if (field === 'date_of_birth' && value) {
+      const birthDate = new Date(value as string);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
       }
+      
+      updatedData.age = age.toString();
+    }
 
-      // Auto-populate WhatsApp number when mobile number changes and checkbox is checked
-      if (field === 'mobile_number' && prev.is_whatsapp_same_as_mobile) {
-        updatedData.whatsapp_number = value as string;
-      }
-
-      // Calculate age from date of birth
-      if (field === 'date_of_birth' && value) {
-        const birthDate = new Date(value as string);
-        const today = new Date();
-        let age = today.getFullYear() - birthDate.getFullYear();
-        const monthDiff = today.getMonth() - birthDate.getMonth();
-        
-        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-          age--;
-        }
-        
-        updatedData.age = age.toString();
-      }
-
-      return updatedData;
-    });
+    setFormData(updatedData);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
