@@ -91,7 +91,7 @@ export const useEnhancedAuth = () => {
     }
 
     try {
-      // Use a direct query to check role hierarchy instead of RPC
+      // Get current user's profile and role
       const { data: currentUserProfile } = await supabase
         .from('profiles')
         .select('role')
@@ -108,7 +108,7 @@ export const useEnhancedAuth = () => {
         return { authorized: true };
       }
 
-      // Get role hierarchy levels
+      // Get role hierarchy levels for validation
       const { data: currentRoleHierarchy } = await supabase
         .from('role_hierarchy')
         .select('level')
