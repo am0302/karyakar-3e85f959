@@ -1,4 +1,3 @@
-
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PermissionsManager } from "@/components/PermissionsManager";
 import { RoleHierarchyManager } from "@/components/RoleHierarchyManager";
@@ -7,6 +6,8 @@ import { MasterDataDialog } from "@/components/MasterDataDialog";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Shield, Network, MapPin, Users, Briefcase, Star } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { SecurityAuditLog } from "@/components/SecurityAuditLog";
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -26,7 +27,7 @@ const Admin = () => {
 
         <Tabs defaultValue="permissions" className="space-y-4 sm:space-y-6">
           <div className="overflow-x-auto">
-            <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 gap-1 min-w-[600px] sm:min-w-0">
+            <TabsList className="grid w-full grid-cols-3 sm:grid-cols-7 gap-1 min-w-[700px] sm:min-w-0">
               <TabsTrigger value="permissions" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3">
                 <Shield className="h-3 w-3 sm:h-4 sm:w-4" />
                 <span className="hidden sm:inline">Permissions</span>
@@ -56,6 +57,11 @@ const Admin = () => {
                 <Star className="h-3 w-3 sm:h-4 sm:w-4" />
                 <span className="hidden sm:inline">Seva Types</span>
                 <span className="sm:hidden">Seva</span>
+              </TabsTrigger>
+              <TabsTrigger value="security-audit" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3">
+                <Shield className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Security Audit</span>
+                <span className="sm:hidden">Audit</span>
               </TabsTrigger>
             </TabsList>
           </div>
@@ -162,6 +168,29 @@ const Admin = () => {
                   onSuccess={handleSuccess}
                   autoLoad={true}
                 />
+              </div>
+            </div>
+          </TabsContent>
+        
+          <TabsContent value="security-audit" className="space-y-4 sm:space-y-6">
+            <div className="bg-white rounded-lg shadow">
+              <div className="p-4 sm:p-6 border-b">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-base sm:text-lg md:text-xl font-semibold">Security Audit</h2>
+                    <p className="text-sm sm:text-base text-gray-600">Monitor security events and role changes</p>
+                  </div>
+                  <Button
+                    onClick={() => navigate('/security-audit')}
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                  >
+                    View Full Audit
+                  </Button>
+                </div>
+              </div>
+              <div className="p-4 sm:p-6">
+                <SecurityAuditLog />
               </div>
             </div>
           </TabsContent>
