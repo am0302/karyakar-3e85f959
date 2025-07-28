@@ -141,14 +141,17 @@ const Reports = () => {
       
       // Filter out tasks with query errors
       const validTasks = tasksData?.filter(task => {
-        return task.assigned_to_profile && 
-               typeof task.assigned_to_profile === 'object' && 
-               !('error' in task.assigned_to_profile) &&
-               'full_name' in task.assigned_to_profile &&
-               task.assigned_by_profile && 
-               typeof task.assigned_by_profile === 'object' && 
-               !('error' in task.assigned_by_profile) &&
-               'full_name' in task.assigned_by_profile;
+        const hasValidAssignedTo = task.assigned_to_profile && 
+          typeof task.assigned_to_profile === 'object' && 
+          !('error' in task.assigned_to_profile) &&
+          'full_name' in task.assigned_to_profile;
+        
+        const hasValidAssignedBy = task.assigned_by_profile && 
+          typeof task.assigned_by_profile === 'object' && 
+          !('error' in task.assigned_by_profile) &&
+          'full_name' in task.assigned_by_profile;
+        
+        return hasValidAssignedTo && hasValidAssignedBy;
       }) || [];
 
       const transformedTasks: TaskReport[] = validTasks.map(task => ({

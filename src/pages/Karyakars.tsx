@@ -16,6 +16,7 @@ import { KaryakarStats } from '@/components/KaryakarStats';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import type { Database } from '@/integrations/supabase/types';
 
+// Fix the user_role type by using the correct enum from Database
 type UserRole = Database['public']['Enums']['user_role'];
 
 interface Profile {
