@@ -29,7 +29,7 @@ interface ChatRoom {
     profiles: {
       full_name: string;
     };
-  }> | null;
+  }>;
 }
 
 interface Message {
@@ -83,18 +83,25 @@ const Communication = () => {
       
       // Filter out rooms with query errors and transform data
       const validRooms = data?.filter(room => {
-        return !room.chat_participants || (
-          Array.isArray(room.chat_participants) &&
-          room.chat_participants.every(participant => 
-            participant && 
-            participant.profiles && 
-            typeof participant.profiles === 'object' &&
-            !('error' in participant.profiles)
-          )
+        // Check if chat_participants is an array and all participants have valid profiles
+        if (!Array.isArray(room.chat_participants)) {
+          return false;
+        }
+        
+        return room.chat_participants.every(participant => 
+          participant && 
+          participant.profiles && 
+          typeof participant.profiles === 'object' &&
+          !('error' in participant.profiles)
         );
       }).map(room => ({
         ...room,
-        chat_participants: room.chat_participants || []
+        chat_participants: (room.chat_participants || []).map(participant => ({
+          ...participant,
+          profiles: {
+            full_name: participant.profiles?.full_name || 'Unknown User'
+          }
+        }))
       })) || [];
 
       setRooms(validRooms);

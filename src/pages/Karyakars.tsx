@@ -14,11 +14,10 @@ import { KaryakarGridView } from '@/components/KaryakarGridView';
 import { KaryakarTableView } from '@/components/KaryakarTableView';
 import { KaryakarStats } from '@/components/KaryakarStats';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import type { Database } from '@/integrations/supabase/types';
 
 type UserRole = 'super_admin' | 'sant_nirdeshak' | 'sah_nirdeshak' | 'mandal_sanchalak' | 'karyakar' | 'sevak';
 
-interface Profile {
+interface KaryakarProfile {
   id: string;
   full_name: string;
   mobile_number: string;
@@ -62,12 +61,12 @@ const Karyakars = () => {
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
   const { toast } = useToast();
-  const [karyakars, setKaryakars] = useState<Profile[]>([]);
-  const [filteredKaryakars, setFilteredKaryakars] = useState<Profile[]>([]);
+  const [karyakars, setKaryakars] = useState<KaryakarProfile[]>([]);
+  const [filteredKaryakars, setFilteredKaryakars] = useState<KaryakarProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [showForm, setShowForm] = useState(false);
-  const [selectedKaryakar, setSelectedKaryakar] = useState<Profile | null>(null);
+  const [selectedKaryakar, setSelectedKaryakar] = useState<KaryakarProfile | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
     role: '',
@@ -144,7 +143,7 @@ const Karyakars = () => {
           : null
       })) || [];
       
-      setKaryakars(validKaryakars as Profile[]);
+      setKaryakars(validKaryakars as KaryakarProfile[]);
     } catch (error: any) {
       console.error('Error fetching karyakars:', error);
       toast({
@@ -184,7 +183,7 @@ const Karyakars = () => {
     setFilteredKaryakars(filtered);
   };
 
-  const handleEdit = (karyakar: Profile) => {
+  const handleEdit = (karyakar: KaryakarProfile) => {
     if (!canEdit) {
       toast({
         title: 'Error',
