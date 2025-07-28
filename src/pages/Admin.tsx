@@ -4,7 +4,6 @@ import { MasterDataDialog } from '@/components/MasterDataDialog';
 import { RoleHierarchyManager } from '@/components/RoleHierarchyManager';
 import { PermissionsManager } from '@/components/PermissionsManager';
 import { UserLocationAssignment } from '@/components/UserLocationAssignment';
-import { KaryakarRoleModule } from '@/components/KaryakarRoleModule';
 
 const Admin = () => {
   return (
@@ -106,8 +105,6 @@ const Admin = () => {
               ]}
               table="custom_roles"
             />
-
-            <KaryakarRoleModule />
           </div>
         </div>
         
