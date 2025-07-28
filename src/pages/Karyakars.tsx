@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -106,7 +107,13 @@ const Karyakars = () => {
       }
 
       console.log('Fetched karyakars:', data);
-      setKaryakars(data || []);
+      // Filter out records with query errors
+      const validKaryakars = data?.filter(record => {
+        return record.professions !== null && typeof record.professions === 'object' && 
+               !('error' in record.professions);
+      }) || [];
+      
+      setKaryakars(validKaryakars as Profile[]);
     } catch (error: any) {
       console.error('Failed to fetch karyakars:', error);
       toast({
@@ -225,7 +232,7 @@ const Karyakars = () => {
       setShowRegistrationForm(false);
       setEditingKaryakar(null);
       resetForm();
-      await fetchKaryakars(); // Refresh the list
+      await fetchKaryakars();
     } catch (error: any) {
       console.error('Error saving karyakar:', error);
       toast({
@@ -444,7 +451,6 @@ const Karyakars = () => {
               </Button>
             </div>
 
-            {/* Quick search */}
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <div className="relative flex-1 sm:w-64">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
