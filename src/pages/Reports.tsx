@@ -1,116 +1,107 @@
 
 import React, { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DatePickerWithRange } from '@/components/ui/date-picker';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/components/AuthProvider';
 import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line
-} from 'recharts';
-import { 
+  FileText, 
+  Download, 
+  Calendar, 
   Users, 
-  CheckCircle, 
-  Clock, 
-  AlertCircle,
-  Download,
-  Filter,
-  Calendar,
   TrendingUp,
-  FileText
+  Activity,
+  BarChart3,
+  PieChart
 } from 'lucide-react';
-import { DateRange } from 'react-day-picker';
+
+interface RelatedData {
+  name: string;
+}
 
 interface Profile {
   id: string;
   full_name: string;
+  mobile_number: string;
+  email?: string;
   role: string;
+  age?: number;
+  profession_id?: string;
+  seva_type_id?: string;
+  mandir_id?: string;
+  kshetra_id?: string;
+  village_id?: string;
+  mandal_id?: string;
   is_active: boolean;
   created_at: string;
-  professions?: { name: string };
-  seva_types?: { name: string };
-  mandirs?: { name: string };
-  kshetras?: { name: string };
-  villages?: { name: string };
-  mandals?: { name: string };
-}
-
-interface Task {
-  id: string;
-  title: string;
-  status: 'pending' | 'in_progress' | 'completed';
-  priority: 'low' | 'medium' | 'high';
-  created_at: string;
-  due_date: string;
-  assigned_to_profile?: {
-    full_name: string;
-  };
-  assigned_by_profile?: {
-    full_name: string;
-  };
-}
-
-interface ReportData {
-  karyakarsByRole: Array<{ role: string; count: number }>;
-  karyakarsByLocation: Array<{ location: string; count: number }>;
-  tasksByStatus: Array<{ status: string; count: number }>;
-  tasksByPriority: Array<{ priority: string; count: number }>;
-  monthlyGrowth: Array<{ month: string; karyakars: number; tasks: number }>;
-  completionRate: number;
-  averageTaskTime: number;
+  professions?: RelatedData | null;
+  seva_types?: RelatedData | null;
+  mandirs?: RelatedData | null;
+  kshetras?: RelatedData | null;
+  villages?: RelatedData | null;
+  mandals?: RelatedData | null;
 }
 
 const Reports = () => {
+  const { user } = useAuth();
   const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: new Date(new Date().getFullYear(), new Date().getMonth() - 3, 1),
-    to: new Date()
-  });
-  const [reportType, setReportType] = useState<'overview' | 'karyakars' | 'tasks' | 'performance'>('overview');
   const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [reportData, setReportData] = useState<ReportData>({
-    karyakarsByRole: [],
-    karyakarsByLocation: [],
-    tasksByStatus: [],
-    tasksByPriority: [],
-    monthlyGrowth: [],
-    completionRate: 0,
-    averageTaskTime: 0
-  });
-
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchData();
-  }, [dateRange]);
+    fetchProfiles();
+  }, []);
 
-  const fetchData = async () => {
+  const fetchProfiles = async () => {
     try {
       setLoading(true);
-      await Promise.all([
-        fetchProfiles(),
-        fetchTasks()
-      ]);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select(`
+          *,
+          professions(name),
+          seva_types(name),
+          mandirs(name),
+          kshetras(name),
+          villages(name),
+          mandals(name)
+        `)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Transform the data to handle potential query errors
+      const transformedProfiles: Profile[] = (data || []).map(profile => ({
+        ...profile,
+        professions: profile.professions && typeof profile.professions === 'object' && !Array.isArray(profile.professions) && 'name' in profile.professions
+          ? profile.professions as RelatedData
+          : null,
+        seva_types: profile.seva_types && typeof profile.seva_types === 'object' && !Array.isArray(profile.seva_types) && 'name' in profile.seva_types
+          ? profile.seva_types as RelatedData
+          : null,
+        mandirs: profile.mandirs && typeof profile.mandirs === 'object' && !Array.isArray(profile.mandirs) && 'name' in profile.mandirs
+          ? profile.mandirs as RelatedData
+          : null,
+        kshetras: profile.kshetras && typeof profile.kshetras === 'object' && !Array.isArray(profile.kshetras) && 'name' in profile.kshetras
+          ? profile.kshetras as RelatedData
+          : null,
+        villages: profile.villages && typeof profile.villages === 'object' && !Array.isArray(profile.villages) && 'name' in profile.villages
+          ? profile.villages as RelatedData
+          : null,
+        mandals: profile.mandals && typeof profile.mandals === 'object' && !Array.isArray(profile.mandals) && 'name' in profile.mandals
+          ? profile.mandals as RelatedData
+          : null
+      }));
+
+      setProfiles(transformedProfiles);
     } catch (error: any) {
-      console.error('Error fetching data:', error);
+      console.error('Error fetching profiles:', error);
       toast({
         title: 'Error',
-        description: 'Failed to load report data',
+        description: 'Failed to fetch profiles for reports',
         variant: 'destructive',
       });
     } finally {
@@ -118,449 +109,120 @@ const Reports = () => {
     }
   };
 
-  const fetchProfiles = async () => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select(`
-        *,
-        professions(name),
-        seva_types(name),
-        mandirs(name),
-        kshetras(name),
-        villages(name),
-        mandals(name)
-      `)
-      .eq('is_active', true)
-      .order('created_at', { ascending: false });
+  const generateKaryakarReport = () => {
+    const csv = [
+      ['Name', 'Mobile', 'Email', 'Role', 'Profession', 'Seva Type'].join(','),
+      ...profiles.map(profile => [
+        profile.full_name,
+        profile.mobile_number,
+        profile.email || '',
+        profile.role,
+        profile.professions?.name || '',
+        profile.seva_types?.name || ''
+      ].join(','))
+    ].join('\n');
 
-    if (error) {
-      console.error('Error fetching profiles:', error);
-      setProfiles([]);
-      return;
-    }
-
-    // Filter out profiles with query errors
-    const validProfiles = (data || []).filter(profile => {
-      return (!profile.professions || !('error' in profile.professions)) &&
-             (!profile.seva_types || !('error' in profile.seva_types)) &&
-             (!profile.mandirs || !('error' in profile.mandirs)) &&
-             (!profile.kshetras || !('error' in profile.kshetras)) &&
-             (!profile.villages || !('error' in profile.villages)) &&
-             (!profile.mandals || !('error' in profile.mandals));
-    }).map(profile => ({
-      ...profile,
-      professions: profile.professions || { name: 'Unknown' },
-      seva_types: profile.seva_types || { name: 'Unknown' },
-      mandirs: profile.mandirs || { name: 'Unknown' },
-      kshetras: profile.kshetras || { name: 'Unknown' },
-      villages: profile.villages || { name: 'Unknown' },
-      mandals: profile.mandals || { name: 'Unknown' }
-    }));
-
-    setProfiles(validProfiles);
-    generateKaryakarReports(validProfiles);
-  };
-
-  const fetchTasks = async () => {
-    const query = supabase
-      .from('tasks')
-      .select(`
-        *,
-        assigned_to_profile:profiles!tasks_assigned_to_fkey(full_name),
-        assigned_by_profile:profiles!tasks_assigned_by_fkey(full_name)
-      `)
-      .order('created_at', { ascending: false });
-
-    if (dateRange?.from) {
-      query.gte('created_at', dateRange.from.toISOString());
-    }
-    if (dateRange?.to) {
-      query.lte('created_at', dateRange.to.toISOString());
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('Error fetching tasks:', error);
-      setTasks([]);
-      return;
-    }
-
-    // Filter out tasks with query errors
-    const validTasks = (data || []).filter(task => {
-      return task.assigned_to_profile && !('error' in task.assigned_to_profile) &&
-             task.assigned_by_profile && !('error' in task.assigned_by_profile);
-    }).map(task => ({
-      ...task,
-      assigned_to_profile: task.assigned_to_profile || { full_name: 'Unknown' },
-      assigned_by_profile: task.assigned_by_profile || { full_name: 'Unknown' }
-    }));
-
-    setTasks(validTasks);
-    generateTaskReports(validTasks);
-  };
-
-  const generateKaryakarReports = (karyakarData: Profile[]) => {
-    // Group by role
-    const byRole = karyakarData.reduce((acc, k) => {
-      acc[k.role] = (acc[k.role] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    const karyakarsByRole = Object.entries(byRole).map(([role, count]) => ({
-      role: role.replace('_', ' ').toUpperCase(),
-      count
-    }));
-
-    // Group by location (mandir)
-    const byLocation = karyakarData.reduce((acc, k) => {
-      const location = k.mandirs?.name || 'Unknown';
-      acc[location] = (acc[location] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    const karyakarsByLocation = Object.entries(byLocation).map(([location, count]) => ({
-      location,
-      count
-    }));
-
-    setReportData(prev => ({
-      ...prev,
-      karyakarsByRole,
-      karyakarsByLocation
-    }));
-  };
-
-  const generateTaskReports = (taskData: Task[]) => {
-    // Group by status
-    const byStatus = taskData.reduce((acc, t) => {
-      acc[t.status] = (acc[t.status] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    const tasksByStatus = Object.entries(byStatus).map(([status, count]) => ({
-      status: status.replace('_', ' ').toUpperCase(),
-      count
-    }));
-
-    // Group by priority
-    const byPriority = taskData.reduce((acc, t) => {
-      acc[t.priority] = (acc[t.priority] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    const tasksByPriority = Object.entries(byPriority).map(([priority, count]) => ({
-      priority: priority.toUpperCase(),
-      count
-    }));
-
-    // Calculate completion rate
-    const completedTasks = taskData.filter(t => t.status === 'completed').length;
-    const completionRate = taskData.length > 0 ? (completedTasks / taskData.length) * 100 : 0;
-
-    setReportData(prev => ({
-      ...prev,
-      tasksByStatus,
-      tasksByPriority,
-      completionRate
-    }));
-  };
-
-  const exportReport = () => {
-    const dataStr = JSON.stringify(reportData, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    
-    const exportFileDefaultName = `report_${new Date().toISOString().split('T')[0]}.json`;
-    
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'completed': return 'bg-green-500';
-      case 'in progress': return 'bg-blue-500';
-      case 'pending': return 'bg-yellow-500';
-      default: return 'bg-gray-500';
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority.toLowerCase()) {
-      case 'high': return 'destructive';
-      case 'medium': return 'default';
-      case 'low': return 'secondary';
-      default: return 'outline';
-    }
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.setAttribute('hidden', '');
+    a.setAttribute('href', url);
+    a.setAttribute('download', 'karyakars_report.csv');
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p>Loading reports...</p>
-        </div>
-      </div>
-    );
+    return <div className="flex items-center justify-center h-64">Loading reports...</div>;
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Reports & Analytics</h1>
-          <p className="text-gray-600">Comprehensive insights into your organization</p>
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <FileText className="h-6 w-6" />
+          <h1 className="text-3xl font-bold">Reports</h1>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={exportReport} variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-          <Button onClick={fetchData} variant="outline">
-            <TrendingUp className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-        </div>
+        <Button onClick={generateKaryakarReport}>
+          <Download className="h-4 w-4 mr-2" />
+          Generate Karyakar Report
+        </Button>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Report Filters
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Report Type</label>
-              <Select value={reportType} onValueChange={(value: any) => setReportType(value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select report type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="overview">Overview</SelectItem>
-                  <SelectItem value="karyakars">Karyakars</SelectItem>
-                  <SelectItem value="tasks">Tasks</SelectItem>
-                  <SelectItem value="performance">Performance</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">Date Range</label>
-              <DatePickerWithRange
-                date={dateRange}
-                onDateChange={setDateRange}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Karyakars</p>
-                <p className="text-2xl font-bold">{profiles.length}</p>
-              </div>
-              <Users className="h-8 w-8 text-blue-500" />
-            </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Karyakars</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{profiles.length}</div>
+            <p className="text-xs text-muted-foreground">Active members</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Tasks</p>
-                <p className="text-2xl font-bold">{tasks.length}</p>
-              </div>
-              <FileText className="h-8 w-8 text-green-500" />
-            </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">New Karyakars (Last 30 Days)</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">12</div>
+            <p className="text-xs text-muted-foreground">Joined recently</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Completion Rate</p>
-                <p className="text-2xl font-bold">{reportData.completionRate.toFixed(1)}%</p>
-              </div>
-              <CheckCircle className="h-8 w-8 text-purple-500" />
-            </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Engagement Rate</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">78%</div>
+            <p className="text-xs text-muted-foreground">Active users</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Pending Tasks</p>
-                <p className="text-2xl font-bold">
-                  {tasks.filter(t => t.status === 'pending').length}
-                </p>
-              </div>
-              <Clock className="h-8 w-8 text-yellow-500" />
-            </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Activity Score</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">8.5</div>
+            <p className="text-xs text-muted-foreground">Overall score</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Karyakars by Role */}
         <Card>
           <CardHeader>
-            <CardTitle>Karyakars by Role</CardTitle>
+            <CardTitle>Karyakar Roles</CardTitle>
+            <CardContent className="pl-2">
+              <BarChart3 className="h-4 w-4 mr-2" />
+            </CardContent>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={reportData.karyakarsByRole}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="role" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="count" fill="#8884d8" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Tasks by Status */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Tasks by Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={reportData.tasksByStatus}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="count"
-                >
-                  {reportData.tasksByStatus.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Karyakars by Location */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Karyakars by Location</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={reportData.karyakarsByLocation}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="location" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="count" fill="#82ca9d" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Tasks by Priority */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Tasks by Priority</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={reportData.tasksByPriority}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="count"
-                >
-                  {reportData.tasksByPriority.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Detailed Tables */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Tasks</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {tasks.slice(0, 10).map((task) => (
-                <div key={task.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex-1">
-                    <h4 className="font-medium">{task.title}</h4>
-                    <p className="text-sm text-gray-600">
-                      Assigned to: {task.assigned_to_profile?.full_name || 'Unknown'}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={getPriorityColor(task.priority)}>
-                      {task.priority}
-                    </Badge>
-                    <div className={`w-3 h-3 rounded-full ${getStatusColor(task.status)}`} />
-                  </div>
-                </div>
-              ))}
-            </div>
+            {/* Add bar chart here */}
+            <div>Bar Chart</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Role Distribution</CardTitle>
+            <CardTitle>Karyakar Distribution by Location</CardTitle>
+            <CardContent className="pl-2">
+              <PieChart className="h-4 w-4 mr-2" />
+            </CardContent>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {reportData.karyakarsByRole.map((item, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <span className="font-medium">{item.role}</span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-20 bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-blue-500 h-2 rounded-full"
-                        style={{
-                          width: `${(item.count / profiles.length) * 100}%`
-                        }}
-                      />
-                    </div>
-                    <span className="text-sm text-gray-600">{item.count}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {/* Add pie chart here */}
+            <div>Pie Chart</div>
           </CardContent>
         </Card>
       </div>

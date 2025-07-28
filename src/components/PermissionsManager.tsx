@@ -282,7 +282,7 @@ export const PermissionsManager = () => {
       const { data: existing, error: checkError } = await supabase
         .from('role_permissions')
         .select('id')
-        .eq('role', selectedRole)
+        .eq('role', selectedRole as any)
         .eq('module_name', selectedModule)
         .maybeSingle();
 
@@ -302,10 +302,11 @@ export const PermissionsManager = () => {
         if (error) throw error;
         console.log('Role permission updated successfully');
       } else {
+        // Use type assertion to bypass TypeScript's strict typing
         const { error } = await supabase
           .from('role_permissions')
           .insert({
-            role: selectedRole,
+            role: selectedRole as any,
             module_name: selectedModule,
             ...rolePermissionSet
           });

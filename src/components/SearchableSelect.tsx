@@ -46,25 +46,70 @@ export const SearchableSelect = ({
 }: SearchableSelectProps) => {
   const [open, setOpen] = useState(false);
 
-  const selectedValues = multiple && value ? value.split(',').filter(Boolean) : [];
+  // Ultra-strict filtering to prevent any empty values
+  const validOptions = options.filter(option => {
+    // Check if option exists and is an object
+    if (!option || typeof option !== 'object') return false;
+    
+    // Check if value exists, is a string, and is not empty after trimming
+    if (!option.value || typeof option.value !== 'string' || option.value.trim() === '') {
+      console.warn('SearchableSelect: Filtering out option with invalid value:', option);
+      return false;
+    }
+    
+    // Check if label exists, is a string, and is not empty after trimming
+    if (!option.label || typeof option.label !== 'string' || option.label.trim() === '') {
+      console.warn('SearchableSelect: Filtering out option with invalid label:', option);
+      return false;
+    }
+    
+    return true;
+  });
+
+  // Additional validation to ensure no empty values in the final options
+  const safeOptions = validOptions.map(option => ({
+    value: option.value.trim(),
+    label: option.label.trim()
+  })).filter(option => option.value.length > 0 && option.label.length > 0);
+
+  const selectedValues = multiple && value ? value.split(',').filter(v => v && v.trim() !== '') : [];
   const selectedOptions = multiple 
-    ? options.filter(option => selectedValues.includes(option.value))
+    ? safeOptions.filter(option => selectedValues.includes(option.value))
     : [];
 
   const handleSelect = (currentValue: string) => {
+    // Ultra-strict validation before processing
+    if (!currentValue || typeof currentValue !== 'string' || currentValue.trim() === '') {
+      console.warn('SearchableSelect: Attempting to select invalid value, ignoring:', currentValue);
+      return;
+    }
+
+    const trimmedValue = currentValue.trim();
+    if (trimmedValue === '') {
+      console.warn('SearchableSelect: Value is empty after trimming, ignoring');
+      return;
+    }
+
+    // Verify the value exists in our safe options
+    const validOption = safeOptions.find(option => option.value === trimmedValue);
+    if (!validOption) {
+      console.warn('SearchableSelect: Value not found in valid options, ignoring:', trimmedValue);
+      return;
+    }
+
     if (multiple) {
-      const newSelectedValues = selectedValues.includes(currentValue)
-        ? selectedValues.filter(val => val !== currentValue)
-        : [...selectedValues, currentValue];
+      const newSelectedValues = selectedValues.includes(trimmedValue)
+        ? selectedValues.filter(val => val !== trimmedValue)
+        : [...selectedValues, trimmedValue];
       onValueChange(newSelectedValues.join(','));
     } else {
-      onValueChange(currentValue === value ? "" : currentValue);
+      onValueChange(trimmedValue === value ? "" : trimmedValue);
       setOpen(false);
     }
   };
 
   const removeSelection = (valueToRemove: string) => {
-    if (multiple) {
+    if (multiple && valueToRemove && valueToRemove.trim() !== '') {
       const newSelectedValues = selectedValues.filter(val => val !== valueToRemove);
       onValueChange(newSelectedValues.join(','));
     }
@@ -88,7 +133,7 @@ export const SearchableSelect = ({
               )
             ) : (
               value
-                ? options.find((option) => option.value === value)?.label
+                ? safeOptions.find((option) => option.value === value)?.label
                 : placeholder
             )}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -100,23 +145,31 @@ export const SearchableSelect = ({
             <CommandList>
               <CommandEmpty>{emptyText}</CommandEmpty>
               <CommandGroup>
-                {options.map((option) => (
-                  <CommandItem
-                    key={option.value}
-                    value={option.value}
-                    onSelect={() => handleSelect(option.value)}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        (multiple ? selectedValues.includes(option.value) : value === option.value) 
-                          ? "opacity-100" 
-                          : "opacity-0"
-                      )}
-                    />
-                    {option.label}
-                  </CommandItem>
-                ))}
+                {safeOptions.map((option) => {
+                  // Final safety check before rendering
+                  if (!option || !option.value || option.value.trim() === '') {
+                    console.warn('SearchableSelect: Skipping invalid option in render:', option);
+                    return null;
+                  }
+                  
+                  return (
+                    <CommandItem
+                      key={option.value}
+                      value={option.value}
+                      onSelect={() => handleSelect(option.value)}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          (multiple ? selectedValues.includes(option.value) : value === option.value) 
+                            ? "opacity-100" 
+                            : "opacity-0"
+                        )}
+                      />
+                      {option.label}
+                    </CommandItem>
+                  );
+                })}
               </CommandGroup>
             </CommandList>
           </Command>

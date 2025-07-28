@@ -1,91 +1,84 @@
-
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/components/AuthProvider';
+import { 
+  Users, 
+  Plus, 
+  Search, 
+  Grid, 
+  List, 
+  Download,
+  Filter,
+  MoreVertical
+} from 'lucide-react';
+import { KaryakarForm } from '@/components/KaryakarForm';
 import { KaryakarFilters } from '@/components/KaryakarFilters';
 import { KaryakarStats } from '@/components/KaryakarStats';
 import { KaryakarTableView } from '@/components/KaryakarTableView';
 import { KaryakarGridView } from '@/components/KaryakarGridView';
-import { KaryakarForm } from '@/components/KaryakarForm';
-import { Plus, Grid, List, Download, Upload, RefreshCw, Search, Filter } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useDynamicRoles } from '@/hooks/useDynamicRoles';
-import type { Database } from '@/integrations/supabase/types';
 
-type Profile = Database['public']['Tables']['profiles']['Row'] & {
-  professions?: { name: string };
-  seva_types?: { name: string };
-  mandirs?: { name: string };
-  kshetras?: { name: string };
-  villages?: { name: string };
-  mandals?: { name: string };
-};
+interface RelatedData {
+  name: string;
+}
+
+interface KaryakarProfile {
+  id: string;
+  full_name: string;
+  mobile_number: string;
+  email?: string;
+  role: string;
+  age?: number;
+  profession_id?: string;
+  seva_type_id?: string;
+  mandir_id?: string;
+  kshetra_id?: string;
+  village_id?: string;
+  mandal_id?: string;
+  is_active: boolean;
+  created_at: string;
+  date_of_birth?: string;
+  is_whatsapp_same_as_mobile?: boolean;
+  profile_photo_url?: string;
+  updated_at: string;
+  whatsapp_number?: string;
+  professions?: RelatedData | null;
+  seva_types?: RelatedData | null;
+  mandirs?: RelatedData | null;
+  kshetras?: RelatedData | null;
+  villages?: RelatedData | null;
+  mandals?: RelatedData | null;
+}
 
 const Karyakars = () => {
+  const { user } = useAuth();
   const { toast } = useToast();
-  const { getRoleDisplayName } = useDynamicRoles();
-  const [karyakars, setKaryakars] = useState<Profile[]>([]);
-  const [filteredKaryakars, setFilteredKaryakars] = useState<Profile[]>([]);
+  const [profiles, setProfiles] = useState<KaryakarProfile[]>([]);
+  const [filteredProfiles, setFilteredProfiles] = useState<KaryakarProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
-  const [showFilters, setShowFilters] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [editingKaryakar, setEditingKaryakar] = useState<Profile | null>(null);
+  const [selectedProfile, setSelectedProfile] = useState<KaryakarProfile | null>(null);
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
 
-  // Master data states
-  const [mandirs, setMandirs] = useState<Array<{ id: string; name: string }>>([]);
-  const [kshetras, setKshetras] = useState<Array<{ id: string; name: string }>>([]);
-  const [villages, setVillages] = useState<Array<{ id: string; name: string }>>([]);
-  const [mandals, setMandals] = useState<Array<{ id: string; name: string }>>([]);
-  const [professions, setProfessions] = useState<Array<{ id: string; name: string }>>([]);
-  const [sevaTypes, setSevaTypes] = useState<Array<{ id: string; name: string }>>([]);
-
-  // Form data state
-  const [formData, setFormData] = useState({
-    full_name: '',
-    email: '',
-    mobile_number: '',
-    whatsapp_number: '',
-    is_whatsapp_same_as_mobile: false,
-    date_of_birth: '',
-    age: '',
-    profession_id: '',
-    mandir_id: '',
-    kshetra_id: '',
-    village_id: '',
-    mandal_id: '',
-    seva_type_id: '',
-    role: 'sevak',
-    profile_photo_url: ''
-  });
-
-  // Filter states
-  const [filters, setFilters] = useState({
-    role: '',
-    mandir: '',
-    kshetra: '',
-    village: '',
-    mandal: '',
-    profession: '',
-    sevaType: '',
-    status: 'active'
-  });
+  // Filter state
+  const [selectedRole, setSelectedRole] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
 
   useEffect(() => {
-    fetchKaryakars();
-    fetchMasterData();
+    fetchProfiles();
   }, []);
 
   useEffect(() => {
-    applyFilters();
-  }, [karyakars, searchTerm, filters]);
+    filterProfiles();
+  }, [profiles, searchTerm, selectedRole, selectedStatus]);
 
-  const fetchKaryakars = async () => {
+  const fetchProfiles = async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -102,36 +95,37 @@ const Karyakars = () => {
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching karyakars:', error);
-        setKaryakars([]);
-        return;
-      }
+      if (error) throw error;
 
-      // Filter out profiles with query errors
-      const validKaryakars = (data || []).filter(karyakar => {
-        return (!karyakar.professions || !('error' in karyakar.professions)) &&
-               (!karyakar.seva_types || !('error' in karyakar.seva_types)) &&
-               (!karyakar.mandirs || !('error' in karyakar.mandirs)) &&
-               (!karyakar.kshetras || !('error' in karyakar.kshetras)) &&
-               (!karyakar.villages || !('error' in karyakar.villages)) &&
-               (!karyakar.mandals || !('error' in karyakar.mandals));
-      }).map(karyakar => ({
-        ...karyakar,
-        professions: karyakar.professions || { name: 'Unknown' },
-        seva_types: karyakar.seva_types || { name: 'Unknown' },
-        mandirs: karyakar.mandirs || { name: 'Unknown' },
-        kshetras: karyakar.kshetras || { name: 'Unknown' },
-        villages: karyakar.villages || { name: 'Unknown' },
-        mandals: karyakar.mandals || { name: 'Unknown' }
+      // Transform the data to handle potential query errors
+      const transformedProfiles: KaryakarProfile[] = (data || []).map(profile => ({
+        ...profile,
+        professions: profile.professions && typeof profile.professions === 'object' && !Array.isArray(profile.professions) && 'name' in profile.professions
+          ? profile.professions as RelatedData
+          : null,
+        seva_types: profile.seva_types && typeof profile.seva_types === 'object' && !Array.isArray(profile.seva_types) && 'name' in profile.seva_types
+          ? profile.seva_types as RelatedData
+          : null,
+        mandirs: profile.mandirs && typeof profile.mandirs === 'object' && !Array.isArray(profile.mandirs) && 'name' in profile.mandirs
+          ? profile.mandirs as RelatedData
+          : null,
+        kshetras: profile.kshetras && typeof profile.kshetras === 'object' && !Array.isArray(profile.kshetras) && 'name' in profile.kshetras
+          ? profile.kshetras as RelatedData
+          : null,
+        villages: profile.villages && typeof profile.villages === 'object' && !Array.isArray(profile.villages) && 'name' in profile.villages
+          ? profile.villages as RelatedData
+          : null,
+        mandals: profile.mandals && typeof profile.mandals === 'object' && !Array.isArray(profile.mandals) && 'name' in profile.mandals
+          ? profile.mandals as RelatedData
+          : null
       }));
 
-      setKaryakars(validKaryakars);
+      setProfiles(transformedProfiles);
     } catch (error: any) {
-      console.error('Error fetching karyakars:', error);
+      console.error('Error fetching profiles:', error);
       toast({
         title: 'Error',
-        description: 'Failed to load karyakars',
+        description: 'Failed to fetch karyakar profiles',
         variant: 'destructive',
       });
     } finally {
@@ -139,192 +133,123 @@ const Karyakars = () => {
     }
   };
 
-  const fetchMasterData = async () => {
-    try {
-      const [mandirData, kshetraData, villageData, mandalData, professionData, sevaTypeData] = await Promise.all([
-        supabase.from('mandirs').select('id, name').eq('is_active', true).order('name'),
-        supabase.from('kshetras').select('id, name').eq('is_active', true).order('name'),
-        supabase.from('villages').select('id, name').eq('is_active', true).order('name'),
-        supabase.from('mandals').select('id, name').eq('is_active', true).order('name'),
-        supabase.from('professions').select('id, name').eq('is_active', true).order('name'),
-        supabase.from('seva_types').select('id, name').eq('is_active', true).order('name')
-      ]);
+  const filterProfiles = () => {
+    let filtered = profiles;
 
-      setMandirs(mandirData.data || []);
-      setKshetras(kshetraData.data || []);
-      setVillages(villageData.data || []);
-      setMandals(mandalData.data || []);
-      setProfessions(professionData.data || []);
-      setSevaTypes(sevaTypeData.data || []);
-    } catch (error: any) {
-      console.error('Error fetching master data:', error);
-    }
-  };
-
-  const applyFilters = () => {
-    let filtered = karyakars;
-
-    // Apply search filter
     if (searchTerm) {
-      filtered = filtered.filter(k => 
-        k.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        k.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        k.mobile_number?.includes(searchTerm)
+      filtered = filtered.filter(profile =>
+        profile.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        profile.mobile_number.includes(searchTerm) ||
+        profile.email?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    // Apply other filters
-    if (filters.role) {
-      filtered = filtered.filter(k => k.role === filters.role);
-    }
-    if (filters.mandir) {
-      filtered = filtered.filter(k => k.mandir_id === filters.mandir);
-    }
-    if (filters.kshetra) {
-      filtered = filtered.filter(k => k.kshetra_id === filters.kshetra);
-    }
-    if (filters.village) {
-      filtered = filtered.filter(k => k.village_id === filters.village);
-    }
-    if (filters.mandal) {
-      filtered = filtered.filter(k => k.mandal_id === filters.mandal);
-    }
-    if (filters.profession) {
-      filtered = filtered.filter(k => k.profession_id === filters.profession);
-    }
-    if (filters.sevaType) {
-      filtered = filtered.filter(k => k.seva_type_id === filters.sevaType);
+    if (selectedRole) {
+      filtered = filtered.filter(profile => profile.role === selectedRole);
     }
 
-    setFilteredKaryakars(filtered);
+    if (selectedStatus) {
+      filtered = filtered.filter(profile => 
+        selectedStatus === 'active' ? profile.is_active : !profile.is_active
+      );
+    }
+
+    setFilteredProfiles(filtered);
   };
 
-  const handleAddKaryakar = () => {
-    setEditingKaryakar(null);
-    setFormData({
-      full_name: '',
-      email: '',
-      mobile_number: '',
-      whatsapp_number: '',
-      is_whatsapp_same_as_mobile: false,
-      date_of_birth: '',
-      age: '',
-      profession_id: '',
-      mandir_id: '',
-      kshetra_id: '',
-      village_id: '',
-      mandal_id: '',
-      seva_type_id: '',
-      role: 'sevak',
-      profile_photo_url: ''
-    });
+  const handleProfileSaved = () => {
+    fetchProfiles();
+    setShowForm(false);
+    setSelectedProfile(null);
+  };
+
+  const handleEdit = (profile: KaryakarProfile) => {
+    setSelectedProfile(profile);
     setShowForm(true);
   };
 
-  const handleEditKaryakar = (karyakar: Profile) => {
-    setEditingKaryakar(karyakar);
-    setShowForm(true);
+  const handleDelete = async (profileId: string) => {
+    if (!confirm('Are you sure you want to delete this profile?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_active: false })
+        .eq('id', profileId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Profile deleted successfully',
+      });
+
+      fetchProfiles();
+    } catch (error: any) {
+      console.error('Error deleting profile:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete profile',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // Handle form submission - implementation would go here
-    console.log('Form submitted:', formData);
-    setShowForm(false);
-    fetchKaryakars();
+  const exportData = () => {
+    const csv = [
+      ['Name', 'Mobile', 'Email', 'Role', 'Profession', 'Seva Type'].join(','),
+      ...filteredProfiles.map(profile => [
+        profile.full_name,
+        profile.mobile_number,
+        profile.email || '',
+        profile.role,
+        profile.professions?.name || '',
+        profile.seva_types?.name || ''
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.setAttribute('hidden', '');
+    a.setAttribute('href', url);
+    a.setAttribute('download', 'karyakars.csv');
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
-
-  const handleCancel = () => {
-    setShowForm(false);
-    setEditingKaryakar(null);
-    setFormData({
-      full_name: '',
-      email: '',
-      mobile_number: '',
-      whatsapp_number: '',
-      is_whatsapp_same_as_mobile: false,
-      date_of_birth: '',
-      age: '',
-      profession_id: '',
-      mandir_id: '',
-      kshetra_id: '',
-      village_id: '',
-      mandal_id: '',
-      seva_type_id: '',
-      role: 'sevak',
-      profile_photo_url: ''
-    });
-  };
-
-  const stats = useMemo(() => {
-    const totalKaryakars = karyakars.length;
-    const activeKaryakars = karyakars.filter(k => k.is_active).length;
-    const byRole = karyakars.reduce((acc, k) => {
-      acc[k.role] = (acc[k.role] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    return {
-      totalKaryakars,
-      activeKaryakars,
-      byRole
-    };
-  }, [karyakars]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p>Loading karyakars...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (showForm) {
-    return (
-      <div className="container mx-auto py-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              {editingKaryakar ? 'Edit Karyakar' : 'Add New Karyakar'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <KaryakarForm
-              formData={formData}
-              setFormData={setFormData}
-              onSubmit={handleSubmit}
-              onCancel={handleCancel}
-              editingKaryakar={editingKaryakar}
-              mandirs={mandirs}
-              kshetras={kshetras}
-              villages={villages}
-              mandals={mandals}
-              professions={professions}
-              sevaTypes={sevaTypes}
-            />
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <div className="flex items-center justify-center h-64">Loading karyakars...</div>;
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Karyakars</h1>
-          <p className="text-gray-600">Manage your organization's members</p>
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <Users className="h-6 w-6" />
+          <h1 className="text-3xl font-bold">Karyakars</h1>
+          <Badge variant="secondary">{filteredProfiles.length}</Badge>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={() => fetchKaryakars()} variant="outline" size="sm">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            <Filter className="h-4 w-4 mr-2" />
+            Filters
           </Button>
-          <Button onClick={handleAddKaryakar}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportData}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+          <Button onClick={() => setShowForm(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Add Karyakar
           </Button>
@@ -332,92 +257,113 @@ const Karyakars = () => {
       </div>
 
       {/* Stats */}
-      <KaryakarStats totalKaryakars={stats.totalKaryakars} activeKaryakars={stats.activeKaryakars} byRole={stats.byRole} />
-
-      {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input
-            placeholder="Search karyakars..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2"
-          >
-            <Filter className="h-4 w-4" />
-            Filters
-          </Button>
-          <Button variant="outline" size="sm">
-            <Upload className="h-4 w-4 mr-2" />
-            Import
-          </Button>
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-        </div>
-      </div>
+      <KaryakarStats totalCount={profiles.length} />
 
       {/* Filters */}
       {showFilters && (
         <Card>
-          <CardContent className="pt-6">
+          <CardHeader>
+            <CardTitle>Filters</CardTitle>
+          </CardHeader>
+          <CardContent>
             <KaryakarFilters
-              mandirs={mandirs}
-              kshetras={kshetras}
-              villages={villages}
-              mandals={mandals}
-              professions={professions}
-              sevaTypes={sevaTypes}
-              onFilterChange={setFilters}
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              selectedRole={selectedRole}
+              setSelectedRole={setSelectedRole}
+              selectedStatus={selectedStatus}
+              setSelectedStatus={setSelectedStatus}
             />
           </CardContent>
         </Card>
       )}
 
-      {/* View Toggle */}
+      {/* Search and View Controls */}
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600">
-            Showing {filteredKaryakars.length} of {karyakars.length} karyakars
-          </span>
+          <Search className="h-4 w-4 text-gray-500" />
+          <Input
+            placeholder="Search karyakars..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-64"
+          />
         </div>
-        <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as 'grid' | 'table')}>
-          <TabsList>
-            <TabsTrigger value="grid" className="flex items-center gap-2">
-              <Grid className="h-4 w-4" />
-              Grid
-            </TabsTrigger>
-            <TabsTrigger value="table" className="flex items-center gap-2">
-              <List className="h-4 w-4" />
-              Table
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={viewMode === 'table' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('table')}
+          >
+            <List className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === 'grid' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('grid')}
+          >
+            <Grid className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Content */}
-      <Tabs value={viewMode} className="space-y-4">
-        <TabsContent value="grid" className="space-y-4">
-          <KaryakarGridView
-            karyakars={filteredKaryakars}
-            onEdit={handleEditKaryakar}
-          />
-        </TabsContent>
-        <TabsContent value="table" className="space-y-4">
-          <KaryakarTableView
-            karyakars={filteredKaryakars}
-            onEdit={handleEditKaryakar}
-          />
-        </TabsContent>
-      </Tabs>
+      {viewMode === 'table' ? (
+        <KaryakarTableView
+          karyakars={filteredProfiles as any}
+          onEdit={handleEdit as any}
+          onDelete={handleDelete}
+        />
+      ) : (
+        <KaryakarGridView
+          karyakars={filteredProfiles as any}
+          onEdit={handleEdit as any}
+          onDelete={handleDelete}
+        />
+      )}
+
+      {/* Form Modal */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-semibold mb-4">
+              {selectedProfile ? 'Edit Karyakar' : 'Add New Karyakar'}
+            </h2>
+            <KaryakarForm
+              formData={{
+                full_name: selectedProfile?.full_name || '',
+                email: selectedProfile?.email || '',
+                mobile_number: selectedProfile?.mobile_number || '',
+                whatsapp_number: selectedProfile?.whatsapp_number || '',
+                is_whatsapp_same_as_mobile: selectedProfile?.is_whatsapp_same_as_mobile || false,
+                date_of_birth: selectedProfile?.date_of_birth || '',
+                age: selectedProfile?.age?.toString() || '',
+                profession_id: selectedProfile?.profession_id || '',
+                mandir_id: selectedProfile?.mandir_id || '',
+                kshetra_id: selectedProfile?.kshetra_id || '',
+                village_id: selectedProfile?.village_id || '',
+                mandal_id: selectedProfile?.mandal_id || '',
+                seva_type_id: selectedProfile?.seva_type_id || '',
+                role: selectedProfile?.role || 'sevak',
+                profile_photo_url: selectedProfile?.profile_photo_url || ''
+              }}
+              setFormData={() => {}}
+              onSubmit={handleProfileSaved}
+              onCancel={() => {
+                setShowForm(false);
+                setSelectedProfile(null);
+              }}
+              editingKaryakar={selectedProfile as any}
+              mandirs={[]}
+              kshetras={[]}
+              villages={[]}
+              mandals={[]}
+              professions={[]}
+              sevaTypes={[]}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
