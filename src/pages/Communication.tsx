@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -387,13 +388,13 @@ const Communication = () => {
                         {msg.sender_id !== user?.id && (
                           <div className="flex items-center space-x-2 mb-1">
                             <Avatar className="h-6 w-6">
-                              <AvatarImage src={getMessageSenderAvatar(msg)} />
+                              <AvatarImage src={msg.profiles?.profile_photo_url} />
                               <AvatarFallback className="text-xs">
-                                {getMessageSenderName(msg).charAt(0).toUpperCase()}
+                                {(msg.profiles?.full_name || 'Unknown User').charAt(0).toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
                             <span className="text-xs text-gray-500">
-                              {getMessageSenderName(msg)}
+                              {msg.profiles?.full_name || 'Unknown User'}
                             </span>
                           </div>
                         )}

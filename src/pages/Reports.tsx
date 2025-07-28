@@ -3,23 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Users, 
-  CheckCircle, 
-  Clock, 
-  AlertCircle, 
-  Download,
-  Filter,
-  Calendar,
-  BarChart3,
-  TrendingUp,
-  FileText
-} from 'lucide-react';
+import { Download, TrendingUp, TrendingDown, Users, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -50,13 +36,12 @@ interface Profile {
   } | null;
 }
 
-interface TaskReport {
+interface Task {
   id: string;
   title: string;
-  status: string;
-  priority: string;
+  status: 'pending' | 'in_progress' | 'completed';
+  priority: 'low' | 'medium' | 'high';
   created_at: string;
-  due_date: string;
   assigned_to_profile: {
     full_name: string;
   };
@@ -69,11 +54,10 @@ const Reports = () => {
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
   const { toast } = useToast();
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [tasks, setTasks] = useState<TaskReport[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dateRange, setDateRange] = useState({ start: '', end: '' });
-  const [selectedRole, setSelectedRole] = useState('all');
+  const [selectedReport, setSelectedReport] = useState('profiles');
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
 
   const canView = hasPermission('reports', 'view');
   const canExport = hasPermission('reports', 'export');
@@ -82,117 +66,110 @@ const Reports = () => {
     if (canView) {
       fetchReportsData();
     }
-  }, [canView]);
+  }, [canView, selectedReport]);
 
   const fetchReportsData = async () => {
     try {
       setLoading(true);
       
-      // Fetch profiles with related data
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select(`
-          id,
-          full_name,
-          role,
-          created_at,
-          is_active,
-          professions(name),
-          seva_types(name),
-          mandirs(name),
-          kshetras(name),
-          villages(name),
-          mandals(name)
-        `)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
+      if (selectedReport === 'profiles') {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select(`
+            id,
+            full_name,
+            role,
+            created_at,
+            is_active,
+            professions(name),
+            seva_types(name),
+            mandirs(name),
+            kshetras(name),
+            villages(name),
+            mandals(name)
+          `)
+          .order('created_at', { ascending: false });
 
-      if (profilesError) throw profilesError;
-      
-      // Filter out profiles with query errors and transform the data
-      const validProfiles = profilesData?.filter(profile => {
-        return (!profile.professions || (typeof profile.professions === 'object' && !('error' in profile.professions))) &&
-               (!profile.seva_types || (typeof profile.seva_types === 'object' && !('error' in profile.seva_types))) &&
-               (!profile.mandirs || (typeof profile.mandirs === 'object' && !('error' in profile.mandirs))) &&
-               (!profile.kshetras || (typeof profile.kshetras === 'object' && !('error' in profile.kshetras))) &&
-               (!profile.villages || (typeof profile.villages === 'object' && !('error' in profile.villages))) &&
-               (!profile.mandals || (typeof profile.mandals === 'object' && !('error' in profile.mandals)));
-      }).map(profile => ({
-        ...profile,
-        professions: profile.professions && typeof profile.professions === 'object' && 'name' in profile.professions
-          ? { name: (profile.professions as any).name }
-          : null,
-        seva_types: profile.seva_types && typeof profile.seva_types === 'object' && 'name' in profile.seva_types
-          ? { name: (profile.seva_types as any).name }
-          : null,
-        mandirs: profile.mandirs && typeof profile.mandirs === 'object' && 'name' in profile.mandirs
-          ? { name: (profile.mandirs as any).name }
-          : null,
-        kshetras: profile.kshetras && typeof profile.kshetras === 'object' && 'name' in profile.kshetras
-          ? { name: (profile.kshetras as any).name }
-          : null,
-        villages: profile.villages && typeof profile.villages === 'object' && 'name' in profile.villages
-          ? { name: (profile.villages as any).name }
-          : null,
-        mandals: profile.mandals && typeof profile.mandals === 'object' && 'name' in profile.mandals
-          ? { name: (profile.mandals as any).name }
-          : null
-      })) || [];
-
-      setProfiles(validProfiles);
-
-      // Fetch tasks with related data
-      const { data: tasksData, error: tasksError } = await supabase
-        .from('tasks')
-        .select(`
-          id,
-          title,
-          status,
-          priority,
-          created_at,
-          due_date,
-          assigned_to_profile:profiles!tasks_assigned_to_fkey(full_name),
-          assigned_by_profile:profiles!tasks_assigned_by_fkey(full_name)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (tasksError) throw tasksError;
-      
-      // Filter out tasks with query errors and transform the data
-      const validTasks = tasksData?.filter(task => {
-        const hasValidAssignedTo = task.assigned_to_profile && 
-          typeof task.assigned_to_profile === 'object' && 
-          !('error' in task.assigned_to_profile) &&
-          'full_name' in task.assigned_to_profile;
+        if (error) throw error;
         
-        const hasValidAssignedBy = task.assigned_by_profile && 
-          typeof task.assigned_by_profile === 'object' && 
-          !('error' in task.assigned_by_profile) &&
-          'full_name' in task.assigned_by_profile;
+        console.log('Fetched profiles:', data);
+        // Filter out records with query errors and transform the data
+        const validProfiles = data?.filter(profile => {
+          return (!profile.professions || (typeof profile.professions === 'object' && !('error' in profile.professions))) &&
+                 (!profile.seva_types || (typeof profile.seva_types === 'object' && !('error' in profile.seva_types))) &&
+                 (!profile.mandirs || (typeof profile.mandirs === 'object' && !('error' in profile.mandirs))) &&
+                 (!profile.kshetras || (typeof profile.kshetras === 'object' && !('error' in profile.kshetras))) &&
+                 (!profile.villages || (typeof profile.villages === 'object' && !('error' in profile.villages))) &&
+                 (!profile.mandals || (typeof profile.mandals === 'object' && !('error' in profile.mandals)));
+        }).map(profile => ({
+          ...profile,
+          professions: profile.professions && typeof profile.professions === 'object' && 'name' in profile.professions
+            ? { name: (profile.professions as any).name }
+            : null,
+          seva_types: profile.seva_types && typeof profile.seva_types === 'object' && 'name' in profile.seva_types
+            ? { name: (profile.seva_types as any).name }
+            : null,
+          mandirs: profile.mandirs && typeof profile.mandirs === 'object' && 'name' in profile.mandirs
+            ? { name: (profile.mandirs as any).name }
+            : null,
+          kshetras: profile.kshetras && typeof profile.kshetras === 'object' && 'name' in profile.kshetras
+            ? { name: (profile.kshetras as any).name }
+            : null,
+          villages: profile.villages && typeof profile.villages === 'object' && 'name' in profile.villages
+            ? { name: (profile.villages as any).name }
+            : null,
+          mandals: profile.mandals && typeof profile.mandals === 'object' && 'name' in profile.mandals
+            ? { name: (profile.mandals as any).name }
+            : null
+        })) || [];
         
-        return hasValidAssignedTo && hasValidAssignedBy;
-      }) || [];
+        setProfiles(validProfiles as Profile[]);
+      } else if (selectedReport === 'tasks') {
+        const { data, error } = await supabase
+          .from('tasks')
+          .select(`
+            id,
+            title,
+            status,
+            priority,
+            created_at,
+            assigned_to_profile:profiles!tasks_assigned_to_fkey(full_name),
+            assigned_by_profile:profiles!tasks_assigned_by_fkey(full_name)
+          `)
+          .order('created_at', { ascending: false });
 
-      const transformedTasks: TaskReport[] = validTasks.map(task => ({
-        id: task.id,
-        title: task.title,
-        status: task.status,
-        priority: task.priority,
-        created_at: task.created_at,
-        due_date: task.due_date,
-        assigned_to_profile: {
-          full_name: task.assigned_to_profile && typeof task.assigned_to_profile === 'object' && 'full_name' in task.assigned_to_profile 
-            ? (task.assigned_to_profile as any).full_name || 'Unknown User'
-            : 'Unknown User'
-        },
-        assigned_by_profile: {
-          full_name: task.assigned_by_profile && typeof task.assigned_by_profile === 'object' && 'full_name' in task.assigned_by_profile 
-            ? (task.assigned_by_profile as any).full_name || 'Unknown User'
-            : 'Unknown User'
-        }
-      }));
-
-      setTasks(transformedTasks);
+        if (error) throw error;
+        
+        console.log('Fetched tasks:', data);
+        // Filter out tasks with query errors and transform the data
+        const validTasks = data?.filter(task => {
+          const hasValidAssignedTo = task.assigned_to_profile && 
+            typeof task.assigned_to_profile === 'object' && 
+            !('error' in task.assigned_to_profile) &&
+            'full_name' in task.assigned_to_profile;
+          
+          const hasValidAssignedBy = task.assigned_by_profile && 
+            typeof task.assigned_by_profile === 'object' && 
+            !('error' in task.assigned_by_profile) &&
+            'full_name' in task.assigned_by_profile;
+          
+          return hasValidAssignedTo && hasValidAssignedBy;
+        }).map(task => ({
+          ...task,
+          assigned_to_profile: {
+            full_name: task.assigned_to_profile && typeof task.assigned_to_profile === 'object' && 'full_name' in task.assigned_to_profile 
+              ? (task.assigned_to_profile as any).full_name || 'Unknown User'
+              : 'Unknown User'
+          },
+          assigned_by_profile: {
+            full_name: task.assigned_by_profile && typeof task.assigned_by_profile === 'object' && 'full_name' in task.assigned_by_profile 
+              ? (task.assigned_by_profile as any).full_name || 'Unknown User'
+              : 'Unknown User'
+          }
+        })) || [];
+        
+        setTasks(validTasks as Task[]);
+      }
     } catch (error: any) {
       console.error('Error fetching reports data:', error);
       toast({
@@ -205,11 +182,11 @@ const Reports = () => {
     }
   };
 
-  const exportData = (type: 'profiles' | 'tasks') => {
+  const handleExport = () => {
     if (!canExport) {
       toast({
         title: 'Error',
-        description: 'You do not have permission to export data',
+        description: 'You do not have permission to export reports',
         variant: 'destructive',
       });
       return;
@@ -222,23 +199,30 @@ const Reports = () => {
     });
   };
 
-  const getTaskStatusStats = () => {
-    const stats = {
-      total: tasks.length,
-      completed: tasks.filter(t => t.status === 'completed').length,
-      pending: tasks.filter(t => t.status === 'pending').length,
-      in_progress: tasks.filter(t => t.status === 'in_progress').length,
-    };
-    
-    return stats;
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      case 'in_progress':
+        return 'bg-blue-100 text-blue-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
   };
 
-  const getRoleDistribution = () => {
-    const distribution: Record<string, number> = {};
-    profiles.forEach(profile => {
-      distribution[profile.role] = (distribution[profile.role] || 0) + 1;
-    });
-    return distribution;
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high':
+        return 'bg-red-100 text-red-800';
+      case 'medium':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'low':
+        return 'bg-green-100 text-green-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
   };
 
   if (loading) {
@@ -256,218 +240,229 @@ const Reports = () => {
     );
   }
 
-  const taskStats = getTaskStatusStats();
-  const roleDistribution = getRoleDistribution();
-
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Reports</h1>
-          <p className="text-gray-600">Analytics and insights for your organization</p>
+          <p className="text-gray-600">View and analyze your organization's data</p>
         </div>
         
-        {canExport && (
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => exportData('profiles')}>
+        <div className="flex gap-2">
+          <Select value={selectedReport} onValueChange={setSelectedReport}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Select report type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="profiles">Profiles Report</SelectItem>
+              <SelectItem value="tasks">Tasks Report</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          {canExport && (
+            <Button variant="outline" onClick={handleExport}>
               <Download className="h-4 w-4 mr-2" />
-              Export Profiles
+              Export
             </Button>
-            <Button variant="outline" onClick={() => exportData('tasks')}>
-              <Download className="h-4 w-4 mr-2" />
-              Export Tasks
-            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Reports Content */}
+      {selectedReport === 'profiles' && (
+        <div className="space-y-6">
+          {/* Profile Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Total Profiles</p>
+                    <p className="text-2xl font-bold">{profiles.length}</p>
+                  </div>
+                  <Users className="h-8 w-8 text-blue-500" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Active Profiles</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {profiles.filter(p => p.is_active).length}
+                    </p>
+                  </div>
+                  <CheckCircle className="h-8 w-8 text-green-500" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Inactive Profiles</p>
+                    <p className="text-2xl font-bold text-red-600">
+                      {profiles.filter(p => !p.is_active).length}
+                    </p>
+                  </div>
+                  <AlertCircle className="h-8 w-8 text-red-500" />
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        )}
-      </div>
 
-      {/* Overview Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Profiles</p>
-                <p className="text-2xl font-bold text-gray-900">{profiles.length}</p>
-              </div>
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <Users className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Tasks</p>
-                <p className="text-2xl font-bold text-gray-900">{taskStats.total}</p>
-              </div>
-              <div className="p-3 bg-green-100 rounded-lg">
-                <FileText className="h-6 w-6 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Completed Tasks</p>
-                <p className="text-2xl font-bold text-gray-900">{taskStats.completed}</p>
-              </div>
-              <div className="p-3 bg-green-100 rounded-lg">
-                <CheckCircle className="h-6 w-6 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Pending Tasks</p>
-                <p className="text-2xl font-bold text-gray-900">{taskStats.pending}</p>
-              </div>
-              <div className="p-3 bg-yellow-100 rounded-lg">
-                <Clock className="h-6 w-6 text-yellow-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Detailed Reports */}
-      <Tabs defaultValue="profiles" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="profiles">Profiles Report</TabsTrigger>
-          <TabsTrigger value="tasks">Tasks Report</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="profiles">
+          {/* Profiles Table */}
           <Card>
             <CardHeader>
-              <CardTitle>Profiles Summary</CardTitle>
+              <CardTitle>Profiles Overview</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="font-medium mb-3">Role Distribution</h3>
-                  <div className="space-y-2">
-                    {Object.entries(roleDistribution).map(([role, count]) => (
-                      <div key={role} className="flex justify-between items-center">
-                        <span className="text-sm capitalize">{role.replace('_', ' ')}</span>
-                        <Badge variant="secondary">{count}</Badge>
-                      </div>
+              <div className="overflow-x-auto">
+                <table className="w-full table-auto">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-2">Name</th>
+                      <th className="text-left p-2">Role</th>
+                      <th className="text-left p-2">Profession</th>
+                      <th className="text-left p-2">Seva Type</th>
+                      <th className="text-left p-2">Location</th>
+                      <th className="text-left p-2">Status</th>
+                      <th className="text-left p-2">Created</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {profiles.map((profile) => (
+                      <tr key={profile.id} className="border-b">
+                        <td className="p-2">{profile.full_name}</td>
+                        <td className="p-2">
+                          <Badge variant="outline">{profile.role}</Badge>
+                        </td>
+                        <td className="p-2">{profile.professions?.name || 'N/A'}</td>
+                        <td className="p-2">{profile.seva_types?.name || 'N/A'}</td>
+                        <td className="p-2">{profile.villages?.name || 'N/A'}</td>
+                        <td className="p-2">
+                          <Badge className={profile.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                            {profile.is_active ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </td>
+                        <td className="p-2">{new Date(profile.created_at).toLocaleDateString()}</td>
+                      </tr>
                     ))}
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 className="font-medium mb-3">Recent Registrations</h3>
-                  <div className="space-y-2">
-                    {profiles.slice(0, 5).map(profile => (
-                      <div key={profile.id} className="flex justify-between items-center">
-                        <span className="text-sm">{profile.full_name}</span>
-                        <span className="text-xs text-gray-500">
-                          {new Date(profile.created_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        </div>
+      )}
 
-        <TabsContent value="tasks">
+      {selectedReport === 'tasks' && (
+        <div className="space-y-6">
+          {/* Task Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Total Tasks</p>
+                    <p className="text-2xl font-bold">{tasks.length}</p>
+                  </div>
+                  <CheckCircle className="h-8 w-8 text-blue-500" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Completed</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {tasks.filter(t => t.status === 'completed').length}
+                    </p>
+                  </div>
+                  <CheckCircle className="h-8 w-8 text-green-500" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">In Progress</p>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {tasks.filter(t => t.status === 'in_progress').length}
+                    </p>
+                  </div>
+                  <Clock className="h-8 w-8 text-blue-500" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Pending</p>
+                    <p className="text-2xl font-bold text-yellow-600">
+                      {tasks.filter(t => t.status === 'pending').length}
+                    </p>
+                  </div>
+                  <AlertCircle className="h-8 w-8 text-yellow-500" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Tasks Table */}
           <Card>
             <CardHeader>
-              <CardTitle>Tasks Summary</CardTitle>
+              <CardTitle>Tasks Overview</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="font-medium mb-3">Task Status Distribution</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm">Completed</span>
-                      <Badge className="bg-green-100 text-green-800">{taskStats.completed}</Badge>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm">In Progress</span>
-                      <Badge className="bg-blue-100 text-blue-800">{taskStats.in_progress}</Badge>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm">Pending</span>
-                      <Badge className="bg-yellow-100 text-yellow-800">{taskStats.pending}</Badge>
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 className="font-medium mb-3">Recent Tasks</h3>
-                  <div className="space-y-2">
-                    {tasks.slice(0, 5).map(task => (
-                      <div key={task.id} className="flex justify-between items-center">
-                        <span className="text-sm truncate">{task.title}</span>
-                        <Badge className={
-                          task.status === 'completed' ? 'bg-green-100 text-green-800' :
-                          task.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                          'bg-yellow-100 text-yellow-800'
-                        }>
-                          {task.status}
-                        </Badge>
-                      </div>
+              <div className="overflow-x-auto">
+                <table className="w-full table-auto">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-2">Title</th>
+                      <th className="text-left p-2">Status</th>
+                      <th className="text-left p-2">Priority</th>
+                      <th className="text-left p-2">Assigned To</th>
+                      <th className="text-left p-2">Assigned By</th>
+                      <th className="text-left p-2">Created</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tasks.map((task) => (
+                      <tr key={task.id} className="border-b">
+                        <td className="p-2">{task.title}</td>
+                        <td className="p-2">
+                          <Badge className={getStatusColor(task.status)}>
+                            {task.status.replace('_', ' ')}
+                          </Badge>
+                        </td>
+                        <td className="p-2">
+                          <Badge className={getPriorityColor(task.priority)}>
+                            {task.priority}
+                          </Badge>
+                        </td>
+                        <td className="p-2">{task.assigned_to_profile?.full_name || 'Unassigned'}</td>
+                        <td className="p-2">{task.assigned_by_profile?.full_name || 'Unknown'}</td>
+                        <td className="p-2">{new Date(task.created_at).toLocaleDateString()}</td>
+                      </tr>
                     ))}
-                  </div>
-                </div>
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="analytics">
-          <Card>
-            <CardHeader>
-              <CardTitle>Analytics Dashboard</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="font-medium mb-3">Key Metrics</h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Task Completion Rate</span>
-                      <span className="text-lg font-bold text-green-600">
-                        {taskStats.total > 0 ? Math.round((taskStats.completed / taskStats.total) * 100) : 0}%
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Active Profiles</span>
-                      <span className="text-lg font-bold text-blue-600">{profiles.length}</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 className="font-medium mb-3">Growth Trends</h3>
-                  <div className="text-center py-8">
-                    <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">Advanced analytics coming soon</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
     </div>
   );
 };

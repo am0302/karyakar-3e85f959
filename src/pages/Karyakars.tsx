@@ -16,8 +16,7 @@ import { KaryakarStats } from '@/components/KaryakarStats';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import type { Database } from '@/integrations/supabase/types';
 
-// Fix the user_role type by using the correct enum from Database
-type UserRole = 'super_admin' | 'sant_nirdeshak' | 'sah_nirdeshak' | 'mandal_sanchalak' | 'karyakar' | 'sevak';
+type UserRole = Database['public']['Enums']['user_role'];
 
 interface Profile {
   id: string;
@@ -124,6 +123,7 @@ const Karyakars = () => {
                (!record.mandals || (typeof record.mandals === 'object' && !('error' in record.mandals)));
       }).map(record => ({
         ...record,
+        role: record.role as UserRole,
         professions: record.professions && typeof record.professions === 'object' && 'name' in record.professions
           ? { name: (record.professions as any).name }
           : null,
@@ -144,7 +144,7 @@ const Karyakars = () => {
           : null
       })) || [];
       
-      setKaryakars(validKaryakars);
+      setKaryakars(validKaryakars as Profile[]);
     } catch (error: any) {
       console.error('Error fetching karyakars:', error);
       toast({
@@ -294,6 +294,8 @@ const Karyakars = () => {
                 </DialogHeader>
                 <KaryakarForm
                   onCancel={() => setShowForm(false)}
+                  onSuccess={handleFormSuccess}
+                  editingKaryakar={selectedKaryakar}
                 />
               </DialogContent>
             </Dialog>
@@ -355,14 +357,14 @@ const Karyakars = () => {
       {/* Content */}
       {viewMode === 'grid' ? (
         <KaryakarGridView
-          karyakars={filteredKaryakars}
-          onEdit={handleEdit}
+          karyakars={filteredKaryakars as any}
+          onEdit={handleEdit as any}
           onDelete={handleDelete}
         />
       ) : (
         <KaryakarTableView
-          karyakars={filteredKaryakars}
-          onEdit={handleEdit}
+          karyakars={filteredKaryakars as any}
+          onEdit={handleEdit as any}
           onDelete={handleDelete}
         />
       )}
