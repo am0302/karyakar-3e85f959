@@ -1,4 +1,3 @@
-
 export type Json =
   | string
   | number
@@ -8,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instanciate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "12.2.3 (519615d)"
+  }
   public: {
     Tables: {
       chat_participants: {
@@ -29,7 +33,22 @@ export type Database = {
           room_id?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "chat_participants_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_participants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       chat_rooms: {
         Row: {
@@ -68,7 +87,43 @@ export type Database = {
           updated_at?: string
           village_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "chat_rooms_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_rooms_kshetra_id_fkey"
+            columns: ["kshetra_id"]
+            isOneToOne: false
+            referencedRelation: "kshetras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_rooms_mandal_id_fkey"
+            columns: ["mandal_id"]
+            isOneToOne: false
+            referencedRelation: "mandals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_rooms_mandir_id_fkey"
+            columns: ["mandir_id"]
+            isOneToOne: false
+            referencedRelation: "mandirs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_rooms_village_id_fkey"
+            columns: ["village_id"]
+            isOneToOne: false
+            referencedRelation: "villages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       custom_roles: {
         Row: {
@@ -117,9 +172,9 @@ export type Database = {
           can_export: boolean | null
           can_view: boolean | null
           created_at: string
-          higher_role: string
+          higher_role: Database["public"]["Enums"]["user_role"]
           id: string
-          lower_role: string
+          lower_role: Database["public"]["Enums"]["user_role"]
           updated_at: string
         }
         Insert: {
@@ -129,9 +184,9 @@ export type Database = {
           can_export?: boolean | null
           can_view?: boolean | null
           created_at?: string
-          higher_role: string
+          higher_role: Database["public"]["Enums"]["user_role"]
           id?: string
-          lower_role: string
+          lower_role: Database["public"]["Enums"]["user_role"]
           updated_at?: string
         }
         Update: {
@@ -141,9 +196,9 @@ export type Database = {
           can_export?: boolean | null
           can_view?: boolean | null
           created_at?: string
-          higher_role?: string
+          higher_role?: Database["public"]["Enums"]["user_role"]
           id?: string
-          lower_role?: string
+          lower_role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
         }
         Relationships: []
@@ -182,7 +237,15 @@ export type Database = {
           name?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "kshetras_mandir_id_fkey"
+            columns: ["mandir_id"]
+            isOneToOne: false
+            referencedRelation: "mandirs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       mandals: {
         Row: {
@@ -224,7 +287,15 @@ export type Database = {
           updated_at?: string
           village_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "mandals_village_id_fkey"
+            columns: ["village_id"]
+            isOneToOne: false
+            referencedRelation: "villages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       mandirs: {
         Row: {
@@ -305,7 +376,22 @@ export type Database = {
           room_id?: string
           sender_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       module_permissions: {
         Row: {
@@ -359,7 +445,43 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "module_permissions_scope_kshetra_id_fkey"
+            columns: ["scope_kshetra_id"]
+            isOneToOne: false
+            referencedRelation: "kshetras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "module_permissions_scope_mandal_id_fkey"
+            columns: ["scope_mandal_id"]
+            isOneToOne: false
+            referencedRelation: "mandals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "module_permissions_scope_mandir_id_fkey"
+            columns: ["scope_mandir_id"]
+            isOneToOne: false
+            referencedRelation: "mandirs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "module_permissions_scope_village_id_fkey"
+            columns: ["scope_village_id"]
+            isOneToOne: false
+            referencedRelation: "villages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "module_permissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       professions: {
         Row: {
@@ -401,7 +523,7 @@ export type Database = {
           mobile_number: string
           profession_id: string | null
           profile_photo_url: string | null
-          role: string
+          role: Database["public"]["Enums"]["user_role"]
           seva_type_id: string | null
           updated_at: string
           village_id: string | null
@@ -422,7 +544,7 @@ export type Database = {
           mobile_number: string
           profession_id?: string | null
           profile_photo_url?: string | null
-          role?: string
+          role?: Database["public"]["Enums"]["user_role"]
           seva_type_id?: string | null
           updated_at?: string
           village_id?: string | null
@@ -443,40 +565,91 @@ export type Database = {
           mobile_number?: string
           profession_id?: string | null
           profile_photo_url?: string | null
-          role?: string
+          role?: Database["public"]["Enums"]["user_role"]
           seva_type_id?: string | null
           updated_at?: string
           village_id?: string | null
           whatsapp_number?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_kshetra_id_fkey"
+            columns: ["kshetra_id"]
+            isOneToOne: false
+            referencedRelation: "kshetras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_mandal_id_fkey"
+            columns: ["mandal_id"]
+            isOneToOne: false
+            referencedRelation: "mandals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_mandir_id_fkey"
+            columns: ["mandir_id"]
+            isOneToOne: false
+            referencedRelation: "mandirs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_profession_id_fkey"
+            columns: ["profession_id"]
+            isOneToOne: false
+            referencedRelation: "professions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_seva_type_id_fkey"
+            columns: ["seva_type_id"]
+            isOneToOne: false
+            referencedRelation: "seva_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_village_id_fkey"
+            columns: ["village_id"]
+            isOneToOne: false
+            referencedRelation: "villages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       role_hierarchy: {
         Row: {
           created_at: string
           id: string
           level: number
-          parent_role: string | null
-          role: string
+          parent_role: Database["public"]["Enums"]["user_role"] | null
+          role: Database["public"]["Enums"]["user_role"]
           updated_at: string
         }
         Insert: {
           created_at?: string
           id?: string
           level: number
-          parent_role?: string | null
-          role: string
+          parent_role?: Database["public"]["Enums"]["user_role"] | null
+          role: Database["public"]["Enums"]["user_role"]
           updated_at?: string
         }
         Update: {
           created_at?: string
           id?: string
           level?: number
-          parent_role?: string | null
-          role?: string
+          parent_role?: Database["public"]["Enums"]["user_role"] | null
+          role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "role_hierarchy_parent_role_fkey"
+            columns: ["parent_role"]
+            isOneToOne: false
+            referencedRelation: "role_hierarchy"
+            referencedColumns: ["role"]
+          },
+        ]
       }
       role_permissions: {
         Row: {
@@ -488,7 +661,7 @@ export type Database = {
           created_at: string
           id: string
           module_name: string
-          role: string
+          role: Database["public"]["Enums"]["user_role"]
           updated_at: string
         }
         Insert: {
@@ -500,7 +673,7 @@ export type Database = {
           created_at?: string
           id?: string
           module_name: string
-          role: string
+          role: Database["public"]["Enums"]["user_role"]
           updated_at?: string
         }
         Update: {
@@ -512,7 +685,7 @@ export type Database = {
           created_at?: string
           id?: string
           module_name?: string
-          role?: string
+          role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
         }
         Relationships: []
@@ -563,7 +736,22 @@ export type Database = {
           task_id?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "task_comments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tasks: {
         Row: {
@@ -617,7 +805,50 @@ export type Database = {
           updated_at?: string
           village_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tasks_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_kshetra_id_fkey"
+            columns: ["kshetra_id"]
+            isOneToOne: false
+            referencedRelation: "kshetras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_mandal_id_fkey"
+            columns: ["mandal_id"]
+            isOneToOne: false
+            referencedRelation: "mandals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_mandir_id_fkey"
+            columns: ["mandir_id"]
+            isOneToOne: false
+            referencedRelation: "mandirs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_village_id_fkey"
+            columns: ["village_id"]
+            isOneToOne: false
+            referencedRelation: "villages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_location_assignments: {
         Row: {
@@ -653,7 +884,22 @@ export type Database = {
           user_id?: string
           village_ids?: string[] | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_location_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_location_assignments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_permissions: {
         Row: {
@@ -704,7 +950,43 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_permissions_scope_kshetra_id_fkey"
+            columns: ["scope_kshetra_id"]
+            isOneToOne: false
+            referencedRelation: "kshetras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_permissions_scope_mandal_id_fkey"
+            columns: ["scope_mandal_id"]
+            isOneToOne: false
+            referencedRelation: "mandals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_permissions_scope_mandir_id_fkey"
+            columns: ["scope_mandir_id"]
+            isOneToOne: false
+            referencedRelation: "mandirs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_permissions_scope_village_id_fkey"
+            columns: ["scope_village_id"]
+            isOneToOne: false
+            referencedRelation: "villages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_permissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       villages: {
         Row: {
@@ -749,19 +1031,72 @@ export type Database = {
           state?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "villages_kshetra_id_fkey"
+            columns: ["kshetra_id"]
+            isOneToOne: false
+            referencedRelation: "kshetras"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      check_hierarchy_permission: {
+        Args: {
+          _user_id: string
+          _target_user_id: string
+          _permission_type: string
+        }
+        Returns: boolean
+      }
+      check_user_permission: {
+        Args: {
+          _user_id: string
+          _module_name: string
+          _permission_type: string
+        }
+        Returns: boolean
+      }
+      get_current_user_role: {
+        Args: Record<PropertyKey, never>
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
+      get_role_display_name: {
+        Args: { _role_name: string }
+        Returns: string
+      }
+      get_user_hierarchy_level: {
+        Args: { _user_id: string }
+        Returns: number
+      }
+      is_user_participant_in_room: {
+        Args: { room_id: string; user_id: string }
+        Returns: boolean
+      }
+      sync_custom_roles_with_enum: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
-      task_priority: "high" | "low" | "medium"
-      task_status: "completed" | "in_progress" | "pending"
-      task_type: "general" | "personal"
+      task_priority: "low" | "medium" | "high" | "urgent"
+      task_status: "pending" | "in_progress" | "completed"
+      task_type: "personal" | "delegated" | "broadcasted"
+      user_role:
+        | "super_admin"
+        | "sant_nirdeshak"
+        | "sah_nirdeshak"
+        | "mandal_sanchalak"
+        | "karyakar"
+        | "sevak"
+        | "admin"
+        | "moderator"
+        | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -769,27 +1104,33 @@ export type Database = {
   }
 }
 
-type PublicSchema = Database[Extract<keyof Database, "public">]
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
-  PublicTableNameOrOptions extends
-    | keyof (PublicSchema["Tables"] & PublicSchema["Views"])
-    | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-        Database[PublicTableNameOrOptions["schema"]]["Views"])
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never = never,
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-      Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
     : never
-  : PublicTableNameOrOptions extends keyof (PublicSchema["Tables"] &
-        PublicSchema["Views"])
-    ? (PublicSchema["Tables"] &
-        PublicSchema["Views"])[PublicTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
         Row: infer R
       }
       ? R
@@ -797,20 +1138,24 @@ export type Tables<
     : never
 
 export type TablesInsert<
-  PublicTableNameOrOptions extends
-    | keyof PublicSchema["Tables"]
-    | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
     : never
-  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
-    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
         Insert: infer I
       }
       ? I
@@ -818,20 +1163,24 @@ export type TablesInsert<
     : never
 
 export type TablesUpdate<
-  PublicTableNameOrOptions extends
-    | keyof PublicSchema["Tables"]
-    | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
     : never
-  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
-    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
         Update: infer U
       }
       ? U
@@ -839,29 +1188,56 @@ export type TablesUpdate<
     : never
 
 export type Enums<
-  PublicEnumNameOrOptions extends
-    | keyof PublicSchema["Enums"]
-    | { schema: keyof Database },
-  EnumName extends PublicEnumNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
-> = PublicEnumNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
-    ? PublicSchema["Enums"][PublicEnumNameOrOptions]
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    | keyof PublicSchema["CompositeTypes"]
-    | { schema: keyof Database },
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
     : never = never,
-> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof PublicSchema["CompositeTypes"]
-    ? PublicSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      task_priority: ["low", "medium", "high", "urgent"],
+      task_status: ["pending", "in_progress", "completed"],
+      task_type: ["personal", "delegated", "broadcasted"],
+      user_role: [
+        "super_admin",
+        "sant_nirdeshak",
+        "sah_nirdeshak",
+        "mandal_sanchalak",
+        "karyakar",
+        "sevak",
+        "admin",
+        "moderator",
+        "user",
+      ],
+    },
+  },
+} as const

@@ -1,76 +1,92 @@
 
-import { Suspense, lazy } from "react";
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "@/components/AuthProvider";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { Layout } from "@/components/Layout";
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthProvider } from '@/components/AuthProvider';
+import { NewUserRedirect } from '@/components/NewUserRedirect';
+import { Toaster } from '@/components/ui/toaster';
+import { ThemeProvider } from 'next-themes';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import Layout from '@/components/Layout';
+import Index from '@/pages/Index';
+import Auth from '@/pages/Auth';
+import Dashboard from '@/pages/Dashboard';
+import Karyakars from '@/pages/Karyakars';
+import Tasks from '@/pages/Tasks';
+import Communication from '@/pages/Communication';
+import Reports from '@/pages/Reports';
+import Admin from '@/pages/Admin';
+import NotFound from '@/pages/NotFound';
+import './App.css';
 
-const queryClient = new QueryClient();
-
-// Lazy load components
-const Auth = lazy(() => import("./pages/Auth"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Karyakars = lazy(() => import("./pages/Karyakars"));
-const Tasks = lazy(() => import("./pages/Tasks"));
-const Communication = lazy(() => import("./pages/Communication"));
-const Reports = lazy(() => import("./pages/Reports"));
-const Admin = lazy(() => import("./pages/Admin"));
-const NotFound = lazy(() => import("./pages/NotFound"));
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <AuthProvider>
+          <Router>
+            <div className="min-h-screen bg-background">
+              <NewUserRedirect />
               <Routes>
-                <Route path="/" element={<Navigate to="/auth" replace />} />
+                <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
-                <Route path="/" element={<Layout />}>
-                  <Route path="dashboard" element={
-                    <ProtectedRoute module="dashboard">
+                <Route path="/dashboard" element={
+                  <ProtectedRoute>
+                    <Layout>
                       <Dashboard />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="karyakars" element={
-                    <ProtectedRoute module="karyakars">
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/karyakars" element={
+                  <ProtectedRoute>
+                    <Layout>
                       <Karyakars />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="tasks" element={
-                    <ProtectedRoute module="tasks">
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/tasks" element={
+                  <ProtectedRoute>
+                    <Layout>
                       <Tasks />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="communication" element={
-                    <ProtectedRoute module="communication">
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/communication" element={
+                  <ProtectedRoute>
+                    <Layout>
                       <Communication />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="reports" element={
-                    <ProtectedRoute module="reports">
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/reports" element={
+                  <ProtectedRoute>
+                    <Layout>
                       <Reports />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="admin" element={
-                    <ProtectedRoute module="admin">
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin" element={
+                  <ProtectedRoute>
+                    <Layout>
                       <Admin />
-                    </ProtectedRoute>
-                  } />
-                </Route>
+                    </Layout>
+                  </ProtectedRoute>
+                } />
                 <Route path="*" element={<NotFound />} />
               </Routes>
-            </Suspense>
-          </BrowserRouter>
-        </TooltipProvider>
-      </AuthProvider>
+            </div>
+          </Router>
+          <Toaster />
+        </AuthProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
