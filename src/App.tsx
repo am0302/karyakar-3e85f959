@@ -5,8 +5,8 @@ import { AuthProvider } from '@/components/AuthProvider';
 import { NewUserRedirect } from '@/components/NewUserRedirect';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from 'next-themes';
-import ProtectedRoute from '@/components/ProtectedRoute';
-import Layout from '@/components/Layout';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { Layout } from '@/components/Layout';
 import Index from '@/pages/Index';
 import Auth from '@/pages/Auth';
 import Dashboard from '@/pages/Dashboard';
@@ -39,42 +39,42 @@ function App() {
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/dashboard" element={
-                  <ProtectedRoute>
+                  <ProtectedRoute module="dashboard">
                     <Layout>
                       <Dashboard />
                     </Layout>
                   </ProtectedRoute>
                 } />
                 <Route path="/karyakars" element={
-                  <ProtectedRoute>
+                  <ProtectedRoute module="karyakars">
                     <Layout>
                       <Karyakars />
                     </Layout>
                   </ProtectedRoute>
                 } />
                 <Route path="/tasks" element={
-                  <ProtectedRoute>
+                  <ProtectedRoute module="tasks">
                     <Layout>
                       <Tasks />
                     </Layout>
                   </ProtectedRoute>
                 } />
                 <Route path="/communication" element={
-                  <ProtectedRoute>
+                  <ProtectedRoute module="communication">
                     <Layout>
                       <Communication />
                     </Layout>
                   </ProtectedRoute>
                 } />
                 <Route path="/reports" element={
-                  <ProtectedRoute>
+                  <ProtectedRoute module="reports">
                     <Layout>
                       <Reports />
                     </Layout>
                   </ProtectedRoute>
                 } />
                 <Route path="/admin" element={
-                  <ProtectedRoute>
+                  <ProtectedRoute module="admin">
                     <Layout>
                       <Admin />
                     </Layout>
