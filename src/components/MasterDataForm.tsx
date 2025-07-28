@@ -44,8 +44,7 @@ export const MasterDataForm = ({
           value={formData[field.name] || ''}
           onChange={(e) => onFormDataChange(field.name, e.target.value)}
           required={field.required}
-          className="min-h-[80px] text-sm sm:text-base"
-          placeholder={`Enter ${field.label.toLowerCase()}`}
+          className="min-h-[80px]"
         />
       );
     }
@@ -53,46 +52,24 @@ export const MasterDataForm = ({
     if (field.type === 'select') {
       // Handle static options
       if (field.options) {
-        // Apply strict filtering for static options
-        const validOptions = field.options.filter(option => 
-          option && 
-          option.value && 
-          typeof option.value === 'string' && 
-          option.value.trim() !== '' &&
-          option.label &&
-          typeof option.label === 'string' &&
-          option.label.trim() !== ''
-        );
         return (
           <SearchableSelect
-            options={validOptions}
+            options={field.options}
             value={formData[field.name] || ''}
             onValueChange={(value) => onFormDataChange(field.name, value)}
             placeholder={`Select ${field.label}`}
-            className="text-sm sm:text-base"
           />
         );
       }
       
       // Handle foreign key options
       if (field.foreignKey) {
-        // Apply strict filtering for foreign key options
-        const validOptions = (foreignKeyOptions[field.name] || []).filter(option => 
-          option && 
-          option.value && 
-          typeof option.value === 'string' && 
-          option.value.trim() !== '' &&
-          option.label &&
-          typeof option.label === 'string' &&
-          option.label.trim() !== ''
-        );
         return (
           <SearchableSelect
-            options={validOptions}
+            options={foreignKeyOptions[field.name] || []}
             value={formData[field.name] || ''}
             onValueChange={(value) => onFormDataChange(field.name, value)}
             placeholder={`Select ${field.label}`}
-            className="text-sm sm:text-base"
           />
         );
       }
@@ -105,8 +82,6 @@ export const MasterDataForm = ({
         value={formData[field.name] || ''}
         onChange={(e) => onFormDataChange(field.name, e.target.value)}
         required={field.required}
-        className="text-sm sm:text-base"
-        placeholder={`Enter ${field.label.toLowerCase()}`}
       />
     );
   };
@@ -121,11 +96,11 @@ export const MasterDataForm = ({
           {renderField(field)}
         </div>
       ))}
-      <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2 pt-4">
-        <Button type="button" variant="outline" onClick={onCancel} className="w-full sm:w-auto">
+      <div className="flex justify-end space-x-2 pt-4">
+        <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" disabled={loading} className="w-full sm:w-auto">
+        <Button type="submit" disabled={loading}>
           {loading ? (editingItem ? "Updating..." : "Creating...") : (editingItem ? "Update" : "Create")}
         </Button>
       </div>

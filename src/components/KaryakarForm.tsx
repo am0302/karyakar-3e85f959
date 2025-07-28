@@ -10,6 +10,7 @@ import { useDynamicRoles } from '@/hooks/useDynamicRoles';
 import type { Database } from '@/integrations/supabase/types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
+type UserRole = Database['public']['Enums']['user_role'];
 
 interface KaryakarFormProps {
   formData: {
@@ -26,7 +27,7 @@ interface KaryakarFormProps {
     village_id: string;
     mandal_id: string;
     seva_type_id: string;
-    role: string;
+    role: UserRole;
     profile_photo_url: string;
   };
   setFormData: (data: any) => void;
@@ -97,35 +98,6 @@ export const KaryakarForm = ({
     console.log(`Updating ${field} to:`, value);
     setFormData({ ...formData, [field]: value });
   };
-
-  // Filter all options to ensure no empty values
-  const getFilteredOptions = (items: Array<{ id: string; name: string }>) => {
-    return items
-      .filter(item => 
-        item && 
-        item.id && 
-        typeof item.id === 'string' && 
-        item.id.trim() !== '' &&
-        item.name &&
-        typeof item.name === 'string' &&
-        item.name.trim() !== ''
-      )
-      .map(item => ({ 
-        value: item.id, 
-        label: item.name 
-      }));
-  };
-
-  // Get filtered role options
-  const validRoleOptions = getRoleOptions().filter(option => 
-    option && 
-    option.value && 
-    typeof option.value === 'string' && 
-    option.value.trim() !== '' &&
-    option.label &&
-    typeof option.label === 'string' &&
-    option.label.trim() !== ''
-  );
 
   return (
     <form onSubmit={onSubmit} className="space-y-6">
@@ -289,7 +261,7 @@ export const KaryakarForm = ({
             <div>
               <Label>Profession</Label>
               <SearchableSelect
-                options={getFilteredOptions(professions)}
+                options={professions.map(p => ({ value: p.id, label: p.name }))}
                 value={formData.profession_id || ''}
                 onValueChange={(value) => handleInputChange('profession_id', value)}
                 placeholder="Select Profession"
@@ -299,7 +271,7 @@ export const KaryakarForm = ({
             <div>
               <Label>Seva Type</Label>
               <SearchableSelect
-                options={getFilteredOptions(sevaTypes)}
+                options={sevaTypes.map(s => ({ value: s.id, label: s.name }))}
                 value={formData.seva_type_id || ''}
                 onValueChange={(value) => handleInputChange('seva_type_id', value)}
                 placeholder="Select Seva Type"
@@ -320,7 +292,7 @@ export const KaryakarForm = ({
             <div>
               <Label>Mandir</Label>
               <SearchableSelect
-                options={getFilteredOptions(mandirs)}
+                options={mandirs.map(m => ({ value: m.id, label: m.name }))}
                 value={formData.mandir_id || ''}
                 onValueChange={(value) => handleInputChange('mandir_id', value)}
                 placeholder="Select Mandir"
@@ -330,7 +302,7 @@ export const KaryakarForm = ({
             <div>
               <Label>Kshetra</Label>
               <SearchableSelect
-                options={getFilteredOptions(kshetras)}
+                options={kshetras.map(k => ({ value: k.id, label: k.name }))}
                 value={formData.kshetra_id || ''}
                 onValueChange={(value) => handleInputChange('kshetra_id', value)}
                 placeholder="Select Kshetra"
@@ -342,7 +314,7 @@ export const KaryakarForm = ({
             <div>
               <Label>Village</Label>
               <SearchableSelect
-                options={getFilteredOptions(villages)}
+                options={villages.map(v => ({ value: v.id, label: v.name }))}
                 value={formData.village_id || ''}
                 onValueChange={(value) => handleInputChange('village_id', value)}
                 placeholder="Select Village"
@@ -352,7 +324,7 @@ export const KaryakarForm = ({
             <div>
               <Label>Mandal</Label>
               <SearchableSelect
-                options={getFilteredOptions(mandals)}
+                options={mandals.map(m => ({ value: m.id, label: m.name }))}
                 value={formData.mandal_id || ''}
                 onValueChange={(value) => handleInputChange('mandal_id', value)}
                 placeholder="Select Mandal"
@@ -372,9 +344,9 @@ export const KaryakarForm = ({
           <div>
             <Label>Role</Label>
             <SearchableSelect
-              options={validRoleOptions}
+              options={getRoleOptions()}
               value={formData.role || 'sevak'}
-              onValueChange={(value) => handleInputChange('role', value)}
+              onValueChange={(value) => handleInputChange('role', value as UserRole)}
               placeholder="Select Role"
             />
           </div>

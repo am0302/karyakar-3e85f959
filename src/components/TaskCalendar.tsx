@@ -18,7 +18,7 @@ interface Task {
   id: string;
   title: string;
   description: string;
-  task_type: 'personal' | 'general' | 'delegated' | 'broadcasted';
+  task_type: 'personal' | 'delegated' | 'broadcasted';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   status: 'pending' | 'in_progress' | 'completed';
   due_date: string;
@@ -27,10 +27,10 @@ interface Task {
   created_at: string;
   profiles?: {
     full_name: string;
-  } | null;
+  };
   assigned_by_profile?: {
     full_name: string;
-  } | null;
+  };
 }
 
 interface CalendarEvent {
@@ -83,19 +83,7 @@ const TaskCalendar = () => {
         .order('due_date', { ascending: true });
 
       if (error) throw error;
-      
-      // Transform the data to handle potential query errors
-      const transformedTasks = (data || []).map((task: any) => ({
-        ...task,
-        profiles: task.profiles && !task.profiles.error ? task.profiles : null,
-        assigned_by_profile: task.assigned_by_profile && !task.assigned_by_profile.error ? task.assigned_by_profile : null,
-        // Map database task_type values to expected values
-        task_type: task.task_type === 'general' ? 'personal' : task.task_type,
-        // Ensure priority is within expected range
-        priority: task.priority === 'urgent' ? 'high' : task.priority
-      }));
-      
-      setTasks(transformedTasks);
+      setTasks(data || []);
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -245,14 +233,14 @@ const TaskCalendar = () => {
                     <User className="h-4 w-4" />
                     Assigned To
                   </h4>
-                  <p className="text-gray-600">{selectedTask.profiles?.full_name || 'Unknown'}</p>
+                  <p className="text-gray-600">{selectedTask.profiles?.full_name}</p>
                 </div>
                 <div>
                   <h4 className="font-medium mb-1 flex items-center gap-1">
                     <User className="h-4 w-4" />
                     Assigned By
                   </h4>
-                  <p className="text-gray-600">{selectedTask.assigned_by_profile?.full_name || 'Unknown'}</p>
+                  <p className="text-gray-600">{selectedTask.assigned_by_profile?.full_name}</p>
                 </div>
               </div>
 

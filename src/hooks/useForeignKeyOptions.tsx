@@ -79,28 +79,10 @@ export const useForeignKeyOptions = (fields: FormField[]) => {
           }
 
           if (data && Array.isArray(data)) {
-            options[field.name] = data
-              .filter(item => {
-                // Ultra-strict filtering to prevent empty values
-                if (!item || typeof item !== 'object') return false;
-                
-                if (!item.id || (typeof item.id !== 'string' && typeof item.id !== 'number') || item.id.toString().trim() === '') {
-                  console.warn(`useForeignKeyOptions: Filtering out ${field.foreignKey} item with invalid id:`, item);
-                  return false;
-                }
-                
-                if (!item.name || typeof item.name !== 'string' || item.name.trim() === '') {
-                  console.warn(`useForeignKeyOptions: Filtering out ${field.foreignKey} item with invalid name:`, item);
-                  return false;
-                }
-                
-                return true;
-              })
-              .map(item => ({
-                value: item.id.toString().trim(),
-                label: item.name.trim()
-              }))
-              .filter(option => option.value.length > 0 && option.label.length > 0);
+            options[field.name] = data.map(item => ({
+              value: item.id,
+              label: item.name
+            }));
           }
         } catch (error) {
           console.error(`Error loading ${field.foreignKey} options:`, error);

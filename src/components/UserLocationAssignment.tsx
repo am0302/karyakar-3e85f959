@@ -10,10 +10,12 @@ import { useToast } from '@/hooks/use-toast';
 import { Save, RefreshCw, MapPin, Users } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
 
+type UserRole = Database['public']['Enums']['user_role'];
+
 interface Profile {
   id: string;
   full_name: string;
-  role: string;
+  role: UserRole;
 }
 
 interface LocationOption {
@@ -29,7 +31,7 @@ interface UserLocationAssignment {
   kshetra_ids: string[];
   village_ids: string[];
   mandal_ids: string[];
-  profiles?: { full_name: string; role: string } | null;
+  profiles?: { full_name: string; role: UserRole };
 }
 
 export const UserLocationAssignment = () => {
@@ -131,13 +133,7 @@ export const UserLocationAssignment = () => {
       return;
     }
     
-    // Transform the data to handle potential query errors
-    const transformedAssignments = (data || []).map((assignment: any) => ({
-      ...assignment,
-      profiles: assignment.profiles && !assignment.profiles.error ? assignment.profiles : null
-    }));
-    
-    setAssignments(transformedAssignments);
+    setAssignments(data || []);
   };
 
   const saveAssignment = async () => {

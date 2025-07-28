@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,11 +9,14 @@ import { SearchableSelect } from '@/components/SearchableSelect';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Trash2, Save, Users, Shield, RefreshCw } from 'lucide-react';
+import type { Database } from '@/integrations/supabase/types';
+
+type UserRole = Database['public']['Enums']['user_role'];
 
 interface Profile {
   id: string;
   full_name: string;
-  role: string;
+  role: UserRole;
   email?: string;
 }
 
@@ -30,12 +32,12 @@ interface UserPermission extends PermissionSet {
   id: string;
   user_id: string;
   module: string;
-  profiles?: { full_name: string } | null;
+  profiles?: { full_name: string };
 }
 
 interface RolePermission extends PermissionSet {
   id: string;
-  role: string;
+  role: UserRole;
   module_name: string;
 }
 
@@ -49,7 +51,7 @@ export const PermissionsManager = () => {
 
   // Form states
   const [selectedUser, setSelectedUser] = useState<string>('');
-  const [selectedRole, setSelectedRole] = useState<string>('sevak');
+  const [selectedRole, setSelectedRole] = useState<UserRole>('sevak');
   const [selectedModule, setSelectedModule] = useState<string>('');
   const [userPermissionSet, setUserPermissionSet] = useState<PermissionSet>({
     can_view: false,
@@ -75,7 +77,7 @@ export const PermissionsManager = () => {
     { value: 'admin', label: 'Admin' }
   ];
 
-  const roles: { value: string; label: string }[] = [
+  const roles: { value: UserRole; label: string }[] = [
     { value: 'sevak', label: 'Sevak' },
     { value: 'karyakar', label: 'Karyakar' },
     { value: 'mandal_sanchalak', label: 'Mandal Sanchalak' },
@@ -154,12 +156,7 @@ export const PermissionsManager = () => {
     }
     
     console.log('User permissions fetched:', data?.length || 0);
-    // Transform the data to handle potential query errors
-    const transformedPermissions = (data || []).map((permission: any) => ({
-      ...permission,
-      profiles: permission.profiles && !permission.profiles.error ? permission.profiles : null
-    }));
-    setUserPermissions(transformedPermissions);
+    setUserPermissions(data || []);
   };
 
   const fetchRolePermissions = async () => {
@@ -282,7 +279,7 @@ export const PermissionsManager = () => {
       const { data: existing, error: checkError } = await supabase
         .from('role_permissions')
         .select('id')
-        .eq('role', selectedRole as any)
+        .eq('role', selectedRole)
         .eq('module_name', selectedModule)
         .maybeSingle();
 
@@ -302,11 +299,10 @@ export const PermissionsManager = () => {
         if (error) throw error;
         console.log('Role permission updated successfully');
       } else {
-        // Use type assertion to bypass TypeScript's strict typing
         const { error } = await supabase
           .from('role_permissions')
           .insert({
-            role: selectedRole as any,
+            role: selectedRole,
             module_name: selectedModule,
             ...rolePermissionSet
           });
@@ -568,7 +564,7 @@ export const PermissionsManager = () => {
                   <SearchableSelect
                     options={roles}
                     value={selectedRole}
-                    onValueChange={setSelectedRole}
+                    onValueChange={(value) => setSelectedRole(value as UserRole)}
                     placeholder="Select Role"
                   />
                 </div>
