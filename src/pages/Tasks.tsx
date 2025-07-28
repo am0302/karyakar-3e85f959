@@ -5,10 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, Filter, Download, Calendar, Users, CheckCircle, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { TaskCalendar } from '@/components/TaskCalendar';
+import TaskCalendar from '@/components/TaskCalendar';
 import { TaskStatusChart } from '@/components/TaskStatusChart';
 import { useAuth } from '@/components/AuthProvider';
 import { usePermissions } from '@/hooks/usePermissions';
+import type { Database } from '@/integrations/supabase/types';
 
 type TaskPriority = 'low' | 'medium' | 'high';
 type TaskStatus = 'pending' | 'in_progress' | 'completed';
@@ -79,7 +80,9 @@ const Tasks = () => {
       // Filter out records with query errors
       const validTasks = data?.filter(task => {
         return task.assigned_to_profile !== null && typeof task.assigned_to_profile === 'object' && 
-               !('error' in task.assigned_to_profile);
+               !('error' in task.assigned_to_profile) &&
+               task.assigned_by_profile !== null && typeof task.assigned_by_profile === 'object' && 
+               !('error' in task.assigned_by_profile);
       }) || [];
 
       setTasks(validTasks as Task[]);
@@ -340,11 +343,7 @@ const Tasks = () => {
             <CardTitle>Task Calendar</CardTitle>
           </CardHeader>
           <CardContent>
-            <TaskCalendar 
-              tasks={tasks} 
-              onUpdateStatus={handleUpdateStatus}
-              canEdit={canEdit}
-            />
+            <TaskCalendar />
           </CardContent>
         </Card>
       ) : (

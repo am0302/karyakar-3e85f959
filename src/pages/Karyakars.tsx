@@ -109,8 +109,7 @@ const Karyakars = () => {
       console.log('Fetched karyakars:', data);
       // Filter out records with query errors
       const validKaryakars = data?.filter(record => {
-        return record.professions !== null && typeof record.professions === 'object' && 
-               !('error' in record.professions);
+        return record.professions === null || (typeof record.professions === 'object' && !('error' in record.professions));
       }) || [];
       
       setKaryakars(validKaryakars as Profile[]);
