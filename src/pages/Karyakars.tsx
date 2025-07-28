@@ -114,7 +114,7 @@ const Karyakars = () => {
       if (error) throw error;
       
       console.log('Fetched karyakars:', data);
-      // Filter out records with query errors
+      // Filter out records with query errors and transform the data
       const validKaryakars = data?.filter(record => {
         return (!record.professions || (typeof record.professions === 'object' && !('error' in record.professions))) &&
                (!record.seva_types || (typeof record.seva_types === 'object' && !('error' in record.seva_types))) &&
@@ -122,7 +122,27 @@ const Karyakars = () => {
                (!record.kshetras || (typeof record.kshetras === 'object' && !('error' in record.kshetras))) &&
                (!record.villages || (typeof record.villages === 'object' && !('error' in record.villages))) &&
                (!record.mandals || (typeof record.mandals === 'object' && !('error' in record.mandals)));
-      }) || [];
+      }).map(record => ({
+        ...record,
+        professions: record.professions && typeof record.professions === 'object' && 'name' in record.professions
+          ? { name: (record.professions as any).name }
+          : null,
+        seva_types: record.seva_types && typeof record.seva_types === 'object' && 'name' in record.seva_types
+          ? { name: (record.seva_types as any).name }
+          : null,
+        mandirs: record.mandirs && typeof record.mandirs === 'object' && 'name' in record.mandirs
+          ? { name: (record.mandirs as any).name }
+          : null,
+        kshetras: record.kshetras && typeof record.kshetras === 'object' && 'name' in record.kshetras
+          ? { name: (record.kshetras as any).name }
+          : null,
+        villages: record.villages && typeof record.villages === 'object' && 'name' in record.villages
+          ? { name: (record.villages as any).name }
+          : null,
+        mandals: record.mandals && typeof record.mandals === 'object' && 'name' in record.mandals
+          ? { name: (record.mandals as any).name }
+          : null
+      })) || [];
       
       setKaryakars(validKaryakars as Profile[]);
     } catch (error: any) {
@@ -273,7 +293,6 @@ const Karyakars = () => {
                   </DialogTitle>
                 </DialogHeader>
                 <KaryakarForm
-                  onSuccess={handleFormSuccess}
                   onCancel={() => setShowForm(false)}
                 />
               </DialogContent>
@@ -300,7 +319,11 @@ const Karyakars = () => {
       {/* Filters */}
       <KaryakarFilters
         searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
+        setSearchTerm={setSearchTerm}
+        selectedRole={filters.role}
+        setSelectedRole={(role) => setFilters(prev => ({ ...prev, role }))}
+        selectedStatus={filters.status}
+        setSelectedStatus={(status) => setFilters(prev => ({ ...prev, status }))}
       />
 
       {/* View Toggle */}
@@ -335,16 +358,12 @@ const Karyakars = () => {
           karyakars={filteredKaryakars}
           onEdit={handleEdit}
           onDelete={handleDelete}
-          canEdit={canEdit}
-          canDelete={canDelete}
         />
       ) : (
         <KaryakarTableView
           karyakars={filteredKaryakars}
           onEdit={handleEdit}
           onDelete={handleDelete}
-          canEdit={canEdit}
-          canDelete={canDelete}
         />
       )}
 

@@ -17,7 +17,7 @@ import {
 import { useAuth } from '@/components/AuthProvider';
 import { useToast } from '@/hooks/use-toast';
 import { TaskStatusChart } from '@/components/TaskStatusChart';
-import { TaskCalendar } from '@/components/TaskCalendar';
+import TaskCalendar from '@/components/TaskCalendar';
 
 interface RecentTask {
   id: string;
@@ -177,7 +177,7 @@ const Dashboard = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
-            Welcome back, {user?.user_metadata?.full_name || 'User'}
+            Welcome back, {user?.user_metadata?.full_name || user?.email || 'User'}
           </h1>
           <p className="text-gray-600">Here's what's happening with your organization today</p>
         </div>

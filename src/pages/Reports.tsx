@@ -110,7 +110,7 @@ const Reports = () => {
 
       if (profilesError) throw profilesError;
       
-      // Filter out profiles with query errors
+      // Filter out profiles with query errors and transform the data
       const validProfiles = profilesData?.filter(profile => {
         return (!profile.professions || (typeof profile.professions === 'object' && !('error' in profile.professions))) &&
                (!profile.seva_types || (typeof profile.seva_types === 'object' && !('error' in profile.seva_types))) &&
@@ -118,7 +118,27 @@ const Reports = () => {
                (!profile.kshetras || (typeof profile.kshetras === 'object' && !('error' in profile.kshetras))) &&
                (!profile.villages || (typeof profile.villages === 'object' && !('error' in profile.villages))) &&
                (!profile.mandals || (typeof profile.mandals === 'object' && !('error' in profile.mandals)));
-      }) || [];
+      }).map(profile => ({
+        ...profile,
+        professions: profile.professions && typeof profile.professions === 'object' && 'name' in profile.professions
+          ? { name: (profile.professions as any).name }
+          : null,
+        seva_types: profile.seva_types && typeof profile.seva_types === 'object' && 'name' in profile.seva_types
+          ? { name: (profile.seva_types as any).name }
+          : null,
+        mandirs: profile.mandirs && typeof profile.mandirs === 'object' && 'name' in profile.mandirs
+          ? { name: (profile.mandirs as any).name }
+          : null,
+        kshetras: profile.kshetras && typeof profile.kshetras === 'object' && 'name' in profile.kshetras
+          ? { name: (profile.kshetras as any).name }
+          : null,
+        villages: profile.villages && typeof profile.villages === 'object' && 'name' in profile.villages
+          ? { name: (profile.villages as any).name }
+          : null,
+        mandals: profile.mandals && typeof profile.mandals === 'object' && 'name' in profile.mandals
+          ? { name: (profile.mandals as any).name }
+          : null
+      })) || [];
 
       setProfiles(validProfiles as Profile[]);
 
@@ -139,7 +159,7 @@ const Reports = () => {
 
       if (tasksError) throw tasksError;
       
-      // Filter out tasks with query errors
+      // Filter out tasks with query errors and transform the data
       const validTasks = tasksData?.filter(task => {
         const hasValidAssignedTo = task.assigned_to_profile && 
           typeof task.assigned_to_profile === 'object' && 

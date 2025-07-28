@@ -123,7 +123,7 @@ const Communication = () => {
         return true;
       }).map(room => ({
         ...room,
-        chat_participants: Array.isArray(room.chat_participants) 
+        chat_participants: room.chat_participants && Array.isArray(room.chat_participants) 
           ? room.chat_participants.filter(participant => 
               participant && 
               typeof participant === 'object' && 
@@ -163,10 +163,18 @@ const Communication = () => {
       
       console.log('Fetched messages:', data);
       
-      // Filter out messages with query errors
+      // Filter out messages with query errors and transform the data
       const validMessages = data?.filter(msg => {
         return !msg.profiles || (typeof msg.profiles === 'object' && !('error' in msg.profiles));
-      }) || [];
+      }).map(msg => ({
+        ...msg,
+        profiles: msg.profiles && typeof msg.profiles === 'object' && 'full_name' in msg.profiles
+          ? {
+              full_name: (msg.profiles as any).full_name,
+              profile_photo_url: (msg.profiles as any).profile_photo_url
+            }
+          : undefined
+      })) || [];
 
       setMessages(validMessages as Message[]);
     } catch (error: any) {
@@ -223,17 +231,14 @@ const Communication = () => {
   };
 
   const getMessageSenderName = (msg: Message) => {
-    if (msg.profiles && typeof msg.profiles === 'object' && 'full_name' in msg.profiles) {
+    if (msg.profiles?.full_name) {
       return msg.profiles.full_name;
     }
     return 'Unknown User';
   };
 
   const getMessageSenderAvatar = (msg: Message) => {
-    if (msg.profiles && typeof msg.profiles === 'object' && 'profile_photo_url' in msg.profiles) {
-      return msg.profiles.profile_photo_url;
-    }
-    return undefined;
+    return msg.profiles?.profile_photo_url;
   };
 
   const filteredRooms = chatRooms.filter(room => 
