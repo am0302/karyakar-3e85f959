@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -45,6 +46,7 @@ const Karyakars = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
   const [editingKaryakar, setEditingKaryakar] = useState<Profile | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<UserRole | null>(null);
   
   // Form states
   const [mandirs, setMandirs] = useState<Array<{ id: string; name: string }>>([]);
@@ -81,8 +83,23 @@ const Karyakars = () => {
     if (canView) {
       fetchKaryakars();
       fetchMasterData();
+      fetchCurrentUserRole();
     }
   }, [canView]);
+
+  const fetchCurrentUserRole = async () => {
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      
+      if (profile) {
+        setCurrentUserRole(profile.role);
+      }
+    }
+  };
 
   const fetchKaryakars = async () => {
     try {
@@ -174,13 +191,14 @@ const Karyakars = () => {
         is_whatsapp_same_as_mobile: formData.is_whatsapp_same_as_mobile,
         date_of_birth: formData.date_of_birth || null,
         age,
-        profession_id: formData.profession_id || null,
+        // Only include profession_id, seva_type_id, and role if user is super admin
+        profession_id: currentUserRole === 'super_admin' ? (formData.profession_id || null) : null,
+        seva_type_id: currentUserRole === 'super_admin' ? (formData.seva_type_id || null) : null,
+        role: currentUserRole === 'super_admin' ? formData.role : 'sevak',
         mandir_id: formData.mandir_id || null,
         kshetra_id: formData.kshetra_id || null,
         village_id: formData.village_id || null,
         mandal_id: formData.mandal_id || null,
-        seva_type_id: formData.seva_type_id || null,
-        role: formData.role,
         profile_photo_url: formData.profile_photo_url || null,
         is_active: true,
         updated_at: new Date().toISOString(),

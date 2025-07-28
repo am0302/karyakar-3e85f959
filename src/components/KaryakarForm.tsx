@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +8,7 @@ import { SearchableSelect } from '@/components/SearchableSelect';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, Link, User } from 'lucide-react';
 import { useDynamicRoles } from '@/hooks/useDynamicRoles';
+import { useAuth } from '@/components/AuthProvider';
 import type { Database } from '@/integrations/supabase/types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
@@ -57,6 +59,30 @@ export const KaryakarForm = ({
 }: KaryakarFormProps) => {
   const [photoMethod, setPhotoMethod] = useState<'upload' | 'url'>('url');
   const { getRoleOptions, loading: rolesLoading } = useDynamicRoles();
+  const { user } = useAuth();
+
+  // Check if current user is super admin
+  const [currentUserRole, setCurrentUserRole] = useState<UserRole | null>(null);
+
+  useEffect(() => {
+    const fetchCurrentUserRole = async () => {
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+        
+        if (profile) {
+          setCurrentUserRole(profile.role);
+        }
+      }
+    };
+
+    fetchCurrentUserRole();
+  }, [user]);
+
+  const isSuperAdmin = currentUserRole === 'super_admin';
 
   // Update form data when editing karyakar changes
   useEffect(() => {
@@ -250,36 +276,38 @@ export const KaryakarForm = ({
         </CardContent>
       </Card>
 
-      {/* Professional Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Professional Information</CardTitle>
-          <CardDescription>Select profession and seva type</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label>Profession</Label>
-              <SearchableSelect
-                options={professions.map(p => ({ value: p.id, label: p.name }))}
-                value={formData.profession_id || ''}
-                onValueChange={(value) => handleInputChange('profession_id', value)}
-                placeholder="Select Profession"
-              />
+      {/* Professional Information - Only for Super Admin */}
+      {isSuperAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Professional Information</CardTitle>
+            <CardDescription>Select profession and seva type</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Profession</Label>
+                <SearchableSelect
+                  options={professions.map(p => ({ value: p.id, label: p.name }))}
+                  value={formData.profession_id || ''}
+                  onValueChange={(value) => handleInputChange('profession_id', value)}
+                  placeholder="Select Profession"
+                />
+              </div>
+              
+              <div>
+                <Label>Seva Type</Label>
+                <SearchableSelect
+                  options={sevaTypes.map(s => ({ value: s.id, label: s.name }))}
+                  value={formData.seva_type_id || ''}
+                  onValueChange={(value) => handleInputChange('seva_type_id', value)}
+                  placeholder="Select Seva Type"
+                />
+              </div>
             </div>
-            
-            <div>
-              <Label>Seva Type</Label>
-              <SearchableSelect
-                options={sevaTypes.map(s => ({ value: s.id, label: s.name }))}
-                value={formData.seva_type_id || ''}
-                onValueChange={(value) => handleInputChange('seva_type_id', value)}
-                placeholder="Select Seva Type"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Location Information */}
       <Card>
@@ -334,24 +362,26 @@ export const KaryakarForm = ({
         </CardContent>
       </Card>
 
-      {/* Role Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Role Information</CardTitle>
-          <CardDescription>Assign role to the karyakar</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div>
-            <Label>Role</Label>
-            <SearchableSelect
-              options={getRoleOptions()}
-              value={formData.role || 'sevak'}
-              onValueChange={(value) => handleInputChange('role', value as UserRole)}
-              placeholder="Select Role"
-            />
-          </div>
-        </CardContent>
-      </Card>
+      {/* Role Information - Only for Super Admin */}
+      {isSuperAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Role Information</CardTitle>
+            <CardDescription>Assign role to the karyakar</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div>
+              <Label>Role</Label>
+              <SearchableSelect
+                options={getRoleOptions()}
+                value={formData.role || 'sevak'}
+                onValueChange={(value) => handleInputChange('role', value as UserRole)}
+                placeholder="Select Role"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="flex justify-end space-x-2">
         <Button type="button" variant="outline" onClick={onCancel}>
