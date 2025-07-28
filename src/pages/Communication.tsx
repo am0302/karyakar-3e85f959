@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -202,7 +201,19 @@ const Communication = () => {
       if (roomsError) throw roomsError;
 
       console.log('Fetched chat rooms:', rooms);
-      setChatRooms(rooms || []);
+      
+      // Filter out rooms with query errors
+      const validRooms = rooms?.filter(room => {
+        return room.chat_participants && 
+               Array.isArray(room.chat_participants) && 
+               room.chat_participants.every(participant => 
+                 participant.profiles && 
+                 typeof participant.profiles === 'object' && 
+                 !('error' in participant.profiles)
+               );
+      }) || [];
+
+      setChatRooms(validRooms as ChatRoom[]);
     } catch (error: any) {
       console.error('Error fetching chat rooms:', error);
       toast({
@@ -236,12 +247,18 @@ const Communication = () => {
 
       console.log('Fetched messages:', data);
       
-      // Transform the data to match our Message type
-      const transformedMessages = (data || []).map(msg => ({
+      // Filter out messages with query errors and transform the data
+      const validMessages = data?.filter(msg => {
+        return msg.profiles && 
+               typeof msg.profiles === 'object' && 
+               !('error' in msg.profiles);
+      }) || [];
+
+      const transformedMessages = validMessages.map(msg => ({
         ...msg,
         sender: {
-          full_name: msg.profiles?.full_name || 'Unknown User',
-          profile_photo_url: msg.profiles?.profile_photo_url
+          full_name: (msg.profiles as any)?.full_name || 'Unknown User',
+          profile_photo_url: (msg.profiles as any)?.profile_photo_url
         }
       }));
 

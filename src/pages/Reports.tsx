@@ -1,70 +1,85 @@
+
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { 
-  Download, 
-  Filter, 
-  Calendar, 
-  Users, 
-  CheckSquare, 
-  TrendingUp, 
-  Building,
-  MapPin,
-  Activity,
-  LayoutGrid,
-  List
-} from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { Download, Filter, Users, Calendar, CheckCircle, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { Database } from '@/integrations/supabase/types';
+import { format } from 'date-fns';
 
-type Profile = Database['public']['Tables']['profiles']['Row'] & {
-  professions?: { name: string } | null;
-  seva_types?: { name: string } | null;
-  mandirs?: { name: string } | null;
-  kshetras?: { name: string } | null;
-  villages?: { name: string } | null;
-  mandals?: { name: string } | null;
-};
+interface Profile {
+  id: string;
+  full_name: string;
+  role: string;
+  created_at: string;
+  is_active: boolean;
+  professions?: {
+    name: string;
+  };
+  seva_types?: {
+    name: string;
+  };
+  mandirs?: {
+    name: string;
+  };
+  kshetras?: {
+    name: string;
+  };
+  villages?: {
+    name: string;
+  };
+  mandals?: {
+    name: string;
+  };
+}
+
+interface TaskReport {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+  created_at: string;
+  due_date: string;
+  assigned_to_profile: {
+    full_name: string;
+  };
+  assigned_by_profile: {
+    full_name: string;
+  };
+}
 
 const Reports = () => {
-  const { user } = useAuth();
   const { toast } = useToast();
-  const [karyakars, setKaryakars] = useState<Profile[]>([]);
-  const [filteredKaryakars, setFilteredKaryakars] = useState<Profile[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [tasks, setTasks] = useState<TaskReport[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'list' | 'card'>('list');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState<string>('all');
-  const [mandirFilter, setMandirFilter] = useState<string>('all');
-  const [mandirs, setMandirs] = useState<any[]>([]);
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [selectedRole, setSelectedRole] = useState('all');
+  const [selectedStatus, setSelectedStatus] = useState('all');
 
   useEffect(() => {
-    if (user) {
-      fetchKaryakars();
-      fetchMandirs();
-    }
-  }, [user]);
+    fetchReportsData();
+  }, []);
 
-  useEffect(() => {
-    filterKaryakars();
-  }, [karyakars, searchTerm, roleFilter, mandirFilter]);
-
-  const fetchKaryakars = async () => {
+  const fetchReportsData = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      // Fetch profiles with related data
+      const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select(`
-          *,
+          id,
+          full_name,
+          role,
+          created_at,
+          is_active,
           professions(name),
           seva_types(name),
           mandirs(name),
@@ -72,14 +87,56 @@ const Reports = () => {
           villages(name),
           mandals(name)
         `)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setKaryakars(data || []);
+      if (profilesError) throw profilesError;
+
+      // Filter out profiles with query errors
+      const validProfiles = profilesData?.filter(profile => {
+        return (!profile.professions || (typeof profile.professions === 'object' && !('error' in profile.professions))) &&
+               (!profile.seva_types || (typeof profile.seva_types === 'object' && !('error' in profile.seva_types))) &&
+               (!profile.mandirs || (typeof profile.mandirs === 'object' && !('error' in profile.mandirs))) &&
+               (!profile.kshetras || (typeof profile.kshetras === 'object' && !('error' in profile.kshetras))) &&
+               (!profile.villages || (typeof profile.villages === 'object' && !('error' in profile.villages))) &&
+               (!profile.mandals || (typeof profile.mandals === 'object' && !('error' in profile.mandals)));
+      }) || [];
+
+      setProfiles(validProfiles as Profile[]);
+
+      // Fetch tasks
+      const { data: tasksData, error: tasksError } = await supabase
+        .from('tasks')
+        .select(`
+          id,
+          title,
+          status,
+          priority,
+          created_at,
+          due_date,
+          assigned_to_profile:profiles!tasks_assigned_to_fkey(full_name),
+          assigned_by_profile:profiles!tasks_assigned_by_fkey(full_name)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (tasksError) throw tasksError;
+
+      // Filter out tasks with query errors
+      const validTasks = tasksData?.filter(task => {
+        return task.assigned_to_profile && 
+               typeof task.assigned_to_profile === 'object' && 
+               !('error' in task.assigned_to_profile) &&
+               task.assigned_by_profile && 
+               typeof task.assigned_by_profile === 'object' && 
+               !('error' in task.assigned_by_profile);
+      }) || [];
+
+      setTasks(validTasks as TaskReport[]);
     } catch (error: any) {
+      console.error('Error fetching reports data:', error);
       toast({
         title: 'Error',
-        description: 'Failed to fetch karyakars',
+        description: 'Failed to fetch reports data',
         variant: 'destructive',
       });
     } finally {
@@ -87,148 +144,75 @@ const Reports = () => {
     }
   };
 
-  const fetchMandirs = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('mandirs')
-        .select('id, name')
-        .eq('is_active', true);
-
-      if (error) throw error;
-      setMandirs(data || []);
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch mandirs',
-        variant: 'destructive',
-      });
-    }
+  const getKaryakarsByRole = () => {
+    const roleCount: { [key: string]: number } = {};
+    profiles.forEach(profile => {
+      const role = profile.role || 'Unknown';
+      roleCount[role] = (roleCount[role] || 0) + 1;
+    });
+    
+    return Object.entries(roleCount).map(([role, count]) => ({
+      role,
+      count
+    }));
   };
 
-  const filterKaryakars = () => {
-    let filtered = karyakars;
-
-    if (searchTerm) {
-      filtered = filtered.filter(k => 
-        k.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        k.mobile_number.includes(searchTerm)
-      );
-    }
-
-    if (roleFilter !== 'all') {
-      filtered = filtered.filter(k => k.role === roleFilter);
-    }
-
-    if (mandirFilter !== 'all') {
-      filtered = filtered.filter(k => k.mandir_id === mandirFilter);
-    }
-
-    setFilteredKaryakars(filtered);
+  const getTasksByStatus = () => {
+    const statusCount: { [key: string]: number } = {};
+    tasks.forEach(task => {
+      const status = task.status || 'Unknown';
+      statusCount[status] = (statusCount[status] || 0) + 1;
+    });
+    
+    return Object.entries(statusCount).map(([status, count]) => ({
+      status,
+      count
+    }));
   };
 
-  const exportData = () => {
-    const csvContent = [
-      'Name,Email,Mobile,Role,Profession,Mandir,Kshetra,Village,Mandal',
-      ...filteredKaryakars.map(k => 
-        `${k.full_name},${k.email || ''},${k.mobile_number},${k.role},${k.professions?.name || ''},${k.mandirs?.name || ''},${k.kshetras?.name || ''},${k.villages?.name || ''},${k.mandals?.name || ''}`
-      )
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `karyakars-report-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const getTasksByPriority = () => {
+    const priorityCount: { [key: string]: number } = {};
+    tasks.forEach(task => {
+      const priority = task.priority || 'Unknown';
+      priorityCount[priority] = (priorityCount[priority] || 0) + 1;
+    });
+    
+    return Object.entries(priorityCount).map(([priority, count]) => ({
+      priority,
+      count
+    }));
   };
 
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'super_admin': return 'bg-red-100 text-red-800';
-      case 'sant_nirdeshak': return 'bg-purple-100 text-purple-800';
-      case 'sah_nirdeshak': return 'bg-blue-100 text-blue-800';
-      case 'mandal_sanchalak': return 'bg-green-100 text-green-800';
-      case 'karyakar': return 'bg-yellow-100 text-yellow-800';
-      case 'sevak': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+  const getMonthlyRegistrations = () => {
+    const monthlyCount: { [key: string]: number } = {};
+    profiles.forEach(profile => {
+      const month = format(new Date(profile.created_at), 'MMM yyyy');
+      monthlyCount[month] = (monthlyCount[month] || 0) + 1;
+    });
+    
+    return Object.entries(monthlyCount).map(([month, count]) => ({
+      month,
+      count
+    }));
   };
 
-  const KaryakarCard = ({ karyakar }: { karyakar: Profile }) => (
-    <Card className="p-4">
-      <div className="flex items-center space-x-4">
-        <Avatar className="h-12 w-12">
-          <AvatarImage src={karyakar.profile_photo_url || ''} alt={karyakar.full_name} />
-          <AvatarFallback>
-            {karyakar.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-        <div className="flex-1">
-          <h3 className="font-medium">{karyakar.full_name}</h3>
-          <p className="text-sm text-gray-600">{karyakar.mobile_number}</p>
-          <p className="text-sm text-gray-600">{karyakar.email}</p>
-          <div className="flex items-center space-x-2 mt-2">
-            <Badge className={getRoleColor(karyakar.role)}>
-              {karyakar.role.replace('_', ' ').toUpperCase()}
-            </Badge>
-            <span className="text-xs text-gray-500">{karyakar.mandirs?.name}</span>
-          </div>
-        </div>
-      </div>
-      <div className="mt-3 space-y-1 text-sm text-gray-600">
-        <p><strong>Profession:</strong> {karyakar.professions?.name || 'N/A'}</p>
-        <p><strong>Kshetra:</strong> {karyakar.kshetras?.name || 'N/A'}</p>
-        <p><strong>Village:</strong> {karyakar.villages?.name || 'N/A'}</p>
-        <p><strong>Mandal:</strong> {karyakar.mandals?.name || 'N/A'}</p>
-        <p><strong>Seva Type:</strong> {karyakar.seva_types?.name || 'N/A'}</p>
-      </div>
-    </Card>
-  );
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
 
-  const KaryakarTable = () => (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Photo</TableHead>
-          <TableHead>Name</TableHead>
-          <TableHead>Email</TableHead>
-          <TableHead>Mobile</TableHead>
-          <TableHead>Role</TableHead>
-          <TableHead>Profession</TableHead>
-          <TableHead>Mandir</TableHead>
-          <TableHead>Kshetra</TableHead>
-          <TableHead>Mandal</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {filteredKaryakars.map((karyakar) => (
-          <TableRow key={karyakar.id}>
-            <TableCell>
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={karyakar.profile_photo_url || ''} alt={karyakar.full_name} />
-                <AvatarFallback className="text-xs">
-                  {karyakar.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-            </TableCell>
-            <TableCell className="font-medium">{karyakar.full_name}</TableCell>
-            <TableCell>{karyakar.email || 'N/A'}</TableCell>
-            <TableCell>{karyakar.mobile_number}</TableCell>
-            <TableCell>
-              <Badge className={getRoleColor(karyakar.role)}>
-                {karyakar.role.replace('_', ' ').toUpperCase()}
-              </Badge>
-            </TableCell>
-            <TableCell>{karyakar.professions?.name || 'N/A'}</TableCell>
-            <TableCell>{karyakar.mandirs?.name || 'N/A'}</TableCell>
-            <TableCell>{karyakar.kshetras?.name || 'N/A'}</TableCell>
-            <TableCell>{karyakar.mandals?.name || 'N/A'}</TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  );
+  const filteredProfiles = profiles.filter(profile => {
+    const matchesRole = selectedRole === 'all' || profile.role === selectedRole;
+    const matchesDateRange = !dateRange.start || !dateRange.end || 
+      (new Date(profile.created_at) >= new Date(dateRange.start) && 
+       new Date(profile.created_at) <= new Date(dateRange.end));
+    return matchesRole && matchesDateRange;
+  });
+
+  const filteredTasks = tasks.filter(task => {
+    const matchesStatus = selectedStatus === 'all' || task.status === selectedStatus;
+    const matchesDateRange = !dateRange.start || !dateRange.end || 
+      (new Date(task.created_at) >= new Date(dateRange.start) && 
+       new Date(task.created_at) <= new Date(dateRange.end));
+    return matchesStatus && matchesDateRange;
+  });
 
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading reports...</div>;
@@ -236,16 +220,20 @@ const Reports = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Karyakar Reports</h1>
-          <p className="text-gray-600">View and analyze karyakar data</p>
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Reports</h1>
+          <p className="text-gray-600">Analytics and insights for your organization</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={exportData}>
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
+        
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm">
+            <Filter className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">Filter</span>
+          </Button>
+          <Button variant="outline" size="sm">
+            <Download className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">Export</span>
           </Button>
         </div>
       </div>
@@ -253,203 +241,239 @@ const Reports = () => {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="w-5 h-5" />
-            Filters
-          </CardTitle>
+          <CardTitle>Filters</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="search">Search</Label>
+            <div>
+              <Label htmlFor="start-date">Start Date</Label>
               <Input
-                id="search"
-                placeholder="Search by name or mobile..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                id="start-date"
+                type="date"
+                value={dateRange.start}
+                onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="role">Role</Label>
-              <Select value={roleFilter} onValueChange={setRoleFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Role" />
+            <div>
+              <Label htmlFor="end-date">End Date</Label>
+              <Input
+                id="end-date"
+                type="date"
+                value={dateRange.end}
+                onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label htmlFor="role-filter">Role</Label>
+              <Select value={selectedRole} onValueChange={setSelectedRole}>
+                <SelectTrigger id="role-filter">
+                  <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value="sevak">Sevak</SelectItem>
-                  <SelectItem value="karyakar">Karyakar</SelectItem>
-                  <SelectItem value="mandal_sanchalak">Mandal Sanchalak</SelectItem>
-                  <SelectItem value="sah_nirdeshak">Sah Nirdeshak</SelectItem>
-                  <SelectItem value="sant_nirdeshak">Sant Nirdeshak</SelectItem>
                   <SelectItem value="super_admin">Super Admin</SelectItem>
+                  <SelectItem value="sant_nirdeshak">Sant Nirdeshak</SelectItem>
+                  <SelectItem value="sah_nirdeshak">Sah Nirdeshak</SelectItem>
+                  <SelectItem value="mandal_sanchalak">Mandal Sanchalak</SelectItem>
+                  <SelectItem value="karyakar">Karyakar</SelectItem>
+                  <SelectItem value="sevak">Sevak</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="mandir">Mandir</Label>
-              <Select value={mandirFilter} onValueChange={setMandirFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Mandir" />
+            <div>
+              <Label htmlFor="status-filter">Task Status</Label>
+              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                <SelectTrigger id="status-filter">
+                  <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Mandirs</SelectItem>
-                  {mandirs.map((mandir) => (
-                    <SelectItem key={mandir.id} value={mandir.id}>
-                      {mandir.name}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="view">View Mode</Label>
-              <div className="flex space-x-2">
-                <Button
-                  variant={viewMode === 'list' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('list')}
-                >
-                  <List className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant={viewMode === 'card' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('card')}
-                >
-                  <LayoutGrid className="w-4 h-4" />
-                </Button>
-              </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Summary Stats */}
+      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Karyakars</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{filteredKaryakars.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Mandirs</CardTitle>
-            <Building className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {new Set(filteredKaryakars.map(k => k.mandir_id)).size}
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Total Karyakars</p>
+                <p className="text-2xl font-bold">{filteredProfiles.length}</p>
+              </div>
+              <Users className="h-8 w-8 text-blue-500" />
             </div>
           </CardContent>
         </Card>
+
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Unique Villages</CardTitle>
-            <MapPin className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {new Set(filteredKaryakars.map(k => k.village_id)).size}
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Total Tasks</p>
+                <p className="text-2xl font-bold">{filteredTasks.length}</p>
+              </div>
+              <Calendar className="h-8 w-8 text-purple-500" />
             </div>
           </CardContent>
         </Card>
+
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Super Admins</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {filteredKaryakars.filter(k => k.role === 'super_admin').length}
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Completed Tasks</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {filteredTasks.filter(t => t.status === 'completed').length}
+                </p>
+              </div>
+              <CheckCircle className="h-8 w-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Task Completion Rate</p>
+                <p className="text-2xl font-bold">
+                  {filteredTasks.length > 0 ? 
+                    Math.round((filteredTasks.filter(t => t.status === 'completed').length / filteredTasks.length) * 100) : 0
+                  }%
+                </p>
+              </div>
+              <TrendingUp className="h-8 w-8 text-orange-500" />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Data Display */}
-      <Tabs defaultValue="karyakars" className="space-y-6">
+      {/* Charts */}
+      <Tabs defaultValue="karyakars" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="karyakars">Karyakars</TabsTrigger>
-          <TabsTrigger value="roles">Role Distribution</TabsTrigger>
-          <TabsTrigger value="locations">Location Analysis</TabsTrigger>
+          <TabsTrigger value="tasks">Tasks</TabsTrigger>
+          <TabsTrigger value="trends">Trends</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="karyakars">
-          <Card>
-            <CardHeader>
-              <CardTitle>Karyakar Directory</CardTitle>
-              <CardDescription>Complete list of registered karyakars</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {viewMode === 'list' ? (
-                <KaryakarTable />
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredKaryakars.map((karyakar) => (
-                    <KaryakarCard key={karyakar.id} karyakar={karyakar} />
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        <TabsContent value="karyakars" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Karyakars by Role</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={getKaryakarsByRole()}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="role" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#8884d8" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Role Distribution</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={getKaryakarsByRole()}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ role, percent }) => `${role} ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="count"
+                    >
+                      {getKaryakarsByRole().map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
-        <TabsContent value="roles">
-          <Card>
-            <CardHeader>
-              <CardTitle>Role Distribution</CardTitle>
-              <CardDescription>Breakdown of karyakars by their roles</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {['super_admin', 'sant_nirdeshak', 'sah_nirdeshak', 'mandal_sanchalak', 'karyakar', 'sevak'].map(role => {
-                  const count = filteredKaryakars.filter(k => k.role === role).length;
-                  const percentage = filteredKaryakars.length > 0 ? (count / filteredKaryakars.length) * 100 : 0;
-                  return (
-                    <div key={role} className="flex items-center justify-between p-3 border rounded">
-                      <div className="flex items-center space-x-3">
-                        <Badge className={getRoleColor(role)}>
-                          {role.replace('_', ' ').toUpperCase()}
-                        </Badge>
-                        <span className="font-medium">{count} karyakars</span>
-                      </div>
-                      <span className="text-sm text-gray-600">{percentage.toFixed(1)}%</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="tasks" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Tasks by Status</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={getTasksByStatus()}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="status" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#82ca9d" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Tasks by Priority</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={getTasksByPriority()}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ priority, percent }) => `${priority} ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="count"
+                    >
+                      {getTasksByPriority().map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
-        <TabsContent value="locations">
+        <TabsContent value="trends" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Location Analysis</CardTitle>
-              <CardDescription>Distribution across mandirs and regions</CardDescription>
+              <CardTitle>Monthly Registrations</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-6">
-                <div>
-                  <h3 className="font-medium mb-3">By Mandir</h3>
-                  <div className="space-y-2">
-                    {mandirs.map(mandir => {
-                      const count = filteredKaryakars.filter(k => k.mandir_id === mandir.id).length;
-                      return (
-                        <div key={mandir.id} className="flex items-center justify-between p-2 border rounded">
-                          <span>{mandir.name}</span>
-                          <Badge variant="outline">{count}</Badge>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
+              <ResponsiveContainer width="100%" height={400}>
+                <BarChart data={getMonthlyRegistrations()}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="#ffc658" />
+                </BarChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
         </TabsContent>

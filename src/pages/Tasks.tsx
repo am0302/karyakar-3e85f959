@@ -79,9 +79,11 @@ const Tasks = () => {
       
       // Filter out records with query errors
       const validTasks = data?.filter(task => {
-        return task.assigned_to_profile !== null && typeof task.assigned_to_profile === 'object' && 
+        return task.assigned_to_profile && 
+               typeof task.assigned_to_profile === 'object' && 
                !('error' in task.assigned_to_profile) &&
-               task.assigned_by_profile !== null && typeof task.assigned_by_profile === 'object' && 
+               task.assigned_by_profile && 
+               typeof task.assigned_by_profile === 'object' && 
                !('error' in task.assigned_by_profile);
       }) || [];
 
