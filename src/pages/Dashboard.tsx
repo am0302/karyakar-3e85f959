@@ -27,10 +27,10 @@ interface RecentTask {
   due_date: string;
   assigned_to_profile: {
     full_name: string;
-  };
+  } | null;
   assigned_by_profile: {
     full_name: string;
-  };
+  } | null;
 }
 
 interface DashboardStats {
@@ -115,16 +115,12 @@ const Dashboard = () => {
         status: task.status,
         priority: task.priority,
         due_date: task.due_date,
-        assigned_to_profile: {
-          full_name: task.assigned_to_profile && typeof task.assigned_to_profile === 'object' && 'full_name' in task.assigned_to_profile 
-            ? (task.assigned_to_profile as any).full_name || 'Unknown User'
-            : 'Unknown User'
-        },
-        assigned_by_profile: {
-          full_name: task.assigned_by_profile && typeof task.assigned_by_profile === 'object' && 'full_name' in task.assigned_by_profile 
-            ? (task.assigned_by_profile as any).full_name || 'Unknown User'
-            : 'Unknown User'
-        }
+        assigned_to_profile: task.assigned_to_profile && typeof task.assigned_to_profile === 'object' && 'full_name' in task.assigned_to_profile 
+          ? { full_name: (task.assigned_to_profile as any).full_name || 'Unknown User' }
+          : null,
+        assigned_by_profile: task.assigned_by_profile && typeof task.assigned_by_profile === 'object' && 'full_name' in task.assigned_by_profile 
+          ? { full_name: (task.assigned_by_profile as any).full_name || 'Unknown User' }
+          : null
       })) || [];
 
       setRecentTasks(validTasks);
