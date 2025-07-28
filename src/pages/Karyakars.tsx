@@ -92,12 +92,12 @@ const Karyakars = () => {
         .from('profiles')
         .select(`
           *,
-          professions(name),
-          seva_types(name),
-          mandirs(name),
-          kshetras(name),
-          villages(name),
-          mandals(name)
+          professions!left(name),
+          seva_types!left(name),
+          mandirs!left(name),
+          kshetras!left(name),
+          villages!left(name),
+          mandals!left(name)
         `)
         .order('created_at', { ascending: false });
 
@@ -108,16 +108,21 @@ const Karyakars = () => {
 
       // Filter out records with invalid relations
       const validKaryakars = data?.filter((record: any) => {
-        const hasValidRelations = (
-          (!record.professions || typeof record.professions === 'object') &&
-          (!record.seva_types || typeof record.seva_types === 'object') &&
-          (!record.mandirs || typeof record.mandirs === 'object') &&
-          (!record.kshetras || typeof record.kshetras === 'object') &&
-          (!record.villages || typeof record.villages === 'object') &&
-          (!record.mandals || typeof record.mandals === 'object')
-        );
+        const hasValidProfession = !record.professions || 
+                                 (typeof record.professions === 'object' && record.professions.name);
+        const hasValidSevaType = !record.seva_types || 
+                               (typeof record.seva_types === 'object' && record.seva_types.name);
+        const hasValidMandir = !record.mandirs || 
+                             (typeof record.mandirs === 'object' && record.mandirs.name);
+        const hasValidKshetra = !record.kshetras || 
+                              (typeof record.kshetras === 'object' && record.kshetras.name);
+        const hasValidVillage = !record.villages || 
+                              (typeof record.villages === 'object' && record.villages.name);
+        const hasValidMandal = !record.mandals || 
+                             (typeof record.mandals === 'object' && record.mandals.name);
         
-        return hasValidRelations;
+        return hasValidProfession && hasValidSevaType && hasValidMandir && 
+               hasValidKshetra && hasValidVillage && hasValidMandal;
       }) || [];
 
       console.log('Fetched karyakars:', validKaryakars);

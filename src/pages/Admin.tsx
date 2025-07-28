@@ -24,7 +24,7 @@ const Admin = () => {
                 { name: 'address', label: 'Address', type: 'textarea' },
                 { name: 'contact_person', label: 'Contact Person', type: 'text' },
                 { name: 'contact_number', label: 'Contact Number', type: 'text' },
-                { name: 'email', label: 'Email', type: 'email' },
+                { name: 'email', label: 'Email', type: 'text' },
                 { name: 'established_date', label: 'Established Date', type: 'date' }
               ]}
               table="mandirs"
@@ -37,7 +37,7 @@ const Admin = () => {
                 { name: 'description', label: 'Description', type: 'textarea' },
                 { name: 'contact_person', label: 'Contact Person', type: 'text' },
                 { name: 'contact_number', label: 'Contact Number', type: 'text' },
-                { name: 'mandir_id', label: 'Mandir', type: 'select', options: 'mandirs' }
+                { name: 'mandir_id', label: 'Mandir', type: 'select', foreignKey: 'mandirs' }
               ]}
               table="kshetras"
             />
@@ -52,7 +52,7 @@ const Admin = () => {
                 { name: 'population', label: 'Population', type: 'number' },
                 { name: 'contact_person', label: 'Contact Person', type: 'text' },
                 { name: 'contact_number', label: 'Contact Number', type: 'text' },
-                { name: 'kshetra_id', label: 'Kshetra', type: 'select', options: 'kshetras' }
+                { name: 'kshetra_id', label: 'Kshetra', type: 'select', foreignKey: 'kshetras' }
               ]}
               table="villages"
             />
@@ -66,9 +66,9 @@ const Admin = () => {
                 { name: 'meeting_time', label: 'Meeting Time', type: 'time' },
                 { name: 'contact_person', label: 'Contact Person', type: 'text' },
                 { name: 'contact_number', label: 'Contact Number', type: 'text' },
-                { name: 'village_id', label: 'Village', type: 'select', options: 'villages' }
+                { name: 'village_id', label: 'Village', type: 'select', foreignKey: 'villages' }
               ]}
-              table="villages"
+              table="mandals"
             />
             
             <MasterDataDialog
@@ -106,6 +106,8 @@ const Admin = () => {
               ]}
               table="custom_roles"
             />
+
+            <KaryakarRoleModule />
           </div>
         </div>
         

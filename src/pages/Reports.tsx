@@ -1,28 +1,13 @@
+
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/components/AuthProvider';
-import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { 
-  Download, 
-  Filter, 
-  Calendar, 
-  Users, 
-  CheckSquare, 
-  TrendingUp, 
-  Building,
-  MapPin,
-  Activity,
-  LayoutGrid,
-  List
-} from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar, Download, Users, CheckCircle, Clock, AlertCircle, Filter } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/components/AuthProvider';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -35,51 +20,44 @@ type Profile = Database['public']['Tables']['profiles']['Row'] & {
   mandals?: { name: string } | null;
 };
 
+type Task = Database['public']['Tables']['tasks']['Row'] & {
+  assigned_to_profile?: {
+    full_name: string;
+  } | null;
+  assigned_by_profile?: {
+    full_name: string;
+  } | null;
+};
+
 const Reports = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [karyakars, setKaryakars] = useState<Profile[]>([]);
-  const [filteredKaryakars, setFilteredKaryakars] = useState<Profile[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'list' | 'card'>('list');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState<string>('all');
-  const [mandirFilter, setMandirFilter] = useState<string>('all');
-  const [mandirs, setMandirs] = useState<any[]>([]);
+  const [selectedReport, setSelectedReport] = useState<string>('karyakars');
+  const [dateRange, setDateRange] = useState<string>('all');
+  const [filterRole, setFilterRole] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
 
   useEffect(() => {
-    if (user) {
-      fetchKaryakars();
-      fetchMandirs();
-    }
-  }, [user]);
+    fetchReportData();
+  }, [selectedReport, dateRange, filterRole, filterStatus]);
 
-  useEffect(() => {
-    filterKaryakars();
-  }, [karyakars, searchTerm, roleFilter, mandirFilter]);
-
-  const fetchKaryakars = async () => {
+  const fetchReportData = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select(`
-          *,
-          professions(name),
-          seva_types(name),
-          mandirs(name),
-          kshetras(name),
-          villages(name),
-          mandals(name)
-        `)
-        .eq('is_active', true);
-
-      if (error) throw error;
-      setKaryakars(data || []);
+      
+      if (selectedReport === 'karyakars') {
+        await fetchKaryakarsReport();
+      } else if (selectedReport === 'tasks') {
+        await fetchTasksReport();
+      }
     } catch (error: any) {
+      console.error('Error fetching report data:', error);
       toast({
         title: 'Error',
-        description: 'Failed to fetch karyakars',
+        description: 'Failed to load report data',
         variant: 'destructive',
       });
     } finally {
@@ -87,373 +65,563 @@ const Reports = () => {
     }
   };
 
-  const fetchMandirs = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('mandirs')
-        .select('id, name')
-        .eq('is_active', true);
+  const fetchKaryakarsReport = async () => {
+    let query = supabase
+      .from('profiles')
+      .select(`
+        *,
+        professions!left(name),
+        seva_types!left(name),
+        mandirs!left(name),
+        kshetras!left(name),
+        villages!left(name),
+        mandals!left(name)
+      `);
 
-      if (error) throw error;
-      setMandirs(data || []);
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch mandirs',
-        variant: 'destructive',
-      });
+    // Apply role filter
+    if (filterRole !== 'all') {
+      query = query.eq('role', filterRole);
+    }
+
+    // Apply status filter
+    if (filterStatus !== 'all') {
+      query = query.eq('is_active', filterStatus === 'active');
+    }
+
+    // Apply date filter
+    if (dateRange !== 'all') {
+      const now = new Date();
+      let startDate: Date;
+      
+      switch (dateRange) {
+        case 'week':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case 'month':
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case 'year':
+          startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          startDate = new Date(0);
+      }
+      
+      query = query.gte('created_at', startDate.toISOString());
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Filter out records with query errors
+    const validProfiles = data?.filter((profile: any) => {
+      const hasValidProfession = !profile.professions || 
+                               (typeof profile.professions === 'object' && profile.professions.name);
+      const hasValidSevaType = !profile.seva_types || 
+                             (typeof profile.seva_types === 'object' && profile.seva_types.name);
+      const hasValidMandir = !profile.mandirs || 
+                           (typeof profile.mandirs === 'object' && profile.mandirs.name);
+      const hasValidKshetra = !profile.kshetras || 
+                            (typeof profile.kshetras === 'object' && profile.kshetras.name);
+      const hasValidVillage = !profile.villages || 
+                            (typeof profile.villages === 'object' && profile.villages.name);
+      const hasValidMandal = !profile.mandals || 
+                           (typeof profile.mandals === 'object' && profile.mandals.name);
+      
+      return hasValidProfession && hasValidSevaType && hasValidMandir && 
+             hasValidKshetra && hasValidVillage && hasValidMandal;
+    }) || [];
+
+    setKaryakars(validProfiles);
+  };
+
+  const fetchTasksReport = async () => {
+    let query = supabase
+      .from('tasks')
+      .select(`
+        *,
+        assigned_to_profile:profiles!assigned_to(full_name),
+        assigned_by_profile:profiles!assigned_by(full_name)
+      `);
+
+    // Apply status filter
+    if (filterStatus !== 'all') {
+      query = query.eq('status', filterStatus);
+    }
+
+    // Apply date filter
+    if (dateRange !== 'all') {
+      const now = new Date();
+      let startDate: Date;
+      
+      switch (dateRange) {
+        case 'week':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case 'month':
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case 'year':
+          startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          startDate = new Date(0);
+      }
+      
+      query = query.gte('created_at', startDate.toISOString());
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Filter out tasks with query errors
+    const validTasks = data?.filter((task: any) => {
+      const hasValidAssignedTo = !task.assigned_to_profile || 
+                               (typeof task.assigned_to_profile === 'object' && task.assigned_to_profile.full_name);
+      const hasValidAssignedBy = !task.assigned_by_profile || 
+                               (typeof task.assigned_by_profile === 'object' && task.assigned_by_profile.full_name);
+      return hasValidAssignedTo && hasValidAssignedBy;
+    }) || [];
+
+    setTasks(validTasks);
+  };
+
+  const exportReport = () => {
+    if (selectedReport === 'karyakars') {
+      exportKaryakarsReport();
+    } else if (selectedReport === 'tasks') {
+      exportTasksReport();
     }
   };
 
-  const filterKaryakars = () => {
-    let filtered = karyakars;
-
-    if (searchTerm) {
-      filtered = filtered.filter(k => 
-        k.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        k.mobile_number.includes(searchTerm)
-      );
-    }
-
-    if (roleFilter !== 'all') {
-      filtered = filtered.filter(k => k.role === roleFilter);
-    }
-
-    if (mandirFilter !== 'all') {
-      filtered = filtered.filter(k => k.mandir_id === mandirFilter);
-    }
-
-    setFilteredKaryakars(filtered);
-  };
-
-  const exportData = () => {
+  const exportKaryakarsReport = () => {
     const csvContent = [
-      'Name,Email,Mobile,Role,Profession,Mandir,Kshetra,Village,Mandal',
-      ...filteredKaryakars.map(k => 
-        `${k.full_name},${k.email || ''},${k.mobile_number},${k.role},${k.professions?.name || ''},${k.mandirs?.name || ''},${k.kshetras?.name || ''},${k.villages?.name || ''},${k.mandals?.name || ''}`
-      )
+      ['Name', 'Mobile', 'Email', 'Role', 'Profession', 'Seva Type', 'Mandir', 'Kshetra', 'Village', 'Mandal', 'Status', 'Created Date'].join(','),
+      ...karyakars.map(k => [
+        k.full_name,
+        k.mobile_number,
+        k.email || '',
+        k.role,
+        k.professions?.name || '',
+        k.seva_types?.name || '',
+        k.mandirs?.name || '',
+        k.kshetras?.name || '',
+        k.villages?.name || '',
+        k.mandals?.name || '',
+        k.is_active ? 'Active' : 'Inactive',
+        new Date(k.created_at).toLocaleDateString()
+      ].join(','))
     ].join('\n');
 
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `karyakars-report-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCSV(csvContent, 'karyakars_report.csv');
   };
 
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'super_admin': return 'bg-red-100 text-red-800';
-      case 'sant_nirdeshak': return 'bg-purple-100 text-purple-800';
-      case 'sah_nirdeshak': return 'bg-blue-100 text-blue-800';
-      case 'mandal_sanchalak': return 'bg-green-100 text-green-800';
-      case 'karyakar': return 'bg-yellow-100 text-yellow-800';
-      case 'sevak': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+  const exportTasksReport = () => {
+    const csvContent = [
+      ['Title', 'Description', 'Status', 'Priority', 'Assigned To', 'Assigned By', 'Due Date', 'Created Date'].join(','),
+      ...tasks.map(t => [
+        t.title,
+        t.description || '',
+        t.status,
+        t.priority,
+        t.assigned_to_profile?.full_name || 'Unassigned',
+        t.assigned_by_profile?.full_name || 'Unknown',
+        t.due_date ? new Date(t.due_date).toLocaleDateString() : '',
+        new Date(t.created_at).toLocaleDateString()
+      ].join(','))
+    ].join('\n');
+
+    downloadCSV(csvContent, 'tasks_report.csv');
+  };
+
+  const downloadCSV = (content: string, filename: string) => {
+    const blob = new Blob([content], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: 'Success',
+      description: 'Report exported successfully',
+    });
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      case 'in_progress':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'pending':
+        return 'bg-gray-100 text-gray-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const KaryakarCard = ({ karyakar }: { karyakar: Profile }) => (
-    <Card className="p-4">
-      <div className="flex items-center space-x-4">
-        <Avatar className="h-12 w-12">
-          <AvatarImage src={karyakar.profile_photo_url || ''} alt={karyakar.full_name} />
-          <AvatarFallback>
-            {karyakar.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-        <div className="flex-1">
-          <h3 className="font-medium">{karyakar.full_name}</h3>
-          <p className="text-sm text-gray-600">{karyakar.mobile_number}</p>
-          <p className="text-sm text-gray-600">{karyakar.email}</p>
-          <div className="flex items-center space-x-2 mt-2">
-            <Badge className={getRoleColor(karyakar.role)}>
-              {karyakar.role.replace('_', ' ').toUpperCase()}
-            </Badge>
-            <span className="text-xs text-gray-500">{karyakar.mandirs?.name}</span>
-          </div>
-        </div>
-      </div>
-      <div className="mt-3 space-y-1 text-sm text-gray-600">
-        <p><strong>Profession:</strong> {karyakar.professions?.name || 'N/A'}</p>
-        <p><strong>Kshetra:</strong> {karyakar.kshetras?.name || 'N/A'}</p>
-        <p><strong>Village:</strong> {karyakar.villages?.name || 'N/A'}</p>
-        <p><strong>Mandal:</strong> {karyakar.mandals?.name || 'N/A'}</p>
-        <p><strong>Seva Type:</strong> {karyakar.seva_types?.name || 'N/A'}</p>
-      </div>
-    </Card>
-  );
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high':
+        return 'bg-red-100 text-red-800';
+      case 'medium':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'low':
+        return 'bg-green-100 text-green-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
 
-  const KaryakarTable = () => (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Photo</TableHead>
-          <TableHead>Name</TableHead>
-          <TableHead>Email</TableHead>
-          <TableHead>Mobile</TableHead>
-          <TableHead>Role</TableHead>
-          <TableHead>Profession</TableHead>
-          <TableHead>Mandir</TableHead>
-          <TableHead>Kshetra</TableHead>
-          <TableHead>Mandal</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {filteredKaryakars.map((karyakar) => (
-          <TableRow key={karyakar.id}>
-            <TableCell>
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={karyakar.profile_photo_url || ''} alt={karyakar.full_name} />
-                <AvatarFallback className="text-xs">
-                  {karyakar.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-            </TableCell>
-            <TableCell className="font-medium">{karyakar.full_name}</TableCell>
-            <TableCell>{karyakar.email || 'N/A'}</TableCell>
-            <TableCell>{karyakar.mobile_number}</TableCell>
-            <TableCell>
-              <Badge className={getRoleColor(karyakar.role)}>
-                {karyakar.role.replace('_', ' ').toUpperCase()}
-              </Badge>
-            </TableCell>
-            <TableCell>{karyakar.professions?.name || 'N/A'}</TableCell>
-            <TableCell>{karyakar.mandirs?.name || 'N/A'}</TableCell>
-            <TableCell>{karyakar.kshetras?.name || 'N/A'}</TableCell>
-            <TableCell>{karyakar.mandals?.name || 'N/A'}</TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  );
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  const getKaryakarStats = () => {
+    const total = karyakars.length;
+    const active = karyakars.filter(k => k.is_active).length;
+    const inactive = total - active;
+    const byRole = karyakars.reduce((acc, k) => {
+      acc[k.role] = (acc[k.role] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return { total, active, inactive, byRole };
+  };
+
+  const getTaskStats = () => {
+    const total = tasks.length;
+    const completed = tasks.filter(t => t.status === 'completed').length;
+    const pending = tasks.filter(t => t.status === 'pending').length;
+    const inProgress = tasks.filter(t => t.status === 'in_progress').length;
+    const overdue = tasks.filter(t => 
+      t.due_date && new Date(t.due_date) < new Date() && t.status !== 'completed'
+    ).length;
+
+    return { total, completed, pending, inProgress, overdue };
+  };
 
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading reports...</div>;
   }
 
+  const karyakarStats = getKaryakarStats();
+  const taskStats = getTaskStats();
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Karyakar Reports</h1>
-          <p className="text-gray-600">View and analyze karyakar data</p>
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Reports</h1>
+          <p className="text-gray-600">Generate and analyze system reports</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={exportData}>
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
-          </Button>
-        </div>
+        
+        <Button onClick={exportReport}>
+          <Download className="h-4 w-4 mr-2" />
+          Export Report
+        </Button>
       </div>
 
       {/* Filters */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Filter className="w-5 h-5" />
-            Filters
+            <Filter className="h-5 w-5" />
+            Report Filters
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="search">Search</Label>
-              <Input
-                id="search"
-                placeholder="Search by name or mobile..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="role">Role</Label>
-              <Select value={roleFilter} onValueChange={setRoleFilter}>
+            <div>
+              <label className="block text-sm font-medium mb-2">Report Type</label>
+              <Select value={selectedReport} onValueChange={setSelectedReport}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select Role" />
+                  <SelectValue placeholder="Select report type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value="sevak">Sevak</SelectItem>
-                  <SelectItem value="karyakar">Karyakar</SelectItem>
-                  <SelectItem value="mandal_sanchalak">Mandal Sanchalak</SelectItem>
-                  <SelectItem value="sah_nirdeshak">Sah Nirdeshak</SelectItem>
-                  <SelectItem value="sant_nirdeshak">Sant Nirdeshak</SelectItem>
-                  <SelectItem value="super_admin">Super Admin</SelectItem>
+                  <SelectItem value="karyakars">Karyakars Report</SelectItem>
+                  <SelectItem value="tasks">Tasks Report</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="mandir">Mandir</Label>
-              <Select value={mandirFilter} onValueChange={setMandirFilter}>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Date Range</label>
+              <Select value={dateRange} onValueChange={setDateRange}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select Mandir" />
+                  <SelectValue placeholder="Select date range" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Mandirs</SelectItem>
-                  {mandirs.map((mandir) => (
-                    <SelectItem key={mandir.id} value={mandir.id}>
-                      {mandir.name}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="all">All Time</SelectItem>
+                  <SelectItem value="week">Last Week</SelectItem>
+                  <SelectItem value="month">Last Month</SelectItem>
+                  <SelectItem value="year">Last Year</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="view">View Mode</Label>
-              <div className="flex space-x-2">
-                <Button
-                  variant={viewMode === 'list' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('list')}
-                >
-                  <List className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant={viewMode === 'card' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('card')}
-                >
-                  <LayoutGrid className="w-4 h-4" />
-                </Button>
+
+            {selectedReport === 'karyakars' && (
+              <div>
+                <label className="block text-sm font-medium mb-2">Role</label>
+                <Select value={filterRole} onValueChange={setFilterRole}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Roles</SelectItem>
+                    <SelectItem value="sevak">Sevak</SelectItem>
+                    <SelectItem value="karyakar">Karyakar</SelectItem>
+                    <SelectItem value="mandal_sanchalak">Mandal Sanchalak</SelectItem>
+                    <SelectItem value="sah_nirdeshak">Sah Nirdeshak</SelectItem>
+                    <SelectItem value="sant_nirdeshak">Sant Nirdeshak</SelectItem>
+                    <SelectItem value="super_admin">Super Admin</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Status</label>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  {selectedReport === 'karyakars' ? (
+                    <>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </>
+                  ) : (
+                    <>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                    </>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Karyakars</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{filteredKaryakars.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Mandirs</CardTitle>
-            <Building className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {new Set(filteredKaryakars.map(k => k.mandir_id)).size}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Unique Villages</CardTitle>
-            <MapPin className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {new Set(filteredKaryakars.map(k => k.village_id)).size}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Super Admins</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {filteredKaryakars.filter(k => k.role === 'super_admin').length}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Data Display */}
-      <Tabs defaultValue="karyakars" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="karyakars">Karyakars</TabsTrigger>
-          <TabsTrigger value="roles">Role Distribution</TabsTrigger>
-          <TabsTrigger value="locations">Location Analysis</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="karyakars">
-          <Card>
-            <CardHeader>
-              <CardTitle>Karyakar Directory</CardTitle>
-              <CardDescription>Complete list of registered karyakars</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {viewMode === 'list' ? (
-                <KaryakarTable />
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredKaryakars.map((karyakar) => (
-                    <KaryakarCard key={karyakar.id} karyakar={karyakar} />
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="roles">
-          <Card>
-            <CardHeader>
-              <CardTitle>Role Distribution</CardTitle>
-              <CardDescription>Breakdown of karyakars by their roles</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {['super_admin', 'sant_nirdeshak', 'sah_nirdeshak', 'mandal_sanchalak', 'karyakar', 'sevak'].map(role => {
-                  const count = filteredKaryakars.filter(k => k.role === role).length;
-                  const percentage = filteredKaryakars.length > 0 ? (count / filteredKaryakars.length) * 100 : 0;
-                  return (
-                    <div key={role} className="flex items-center justify-between p-3 border rounded">
-                      <div className="flex items-center space-x-3">
-                        <Badge className={getRoleColor(role)}>
-                          {role.replace('_', ' ').toUpperCase()}
-                        </Badge>
-                        <span className="font-medium">{count} karyakars</span>
-                      </div>
-                      <span className="text-sm text-gray-600">{percentage.toFixed(1)}%</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="locations">
-          <Card>
-            <CardHeader>
-              <CardTitle>Location Analysis</CardTitle>
-              <CardDescription>Distribution across mandirs and regions</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <div>
-                  <h3 className="font-medium mb-3">By Mandir</h3>
-                  <div className="space-y-2">
-                    {mandirs.map(mandir => {
-                      const count = filteredKaryakars.filter(k => k.mandir_id === mandir.id).length;
-                      return (
-                        <div key={mandir.id} className="flex items-center justify-between p-2 border rounded">
-                          <span>{mandir.name}</span>
-                          <Badge variant="outline">{count}</Badge>
-                        </div>
-                      );
-                    })}
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {selectedReport === 'karyakars' ? (
+          <>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <Users className="h-8 w-8 text-blue-600" />
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Total Karyakars</p>
+                    <p className="text-2xl font-bold text-gray-900">{karyakarStats.total}</p>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <CheckCircle className="h-8 w-8 text-green-600" />
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Active</p>
+                    <p className="text-2xl font-bold text-green-600">{karyakarStats.active}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <Clock className="h-8 w-8 text-gray-600" />
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Inactive</p>
+                    <p className="text-2xl font-bold text-gray-600">{karyakarStats.inactive}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <Users className="h-8 w-8 text-purple-600" />
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Most Common Role</p>
+                    <p className="text-lg font-bold text-purple-600">
+                      {Object.entries(karyakarStats.byRole).sort(([,a], [,b]) => b - a)[0]?.[0] || 'N/A'}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        ) : (
+          <>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <CheckCircle className="h-8 w-8 text-blue-600" />
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Total Tasks</p>
+                    <p className="text-2xl font-bold text-gray-900">{taskStats.total}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <CheckCircle className="h-8 w-8 text-green-600" />
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Completed</p>
+                    <p className="text-2xl font-bold text-green-600">{taskStats.completed}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <Clock className="h-8 w-8 text-yellow-600" />
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Pending</p>
+                    <p className="text-2xl font-bold text-yellow-600">{taskStats.pending}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <AlertCircle className="h-8 w-8 text-red-600" />
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Overdue</p>
+                    <p className="text-2xl font-bold text-red-600">{taskStats.overdue}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
+      </div>
+
+      {/* Report Data */}
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            {selectedReport === 'karyakars' ? 'Karyakars Report' : 'Tasks Report'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {selectedReport === 'karyakars' ? (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse border border-gray-300">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="border border-gray-300 px-4 py-2 text-left">Name</th>
+                    <th className="border border-gray-300 px-4 py-2 text-left">Mobile</th>
+                    <th className="border border-gray-300 px-4 py-2 text-left">Role</th>
+                    <th className="border border-gray-300 px-4 py-2 text-left">Profession</th>
+                    <th className="border border-gray-300 px-4 py-2 text-left">Seva Type</th>
+                    <th className="border border-gray-300 px-4 py-2 text-left">Mandir</th>
+                    <th className="border border-gray-300 px-4 py-2 text-left">Status</th>
+                    <th className="border border-gray-300 px-4 py-2 text-left">Created</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {karyakars.map((karyakar) => (
+                    <tr key={karyakar.id} className="hover:bg-gray-50">
+                      <td className="border border-gray-300 px-4 py-2">{karyakar.full_name}</td>
+                      <td className="border border-gray-300 px-4 py-2">{karyakar.mobile_number}</td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        <Badge variant="secondary">{karyakar.role}</Badge>
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        {karyakar.professions?.name || 'N/A'}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        {karyakar.seva_types?.name || 'N/A'}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        {karyakar.mandirs?.name || 'N/A'}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        <Badge variant={karyakar.is_active ? "default" : "secondary"}>
+                          {karyakar.is_active ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        {formatDate(karyakar.created_at)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse border border-gray-300">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="border border-gray-300 px-4 py-2 text-left">Title</th>
+                    <th className="border border-gray-300 px-4 py-2 text-left">Status</th>
+                    <th className="border border-gray-300 px-4 py-2 text-left">Priority</th>
+                    <th className="border border-gray-300 px-4 py-2 text-left">Assigned To</th>
+                    <th className="border border-gray-300 px-4 py-2 text-left">Assigned By</th>
+                    <th className="border border-gray-300 px-4 py-2 text-left">Due Date</th>
+                    <th className="border border-gray-300 px-4 py-2 text-left">Created</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tasks.map((task) => (
+                    <tr key={task.id} className="hover:bg-gray-50">
+                      <td className="border border-gray-300 px-4 py-2">
+                        <div>
+                          <div className="font-medium">{task.title}</div>
+                          <div className="text-sm text-gray-600">{task.description}</div>
+                        </div>
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        <Badge className={getStatusColor(task.status)}>
+                          {task.status.replace('_', ' ')}
+                        </Badge>
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        <Badge className={getPriorityColor(task.priority)}>
+                          {task.priority}
+                        </Badge>
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        {task.assigned_to_profile?.full_name || 'Unassigned'}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        {task.assigned_by_profile?.full_name || 'Unknown'}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        {task.due_date ? formatDate(task.due_date) : 'No due date'}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        {formatDate(task.created_at)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
