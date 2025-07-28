@@ -30,7 +30,7 @@ const Dashboard = () => {
 
   const fetchRecentTasks = async () => {
     try {
-      setLoading(false);
+      setLoading(true);
       const { data, error } = await supabase
         .from('tasks')
         .select(`

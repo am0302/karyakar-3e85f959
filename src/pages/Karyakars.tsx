@@ -294,7 +294,7 @@ const Karyakars = () => {
                 <KaryakarForm
                   onCancel={() => setShowForm(false)}
                   onSuccess={handleFormSuccess}
-                  editingKaryakar={selectedKaryakar}
+                  editingKaryakar={selectedKaryakar as any}
                 />
               </DialogContent>
             </Dialog>
