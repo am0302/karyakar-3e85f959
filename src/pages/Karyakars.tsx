@@ -356,14 +356,14 @@ const Karyakars = () => {
       {/* Content */}
       {viewMode === 'grid' ? (
         <KaryakarGridView
-          karyakars={filteredKaryakars}
-          onEdit={handleEdit}
+          karyakars={filteredKaryakars as any}
+          onEdit={handleEdit as any}
           onDelete={handleDelete}
         />
       ) : (
         <KaryakarTableView
-          karyakars={filteredKaryakars}
-          onEdit={handleEdit}
+          karyakars={filteredKaryakars as any}
+          onEdit={handleEdit as any}
           onDelete={handleDelete}
         />
       )}

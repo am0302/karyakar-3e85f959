@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,6 +30,7 @@ const Dashboard = () => {
 
   const fetchRecentTasks = async () => {
     try {
+      setLoading(false);
       const { data, error } = await supabase
         .from('tasks')
         .select(`
@@ -72,6 +74,8 @@ const Dashboard = () => {
       setRecentTasks(validTasks);
     } catch (error: any) {
       console.error('Error fetching recent tasks:', error);
+    } finally {
+      setLoading(false);
     }
   };
 

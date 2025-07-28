@@ -96,12 +96,14 @@ const Communication = () => {
         );
       }).map(room => ({
         ...room,
-        chat_participants: (room.chat_participants || []).map(participant => ({
-          ...participant,
-          profiles: {
-            full_name: participant.profiles?.full_name || 'Unknown User'
-          }
-        }))
+        chat_participants: Array.isArray(room.chat_participants) 
+          ? room.chat_participants.map(participant => ({
+              ...participant,
+              profiles: {
+                full_name: participant.profiles?.full_name || 'Unknown User'
+              }
+            }))
+          : []
       })) || [];
 
       setRooms(validRooms);
