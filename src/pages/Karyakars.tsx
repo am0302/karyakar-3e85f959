@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -92,12 +91,12 @@ const Karyakars = () => {
         .from('profiles')
         .select(`
           *,
-          professions!inner(name),
-          seva_types!inner(name),
-          mandirs!inner(name),
-          kshetras!inner(name),
-          villages!inner(name),
-          mandals!inner(name)
+          professions(name),
+          seva_types(name),
+          mandirs(name),
+          kshetras(name),
+          villages(name),
+          mandals(name)
         `)
         .order('created_at', { ascending: false });
 
@@ -107,19 +106,7 @@ const Karyakars = () => {
       }
 
       console.log('Fetched karyakars:', data);
-      
-      // Transform the data to handle potential null values
-      const transformedData = data?.map(item => ({
-        ...item,
-        professions: item.professions || null,
-        seva_types: item.seva_types || null,
-        mandirs: item.mandirs || null,
-        kshetras: item.kshetras || null,
-        villages: item.villages || null,
-        mandals: item.mandals || null
-      })) || [];
-      
-      setKaryakars(transformedData);
+      setKaryakars(data || []);
     } catch (error: any) {
       console.error('Failed to fetch karyakars:', error);
       toast({

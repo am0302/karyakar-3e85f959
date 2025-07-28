@@ -1,92 +1,76 @@
 
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider } from '@/components/AuthProvider';
-import { NewUserRedirect } from '@/components/NewUserRedirect';
-import { Toaster } from '@/components/ui/toaster';
-import { ThemeProvider } from 'next-themes';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { Layout } from '@/components/Layout';
-import Index from '@/pages/Index';
-import Auth from '@/pages/Auth';
-import Dashboard from '@/pages/Dashboard';
-import Karyakars from '@/pages/Karyakars';
-import Tasks from '@/pages/Tasks';
-import Communication from '@/pages/Communication';
-import Reports from '@/pages/Reports';
-import Admin from '@/pages/Admin';
-import NotFound from '@/pages/NotFound';
-import './App.css';
+import { Suspense, lazy } from "react";
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "@/components/AuthProvider";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { Layout } from "@/components/Layout";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
+const queryClient = new QueryClient();
+
+// Lazy load components
+const Auth = lazy(() => import("./pages/Auth"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Karyakars = lazy(() => import("./pages/Karyakars"));
+const Tasks = lazy(() => import("./pages/Tasks"));
+const Communication = lazy(() => import("./pages/Communication"));
+const Reports = lazy(() => import("./pages/Reports"));
+const Admin = lazy(() => import("./pages/Admin"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-        <AuthProvider>
-          <Router>
-            <div className="min-h-screen bg-background">
-              <NewUserRedirect />
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
               <Routes>
-                <Route path="/" element={<Index />} />
+                <Route path="/" element={<Navigate to="/auth" replace />} />
                 <Route path="/auth" element={<Auth />} />
-                <Route path="/dashboard" element={
-                  <ProtectedRoute module="dashboard">
-                    <Layout>
+                <Route path="/" element={<Layout />}>
+                  <Route path="dashboard" element={
+                    <ProtectedRoute module="dashboard">
                       <Dashboard />
-                    </Layout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/karyakars" element={
-                  <ProtectedRoute module="karyakars">
-                    <Layout>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="karyakars" element={
+                    <ProtectedRoute module="karyakars">
                       <Karyakars />
-                    </Layout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/tasks" element={
-                  <ProtectedRoute module="tasks">
-                    <Layout>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="tasks" element={
+                    <ProtectedRoute module="tasks">
                       <Tasks />
-                    </Layout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/communication" element={
-                  <ProtectedRoute module="communication">
-                    <Layout>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="communication" element={
+                    <ProtectedRoute module="communication">
                       <Communication />
-                    </Layout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/reports" element={
-                  <ProtectedRoute module="reports">
-                    <Layout>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="reports" element={
+                    <ProtectedRoute module="reports">
                       <Reports />
-                    </Layout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/admin" element={
-                  <ProtectedRoute module="admin">
-                    <Layout>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="admin" element={
+                    <ProtectedRoute module="admin">
                       <Admin />
-                    </Layout>
-                  </ProtectedRoute>
-                } />
+                    </ProtectedRoute>
+                  } />
+                </Route>
                 <Route path="*" element={<NotFound />} />
               </Routes>
-            </div>
-          </Router>
-          <Toaster />
-        </AuthProvider>
-      </ThemeProvider>
+            </Suspense>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

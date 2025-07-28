@@ -10,7 +10,6 @@ import { SearchableSelect } from '@/components/SearchableSelect';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Trash2, Save, Users, Shield, RefreshCw } from 'lucide-react';
-import type { Database } from '@/integrations/supabase/types';
 
 interface Profile {
   id: string;
@@ -39,8 +38,6 @@ interface RolePermission extends PermissionSet {
   role: string;
   module_name: string;
 }
-
-type UserRole = Database['public']['Enums']['user_role'];
 
 export const PermissionsManager = () => {
   const { toast } = useToast();
@@ -285,7 +282,7 @@ export const PermissionsManager = () => {
       const { data: existing, error: checkError } = await supabase
         .from('role_permissions')
         .select('id')
-        .eq('role', selectedRole as UserRole)
+        .eq('role', selectedRole)
         .eq('module_name', selectedModule)
         .maybeSingle();
 
@@ -308,7 +305,7 @@ export const PermissionsManager = () => {
         const { error } = await supabase
           .from('role_permissions')
           .insert({
-            role: selectedRole as UserRole,
+            role: selectedRole,
             module_name: selectedModule,
             ...rolePermissionSet
           });

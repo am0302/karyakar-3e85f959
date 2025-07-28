@@ -13,9 +13,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Trash2, Save, Shield, RefreshCw, Users, Network, Plus, Edit2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useDynamicRoles } from '@/hooks/useDynamicRoles';
-import type { Database } from '@/integrations/supabase/types';
-
-type UserRole = Database['public']['Enums']['user_role'];
 
 interface RoleHierarchy {
   id: string;
@@ -178,9 +175,9 @@ export const RoleHierarchyManager = () => {
       const { error } = await supabase
         .from('role_hierarchy')
         .insert({
-          role: selectedRole as UserRole,
+          role: selectedRole,
           level: newRoleLevel,
-          parent_role: newRoleParent && isValidRole(newRoleParent) ? newRoleParent as UserRole : null
+          parent_role: newRoleParent && isValidRole(newRoleParent) ? newRoleParent : null
         });
 
       if (error) throw error;
@@ -226,10 +223,10 @@ export const RoleHierarchyManager = () => {
         .from('role_hierarchy')
         .update({
           level: editLevel,
-          parent_role: editParent && isValidRole(editParent) ? editParent as UserRole : null,
+          parent_role: editParent && isValidRole(editParent) ? editParent : null,
           updated_at: new Date().toISOString()
         })
-        .eq('role', roleName as UserRole);
+        .eq('role', roleName);
 
       if (error) throw error;
 
@@ -277,8 +274,8 @@ export const RoleHierarchyManager = () => {
       const { data: existing, error: checkError } = await supabase
         .from('hierarchy_permissions')
         .select('id')
-        .eq('higher_role', selectedHigherRole as UserRole)
-        .eq('lower_role', selectedLowerRole as UserRole)
+        .eq('higher_role', selectedHigherRole)
+        .eq('lower_role', selectedLowerRole)
         .maybeSingle();
 
       if (checkError && checkError.code !== 'PGRST116') {
@@ -299,8 +296,8 @@ export const RoleHierarchyManager = () => {
         const { error } = await supabase
           .from('hierarchy_permissions')
           .insert({
-            higher_role: selectedHigherRole as UserRole,
-            lower_role: selectedLowerRole as UserRole,
+            higher_role: selectedHigherRole,
+            lower_role: selectedLowerRole,
             ...permissionSet
           });
 

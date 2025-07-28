@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,8 +7,6 @@ import { SearchableSelect } from '@/components/SearchableSelect';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, Link, User } from 'lucide-react';
 import { useDynamicRoles } from '@/hooks/useDynamicRoles';
-import { useAuth } from '@/components/AuthProvider';
-import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
@@ -59,28 +56,6 @@ export const KaryakarForm = ({
 }: KaryakarFormProps) => {
   const [photoMethod, setPhotoMethod] = useState<'upload' | 'url'>('url');
   const { getRoleOptions, loading: rolesLoading } = useDynamicRoles();
-  const { user } = useAuth();
-  const [currentUserRole, setCurrentUserRole] = useState<string>('');
-
-  // Get current user's role
-  useEffect(() => {
-    const fetchUserRole = async () => {
-      if (user) {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-        
-        if (data && !error) {
-          setCurrentUserRole(data.role);
-        }
-      }
-    };
-    fetchUserRole();
-  }, [user]);
-
-  const isSuperAdmin = currentUserRole === 'super_admin';
 
   // Update form data when editing karyakar changes
   useEffect(() => {
@@ -358,26 +333,24 @@ export const KaryakarForm = ({
         </CardContent>
       </Card>
 
-      {/* Role Information - Only visible to Super Admin */}
-      {isSuperAdmin && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Role Information</CardTitle>
-            <CardDescription>Assign role to the karyakar</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div>
-              <Label>Role</Label>
-              <SearchableSelect
-                options={getRoleOptions()}
-                value={formData.role || 'sevak'}
-                onValueChange={(value) => handleInputChange('role', value)}
-                placeholder="Select Role"
-              />
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Role Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Role Information</CardTitle>
+          <CardDescription>Assign role to the karyakar</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div>
+            <Label>Role</Label>
+            <SearchableSelect
+              options={getRoleOptions()}
+              value={formData.role || 'sevak'}
+              onValueChange={(value) => handleInputChange('role', value)}
+              placeholder="Select Role"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="flex justify-end space-x-2">
         <Button type="button" variant="outline" onClick={onCancel}>
