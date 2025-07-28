@@ -115,12 +115,12 @@ const Karyakars = () => {
       console.log('Fetched karyakars:', data);
       // Filter out records with query errors and transform the data
       const validKaryakars = data?.filter(record => {
-        return (!record.professions || (typeof record.professions === 'object' && !('error' in record.professions))) &&
-               (!record.seva_types || (typeof record.seva_types === 'object' && !('error' in record.seva_types))) &&
-               (!record.mandirs || (typeof record.mandirs === 'object' && !('error' in record.mandirs))) &&
-               (!record.kshetras || (typeof record.kshetras === 'object' && !('error' in record.kshetras))) &&
-               (!record.villages || (typeof record.villages === 'object' && !('error' in record.villages))) &&
-               (!record.mandals || (typeof record.mandals === 'object' && !('error' in record.mandals)));
+        return (!record.professions || (record.professions && typeof record.professions === 'object' && !('error' in record.professions))) &&
+               (!record.seva_types || (record.seva_types && typeof record.seva_types === 'object' && !('error' in record.seva_types))) &&
+               (!record.mandirs || (record.mandirs && typeof record.mandirs === 'object' && !('error' in record.mandirs))) &&
+               (!record.kshetras || (record.kshetras && typeof record.kshetras === 'object' && !('error' in record.kshetras))) &&
+               (!record.villages || (record.villages && typeof record.villages === 'object' && !('error' in record.villages))) &&
+               (!record.mandals || (record.mandals && typeof record.mandals === 'object' && !('error' in record.mandals)));
       }).map(record => ({
         ...record,
         role: record.role as UserRole,
