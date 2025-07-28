@@ -23,7 +23,6 @@ import {
 import { useAuth } from '@/components/AuthProvider';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
-import type { Database } from '@/integrations/supabase/types';
 
 interface Profile {
   id: string;
@@ -140,7 +139,7 @@ const Reports = () => {
           : null
       })) || [];
 
-      setProfiles(validProfiles as Profile[]);
+      setProfiles(validProfiles);
 
       // Fetch tasks with related data
       const { data: tasksData, error: tasksError } = await supabase
@@ -183,12 +182,12 @@ const Reports = () => {
         due_date: task.due_date,
         assigned_to_profile: {
           full_name: task.assigned_to_profile && typeof task.assigned_to_profile === 'object' && 'full_name' in task.assigned_to_profile 
-            ? (task.assigned_to_profile as any).full_name 
+            ? (task.assigned_to_profile as any).full_name || 'Unknown User'
             : 'Unknown User'
         },
         assigned_by_profile: {
           full_name: task.assigned_by_profile && typeof task.assigned_by_profile === 'object' && 'full_name' in task.assigned_by_profile 
-            ? (task.assigned_by_profile as any).full_name 
+            ? (task.assigned_by_profile as any).full_name || 'Unknown User'
             : 'Unknown User'
         }
       }));
@@ -216,7 +215,7 @@ const Reports = () => {
       return;
     }
 
-    // TODO: Implement actual export functionality
+    // TODO: Implement export functionality
     toast({
       title: 'Info',
       description: 'Export functionality will be implemented soon',

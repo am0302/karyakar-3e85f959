@@ -117,12 +117,12 @@ const Dashboard = () => {
         due_date: task.due_date,
         assigned_to_profile: {
           full_name: task.assigned_to_profile && typeof task.assigned_to_profile === 'object' && 'full_name' in task.assigned_to_profile 
-            ? (task.assigned_to_profile as any).full_name 
+            ? (task.assigned_to_profile as any).full_name || 'Unknown User'
             : 'Unknown User'
         },
         assigned_by_profile: {
           full_name: task.assigned_by_profile && typeof task.assigned_by_profile === 'object' && 'full_name' in task.assigned_by_profile 
-            ? (task.assigned_by_profile as any).full_name 
+            ? (task.assigned_by_profile as any).full_name || 'Unknown User'
             : 'Unknown User'
         }
       })) || [];
@@ -177,7 +177,7 @@ const Dashboard = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
-            Welcome back, {user?.user_metadata?.full_name || user?.email || 'User'}
+            Welcome back, {user?.email || 'User'}
           </h1>
           <p className="text-gray-600">Here's what's happening with your organization today</p>
         </div>

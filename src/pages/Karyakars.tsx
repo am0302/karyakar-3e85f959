@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import type { Database } from '@/integrations/supabase/types';
 
 // Fix the user_role type by using the correct enum from Database
-type UserRole = Database['public']['Enums']['user_role'];
+type UserRole = 'super_admin' | 'sant_nirdeshak' | 'sah_nirdeshak' | 'mandal_sanchalak' | 'karyakar' | 'sevak';
 
 interface Profile {
   id: string;
@@ -144,7 +144,7 @@ const Karyakars = () => {
           : null
       })) || [];
       
-      setKaryakars(validKaryakars as Profile[]);
+      setKaryakars(validKaryakars);
     } catch (error: any) {
       console.error('Error fetching karyakars:', error);
       toast({

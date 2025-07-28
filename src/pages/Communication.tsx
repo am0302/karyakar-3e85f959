@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -148,6 +147,15 @@ const Communication = () => {
     }
   };
 
+  const getRoomName = (room: ChatRoom) => {
+    if (room.name) return room.name;
+    if (room.is_group) return 'Group Chat';
+    
+    // For direct messages, show the other participant's name
+    const otherParticipant = room.chat_participants?.find(p => p.user_id !== user?.id);
+    return otherParticipant?.profiles?.full_name || 'Unknown User';
+  };
+
   const fetchMessages = async (roomId: string) => {
     try {
       const { data, error } = await supabase
@@ -170,10 +178,13 @@ const Communication = () => {
         ...msg,
         profiles: msg.profiles && typeof msg.profiles === 'object' && 'full_name' in msg.profiles
           ? {
-              full_name: (msg.profiles as any).full_name,
+              full_name: (msg.profiles as any).full_name || 'Unknown User',
               profile_photo_url: (msg.profiles as any).profile_photo_url
             }
-          : undefined
+          : {
+              full_name: 'Unknown User',
+              profile_photo_url: undefined
+            }
       })) || [];
 
       setMessages(validMessages as Message[]);
@@ -221,20 +232,8 @@ const Communication = () => {
     }
   };
 
-  const getRoomName = (room: ChatRoom) => {
-    if (room.name) return room.name;
-    if (room.is_group) return 'Group Chat';
-    
-    // For direct messages, show the other participant's name
-    const otherParticipant = room.chat_participants?.find(p => p.user_id !== user?.id);
-    return otherParticipant?.profiles?.full_name || 'Unknown User';
-  };
-
   const getMessageSenderName = (msg: Message) => {
-    if (msg.profiles?.full_name) {
-      return msg.profiles.full_name;
-    }
-    return 'Unknown User';
+    return msg.profiles?.full_name || 'Unknown User';
   };
 
   const getMessageSenderAvatar = (msg: Message) => {
