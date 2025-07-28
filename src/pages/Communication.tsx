@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -146,10 +145,13 @@ const Communication = () => {
         return;
       }
 
-      // Filter out messages with query errors
+      // Filter out messages with query errors and transform data
       const validMessages = (data || []).filter(message => {
         return message.sender && !('error' in message.sender);
-      });
+      }).map(message => ({
+        ...message,
+        sender: message.sender || { full_name: 'Unknown', profile_photo_url: null }
+      }));
 
       setMessages(validMessages);
     } catch (error: any) {

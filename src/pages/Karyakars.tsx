@@ -116,7 +116,15 @@ const Karyakars = () => {
                (!karyakar.kshetras || !('error' in karyakar.kshetras)) &&
                (!karyakar.villages || !('error' in karyakar.villages)) &&
                (!karyakar.mandals || !('error' in karyakar.mandals));
-      });
+      }).map(karyakar => ({
+        ...karyakar,
+        professions: karyakar.professions || { name: 'Unknown' },
+        seva_types: karyakar.seva_types || { name: 'Unknown' },
+        mandirs: karyakar.mandirs || { name: 'Unknown' },
+        kshetras: karyakar.kshetras || { name: 'Unknown' },
+        villages: karyakar.villages || { name: 'Unknown' },
+        mandals: karyakar.mandals || { name: 'Unknown' }
+      }));
 
       setKaryakars(validKaryakars);
     } catch (error: any) {
@@ -324,7 +332,7 @@ const Karyakars = () => {
       </div>
 
       {/* Stats */}
-      <KaryakarStats stats={stats} />
+      <KaryakarStats totalKaryakars={stats.totalKaryakars} activeKaryakars={stats.activeKaryakars} byRole={stats.byRole} />
 
       {/* Search and Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
@@ -362,14 +370,13 @@ const Karyakars = () => {
         <Card>
           <CardContent className="pt-6">
             <KaryakarFilters
-              filters={filters}
-              setFilters={setFilters}
               mandirs={mandirs}
               kshetras={kshetras}
               villages={villages}
               mandals={mandals}
               professions={professions}
               sevaTypes={sevaTypes}
+              onFilterChange={setFilters}
             />
           </CardContent>
         </Card>
@@ -402,14 +409,12 @@ const Karyakars = () => {
           <KaryakarGridView
             karyakars={filteredKaryakars}
             onEdit={handleEditKaryakar}
-            getRoleDisplayName={getRoleDisplayName}
           />
         </TabsContent>
         <TabsContent value="table" className="space-y-4">
           <KaryakarTableView
             karyakars={filteredKaryakars}
             onEdit={handleEditKaryakar}
-            getRoleDisplayName={getRoleDisplayName}
           />
         </TabsContent>
       </Tabs>

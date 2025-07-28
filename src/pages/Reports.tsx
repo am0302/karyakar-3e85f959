@@ -147,7 +147,15 @@ const Reports = () => {
              (!profile.kshetras || !('error' in profile.kshetras)) &&
              (!profile.villages || !('error' in profile.villages)) &&
              (!profile.mandals || !('error' in profile.mandals));
-    });
+    }).map(profile => ({
+      ...profile,
+      professions: profile.professions || { name: 'Unknown' },
+      seva_types: profile.seva_types || { name: 'Unknown' },
+      mandirs: profile.mandirs || { name: 'Unknown' },
+      kshetras: profile.kshetras || { name: 'Unknown' },
+      villages: profile.villages || { name: 'Unknown' },
+      mandals: profile.mandals || { name: 'Unknown' }
+    }));
 
     setProfiles(validProfiles);
     generateKaryakarReports(validProfiles);
@@ -182,7 +190,11 @@ const Reports = () => {
     const validTasks = (data || []).filter(task => {
       return task.assigned_to_profile && !('error' in task.assigned_to_profile) &&
              task.assigned_by_profile && !('error' in task.assigned_by_profile);
-    });
+    }).map(task => ({
+      ...task,
+      assigned_to_profile: task.assigned_to_profile || { full_name: 'Unknown' },
+      assigned_by_profile: task.assigned_by_profile || { full_name: 'Unknown' }
+    }));
 
     setTasks(validTasks);
     generateTaskReports(validTasks);

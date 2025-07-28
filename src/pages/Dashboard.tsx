@@ -127,7 +127,11 @@ const Dashboard = () => {
     const validTasks = (data || []).filter(task => {
       return task.assigned_to_profile && !('error' in task.assigned_to_profile) &&
              task.assigned_by_profile && !('error' in task.assigned_by_profile);
-    });
+    }).map(task => ({
+      ...task,
+      assigned_to_profile: task.assigned_to_profile || { full_name: 'Unknown' },
+      assigned_by_profile: task.assigned_by_profile || { full_name: 'Unknown' }
+    }));
 
     setRecentTasks(validTasks);
   };
@@ -236,9 +240,11 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <TaskStatusChart 
-              completed={stats.completedTasks}
-              pending={stats.pendingTasks}
-              inProgress={stats.activeTasks - stats.pendingTasks}
+              data={{
+                completed: stats.completedTasks,
+                pending: stats.pendingTasks,
+                inProgress: stats.activeTasks - stats.pendingTasks
+              }}
             />
           </CardContent>
         </Card>
