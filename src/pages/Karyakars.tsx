@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -122,7 +123,7 @@ const Karyakars = () => {
                (!record.mandals || (typeof record.mandals === 'object' && !('error' in record.mandals)));
       }) || [];
       
-      setKaryakars(validKaryakars);
+      setKaryakars(validKaryakars as Profile[]);
     } catch (error: any) {
       console.error('Error fetching karyakars:', error);
       toast({
@@ -293,7 +294,7 @@ const Karyakars = () => {
       </div>
 
       {/* Stats */}
-      <KaryakarStats />
+      <KaryakarStats totalCount={karyakars.length} />
 
       {/* Filters */}
       <KaryakarFilters

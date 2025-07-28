@@ -3,15 +3,27 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Download, Filter, Users, Calendar, CheckCircle, TrendingUp } from 'lucide-react';
+import { 
+  Users, 
+  CheckCircle, 
+  Clock, 
+  AlertCircle, 
+  Download,
+  Filter,
+  Calendar,
+  BarChart3,
+  TrendingUp,
+  FileText
+} from 'lucide-react';
+import { useAuth } from '@/components/AuthProvider';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { usePermissions } from '@/hooks/usePermissions';
+import type { Database } from '@/integrations/supabase/types';
 
 interface Profile {
   id: string;
@@ -55,17 +67,23 @@ interface TaskReport {
 }
 
 const Reports = () => {
+  const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const { toast } = useToast();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [tasks, setTasks] = useState<TaskReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [selectedRole, setSelectedRole] = useState('all');
-  const [selectedStatus, setSelectedStatus] = useState('all');
+
+  const canView = hasPermission('reports', 'view');
+  const canExport = hasPermission('reports', 'export');
 
   useEffect(() => {
-    fetchReportsData();
-  }, []);
+    if (canView) {
+      fetchReportsData();
+    }
+  }, [canView]);
 
   const fetchReportsData = async () => {
     try {
@@ -91,7 +109,7 @@ const Reports = () => {
         .order('created_at', { ascending: false });
 
       if (profilesError) throw profilesError;
-
+      
       // Filter out profiles with query errors
       const validProfiles = profilesData?.filter(profile => {
         return (!profile.professions || (typeof profile.professions === 'object' && !('error' in profile.professions))) &&
@@ -102,9 +120,9 @@ const Reports = () => {
                (!profile.mandals || (typeof profile.mandals === 'object' && !('error' in profile.mandals)));
       }) || [];
 
-      setProfiles(validProfiles);
+      setProfiles(validProfiles as Profile[]);
 
-      // Fetch tasks
+      // Fetch tasks with related data
       const { data: tasksData, error: tasksError } = await supabase
         .from('tasks')
         .select(`
@@ -120,8 +138,8 @@ const Reports = () => {
         .order('created_at', { ascending: false });
 
       if (tasksError) throw tasksError;
-
-      // Filter out tasks with query errors and transform the data
+      
+      // Filter out tasks with query errors
       const validTasks = tasksData?.filter(task => {
         return task.assigned_to_profile && 
                typeof task.assigned_to_profile === 'object' && 
@@ -134,12 +152,21 @@ const Reports = () => {
       }) || [];
 
       const transformedTasks: TaskReport[] = validTasks.map(task => ({
-        ...task,
+        id: task.id,
+        title: task.title,
+        status: task.status,
+        priority: task.priority,
+        created_at: task.created_at,
+        due_date: task.due_date,
         assigned_to_profile: {
-          full_name: (task.assigned_to_profile as any).full_name
+          full_name: task.assigned_to_profile && typeof task.assigned_to_profile === 'object' && 'full_name' in task.assigned_to_profile 
+            ? (task.assigned_to_profile as any).full_name 
+            : 'Unknown User'
         },
         assigned_by_profile: {
-          full_name: (task.assigned_by_profile as any).full_name
+          full_name: task.assigned_by_profile && typeof task.assigned_by_profile === 'object' && 'full_name' in task.assigned_by_profile 
+            ? (task.assigned_by_profile as any).full_name 
+            : 'Unknown User'
         }
       }));
 
@@ -156,336 +183,265 @@ const Reports = () => {
     }
   };
 
-  const getKaryakarsByRole = () => {
-    const roleCount: { [key: string]: number } = {};
+  const exportData = (type: 'profiles' | 'tasks') => {
+    if (!canExport) {
+      toast({
+        title: 'Error',
+        description: 'You do not have permission to export data',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // TODO: Implement actual export functionality
+    toast({
+      title: 'Info',
+      description: 'Export functionality will be implemented soon',
+    });
+  };
+
+  const getTaskStatusStats = () => {
+    const stats = {
+      total: tasks.length,
+      completed: tasks.filter(t => t.status === 'completed').length,
+      pending: tasks.filter(t => t.status === 'pending').length,
+      in_progress: tasks.filter(t => t.status === 'in_progress').length,
+    };
+    
+    return stats;
+  };
+
+  const getRoleDistribution = () => {
+    const distribution: Record<string, number> = {};
     profiles.forEach(profile => {
-      const role = profile.role || 'Unknown';
-      roleCount[role] = (roleCount[role] || 0) + 1;
+      distribution[profile.role] = (distribution[profile.role] || 0) + 1;
     });
-    
-    return Object.entries(roleCount).map(([role, count]) => ({
-      role,
-      count
-    }));
+    return distribution;
   };
-
-  const getTasksByStatus = () => {
-    const statusCount: { [key: string]: number } = {};
-    tasks.forEach(task => {
-      const status = task.status || 'Unknown';
-      statusCount[status] = (statusCount[status] || 0) + 1;
-    });
-    
-    return Object.entries(statusCount).map(([status, count]) => ({
-      status,
-      count
-    }));
-  };
-
-  const getTasksByPriority = () => {
-    const priorityCount: { [key: string]: number } = {};
-    tasks.forEach(task => {
-      const priority = task.priority || 'Unknown';
-      priorityCount[priority] = (priorityCount[priority] || 0) + 1;
-    });
-    
-    return Object.entries(priorityCount).map(([priority, count]) => ({
-      priority,
-      count
-    }));
-  };
-
-  const getMonthlyRegistrations = () => {
-    const monthlyCount: { [key: string]: number } = {};
-    profiles.forEach(profile => {
-      const month = format(new Date(profile.created_at), 'MMM yyyy');
-      monthlyCount[month] = (monthlyCount[month] || 0) + 1;
-    });
-    
-    return Object.entries(monthlyCount).map(([month, count]) => ({
-      month,
-      count
-    }));
-  };
-
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
-
-  const filteredProfiles = profiles.filter(profile => {
-    const matchesRole = selectedRole === 'all' || profile.role === selectedRole;
-    const matchesDateRange = !dateRange.start || !dateRange.end || 
-      (new Date(profile.created_at) >= new Date(dateRange.start) && 
-       new Date(profile.created_at) <= new Date(dateRange.end));
-    return matchesRole && matchesDateRange;
-  });
-
-  const filteredTasks = tasks.filter(task => {
-    const matchesStatus = selectedStatus === 'all' || task.status === selectedStatus;
-    const matchesDateRange = !dateRange.start || !dateRange.end || 
-      (new Date(task.created_at) >= new Date(dateRange.start) && 
-       new Date(task.created_at) <= new Date(dateRange.end));
-    return matchesStatus && matchesDateRange;
-  });
 
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading reports...</div>;
   }
 
+  if (!canView) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Access Denied</h3>
+          <p className="text-gray-600">You do not have permission to view reports.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const taskStats = getTaskStatusStats();
+  const roleDistribution = getRoleDistribution();
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Reports</h1>
           <p className="text-gray-600">Analytics and insights for your organization</p>
         </div>
         
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm">
-            <Filter className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Filter</span>
-          </Button>
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Export</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <Label htmlFor="start-date">Start Date</Label>
-              <Input
-                id="start-date"
-                type="date"
-                value={dateRange.start}
-                onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label htmlFor="end-date">End Date</Label>
-              <Input
-                id="end-date"
-                type="date"
-                value={dateRange.end}
-                onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label htmlFor="role-filter">Role</Label>
-              <Select value={selectedRole} onValueChange={setSelectedRole}>
-                <SelectTrigger id="role-filter">
-                  <SelectValue placeholder="Select role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value="super_admin">Super Admin</SelectItem>
-                  <SelectItem value="sant_nirdeshak">Sant Nirdeshak</SelectItem>
-                  <SelectItem value="sah_nirdeshak">Sah Nirdeshak</SelectItem>
-                  <SelectItem value="mandal_sanchalak">Mandal Sanchalak</SelectItem>
-                  <SelectItem value="karyakar">Karyakar</SelectItem>
-                  <SelectItem value="sevak">Sevak</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="status-filter">Task Status</Label>
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger id="status-filter">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+        {canExport && (
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => exportData('profiles')}>
+              <Download className="h-4 w-4 mr-2" />
+              Export Profiles
+            </Button>
+            <Button variant="outline" onClick={() => exportData('tasks')}>
+              <Download className="h-4 w-4 mr-2" />
+              Export Tasks
+            </Button>
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Overview Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Total Karyakars</p>
-                <p className="text-2xl font-bold">{filteredProfiles.length}</p>
+                <p className="text-sm font-medium text-gray-600">Total Profiles</p>
+                <p className="text-2xl font-bold text-gray-900">{profiles.length}</p>
               </div>
-              <Users className="h-8 w-8 text-blue-500" />
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <Users className="h-6 w-6 text-blue-600" />
+              </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Total Tasks</p>
-                <p className="text-2xl font-bold">{filteredTasks.length}</p>
+                <p className="text-sm font-medium text-gray-600">Total Tasks</p>
+                <p className="text-2xl font-bold text-gray-900">{taskStats.total}</p>
               </div>
-              <Calendar className="h-8 w-8 text-purple-500" />
+              <div className="p-3 bg-green-100 rounded-lg">
+                <FileText className="h-6 w-6 text-green-600" />
+              </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Completed Tasks</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {filteredTasks.filter(t => t.status === 'completed').length}
-                </p>
+                <p className="text-sm font-medium text-gray-600">Completed Tasks</p>
+                <p className="text-2xl font-bold text-gray-900">{taskStats.completed}</p>
               </div>
-              <CheckCircle className="h-8 w-8 text-green-500" />
+              <div className="p-3 bg-green-100 rounded-lg">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+              </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Task Completion Rate</p>
-                <p className="text-2xl font-bold">
-                  {filteredTasks.length > 0 ? 
-                    Math.round((filteredTasks.filter(t => t.status === 'completed').length / filteredTasks.length) * 100) : 0
-                  }%
-                </p>
+                <p className="text-sm font-medium text-gray-600">Pending Tasks</p>
+                <p className="text-2xl font-bold text-gray-900">{taskStats.pending}</p>
               </div>
-              <TrendingUp className="h-8 w-8 text-orange-500" />
+              <div className="p-3 bg-yellow-100 rounded-lg">
+                <Clock className="h-6 w-6 text-yellow-600" />
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Charts */}
-      <Tabs defaultValue="karyakars" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="karyakars">Karyakars</TabsTrigger>
-          <TabsTrigger value="tasks">Tasks</TabsTrigger>
-          <TabsTrigger value="trends">Trends</TabsTrigger>
+      {/* Detailed Reports */}
+      <Tabs defaultValue="profiles" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="profiles">Profiles Report</TabsTrigger>
+          <TabsTrigger value="tasks">Tasks Report</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="karyakars" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Karyakars by Role</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={getKaryakarsByRole()}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="role" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="count" fill="#8884d8" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Role Distribution</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={getKaryakarsByRole()}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ role, percent }) => `${role} ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="count"
-                    >
-                      {getKaryakarsByRole().map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="tasks" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Tasks by Status</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={getTasksByStatus()}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="status" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="count" fill="#82ca9d" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Tasks by Priority</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={getTasksByPriority()}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ priority, percent }) => `${priority} ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="count"
-                    >
-                      {getTasksByPriority().map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="trends" className="space-y-4">
+        <TabsContent value="profiles">
           <Card>
             <CardHeader>
-              <CardTitle>Monthly Registrations</CardTitle>
+              <CardTitle>Profiles Summary</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={getMonthlyRegistrations()}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="#ffc658" />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="font-medium mb-3">Role Distribution</h3>
+                  <div className="space-y-2">
+                    {Object.entries(roleDistribution).map(([role, count]) => (
+                      <div key={role} className="flex justify-between items-center">
+                        <span className="text-sm capitalize">{role.replace('_', ' ')}</span>
+                        <Badge variant="secondary">{count}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="font-medium mb-3">Recent Registrations</h3>
+                  <div className="space-y-2">
+                    {profiles.slice(0, 5).map(profile => (
+                      <div key={profile.id} className="flex justify-between items-center">
+                        <span className="text-sm">{profile.full_name}</span>
+                        <span className="text-xs text-gray-500">
+                          {new Date(profile.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="tasks">
+          <Card>
+            <CardHeader>
+              <CardTitle>Tasks Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="font-medium mb-3">Task Status Distribution</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm">Completed</span>
+                      <Badge className="bg-green-100 text-green-800">{taskStats.completed}</Badge>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm">In Progress</span>
+                      <Badge className="bg-blue-100 text-blue-800">{taskStats.in_progress}</Badge>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm">Pending</span>
+                      <Badge className="bg-yellow-100 text-yellow-800">{taskStats.pending}</Badge>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="font-medium mb-3">Recent Tasks</h3>
+                  <div className="space-y-2">
+                    {tasks.slice(0, 5).map(task => (
+                      <div key={task.id} className="flex justify-between items-center">
+                        <span className="text-sm truncate">{task.title}</span>
+                        <Badge className={
+                          task.status === 'completed' ? 'bg-green-100 text-green-800' :
+                          task.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                          'bg-yellow-100 text-yellow-800'
+                        }>
+                          {task.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="analytics">
+          <Card>
+            <CardHeader>
+              <CardTitle>Analytics Dashboard</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="font-medium mb-3">Key Metrics</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Task Completion Rate</span>
+                      <span className="text-lg font-bold text-green-600">
+                        {taskStats.total > 0 ? Math.round((taskStats.completed / taskStats.total) * 100) : 0}%
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Active Profiles</span>
+                      <span className="text-lg font-bold text-blue-600">{profiles.length}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="font-medium mb-3">Growth Trends</h3>
+                  <div className="text-center py-8">
+                    <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">Advanced analytics coming soon</p>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

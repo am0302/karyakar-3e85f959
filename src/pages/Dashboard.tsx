@@ -4,31 +4,25 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   Users, 
-  Calendar, 
   CheckCircle, 
   Clock, 
+  AlertCircle, 
   MessageCircle, 
+  Calendar,
   TrendingUp,
-  MapPin,
-  UserPlus,
-  FileText,
   BarChart3
 } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
 
+// Define types for the dashboard data
 interface DashboardStats {
   totalKaryakars: number;
-  totalTasks: number;
   completedTasks: number;
   pendingTasks: number;
-  totalMessages: number;
-  recentActivity: any[];
+  unreadMessages: number;
 }
 
 interface RecentTask {
@@ -37,10 +31,10 @@ interface RecentTask {
   status: string;
   priority: string;
   due_date: string;
-  assigned_to_profile?: {
+  assigned_to_profile: {
     full_name: string;
   };
-  assigned_by_profile?: {
+  assigned_by_profile: {
     full_name: string;
   };
 }
@@ -50,11 +44,9 @@ const Dashboard = () => {
   const { toast } = useToast();
   const [stats, setStats] = useState<DashboardStats>({
     totalKaryakars: 0,
-    totalTasks: 0,
     completedTasks: 0,
     pendingTasks: 0,
-    totalMessages: 0,
-    recentActivity: []
+    unreadMessages: 0
   });
   const [recentTasks, setRecentTasks] = useState<RecentTask[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,20 +61,20 @@ const Dashboard = () => {
     try {
       setLoading(true);
       
-      // Fetch total karyakars
+      // Fetch karyakars count
       const { count: karyakarsCount } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true })
         .eq('is_active', true);
 
       // Fetch tasks stats
-      const { data: tasksData } = await supabase
+      const { data: tasks } = await supabase
         .from('tasks')
-        .select('status');
+        .select('status')
+        .or(`assigned_to.eq.${user?.id},assigned_by.eq.${user?.id}`);
 
-      const totalTasks = tasksData?.length || 0;
-      const completedTasks = tasksData?.filter(t => t.status === 'completed').length || 0;
-      const pendingTasks = tasksData?.filter(t => t.status === 'pending').length || 0;
+      const completedTasks = tasks?.filter(task => task.status === 'completed').length || 0;
+      const pendingTasks = tasks?.filter(task => task.status === 'pending').length || 0;
 
       // Fetch recent tasks
       const { data: recentTasksData } = await supabase
@@ -96,11 +88,14 @@ const Dashboard = () => {
           assigned_to_profile:profiles!tasks_assigned_to_fkey(full_name),
           assigned_by_profile:profiles!tasks_assigned_by_fkey(full_name)
         `)
+        .or(`assigned_to.eq.${user?.id},assigned_by.eq.${user?.id}`)
         .order('created_at', { ascending: false })
         .limit(5);
 
-      // Filter out tasks with query errors and transform the data
-      const validRecentTasks = recentTasksData?.filter(task => {
+      console.log('Recent tasks data:', recentTasksData);
+
+      // Filter out tasks with query errors
+      const validTasks = recentTasksData?.filter(task => {
         return task.assigned_to_profile && 
                typeof task.assigned_to_profile === 'object' && 
                !('error' in task.assigned_to_profile) &&
@@ -111,31 +106,32 @@ const Dashboard = () => {
                'full_name' in task.assigned_by_profile;
       }) || [];
 
-      const transformedRecentTasks: RecentTask[] = validRecentTasks.map(task => ({
-        ...task,
+      const transformedTasks: RecentTask[] = validTasks.map(task => ({
+        id: task.id,
+        title: task.title,
+        status: task.status,
+        priority: task.priority,
+        due_date: task.due_date,
         assigned_to_profile: {
-          full_name: (task.assigned_to_profile as any).full_name
+          full_name: task.assigned_to_profile && typeof task.assigned_to_profile === 'object' && 'full_name' in task.assigned_to_profile 
+            ? (task.assigned_to_profile as any).full_name 
+            : 'Unknown User'
         },
         assigned_by_profile: {
-          full_name: (task.assigned_by_profile as any).full_name
+          full_name: task.assigned_by_profile && typeof task.assigned_by_profile === 'object' && 'full_name' in task.assigned_by_profile 
+            ? (task.assigned_by_profile as any).full_name 
+            : 'Unknown User'
         }
       }));
 
-      // Fetch messages count
-      const { count: messagesCount } = await supabase
-        .from('messages')
-        .select('*', { count: 'exact', head: true });
-
       setStats({
         totalKaryakars: karyakarsCount || 0,
-        totalTasks,
         completedTasks,
         pendingTasks,
-        totalMessages: messagesCount || 0,
-        recentActivity: []
+        unreadMessages: 0 // TODO: Implement unread messages count
       });
 
-      setRecentTasks(transformedRecentTasks);
+      setRecentTasks(transformedTasks);
     } catch (error: any) {
       console.error('Error fetching dashboard data:', error);
       toast({
@@ -153,9 +149,9 @@ const Dashboard = () => {
       case 'completed':
         return 'bg-green-100 text-green-800';
       case 'in_progress':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-blue-100 text-blue-800';
       case 'pending':
-        return 'bg-red-100 text-red-800';
+        return 'bg-yellow-100 text-yellow-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -174,182 +170,176 @@ const Dashboard = () => {
     }
   };
 
-  const completionRate = stats.totalTasks > 0 ? (stats.completedTasks / stats.totalTasks) * 100 : 0;
-
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading dashboard...</div>;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600">Welcome back! Here's what's happening today.</p>
-        </div>
-        
-        <div className="flex flex-wrap gap-2">
-          <Button>
-            <UserPlus className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Add Karyakar</span>
-          </Button>
-          <Button variant="outline">
-            <FileText className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Reports</span>
-          </Button>
-        </div>
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-gray-600">Welcome back! Here's what's happening in your organization.</p>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Total Karyakars</p>
-                <p className="text-2xl font-bold">{stats.totalKaryakars}</p>
+                <p className="text-sm font-medium text-gray-600">Total Karyakars</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.totalKaryakars}</p>
               </div>
-              <Users className="h-8 w-8 text-blue-500" />
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <Users className="h-6 w-6 text-blue-600" />
+              </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Total Tasks</p>
-                <p className="text-2xl font-bold">{stats.totalTasks}</p>
+                <p className="text-sm font-medium text-gray-600">Completed Tasks</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.completedTasks}</p>
               </div>
-              <Calendar className="h-8 w-8 text-purple-500" />
+              <div className="p-3 bg-green-100 rounded-lg">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+              </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Completed Tasks</p>
-                <p className="text-2xl font-bold text-green-600">{stats.completedTasks}</p>
+                <p className="text-sm font-medium text-gray-600">Pending Tasks</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.pendingTasks}</p>
               </div>
-              <CheckCircle className="h-8 w-8 text-green-500" />
+              <div className="p-3 bg-yellow-100 rounded-lg">
+                <Clock className="h-6 w-6 text-yellow-600" />
+              </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Messages</p>
-                <p className="text-2xl font-bold">{stats.totalMessages}</p>
+                <p className="text-sm font-medium text-gray-600">Unread Messages</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.unreadMessages}</p>
               </div>
-              <MessageCircle className="h-8 w-8 text-orange-500" />
+              <div className="p-3 bg-purple-100 rounded-lg">
+                <MessageCircle className="h-6 w-6 text-purple-600" />
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Progress Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Task Completion Progress
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Overall Progress</span>
-                <span className="text-sm text-gray-600">{Math.round(completionRate)}%</span>
-              </div>
-              <Progress value={completionRate} className="h-2" />
-              
-              <div className="grid grid-cols-3 gap-4 mt-4">
-                <div className="text-center">
-                  <div className="text-lg font-bold text-green-600">{stats.completedTasks}</div>
-                  <div className="text-xs text-gray-600">Completed</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-yellow-600">{stats.totalTasks - stats.completedTasks - stats.pendingTasks}</div>
-                  <div className="text-xs text-gray-600">In Progress</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-red-600">{stats.pendingTasks}</div>
-                  <div className="text-xs text-gray-600">Pending</div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Recent Tasks
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentTasks.length === 0 ? (
-                <p className="text-sm text-gray-500 text-center py-4">No recent tasks</p>
-              ) : (
-                recentTasks.map((task) => (
-                  <div key={task.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex-1">
-                      <h4 className="font-medium text-sm">{task.title}</h4>
-                      <p className="text-xs text-gray-600">
-                        Assigned to: {task.assigned_to_profile?.full_name || 'Unknown'}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Due: {format(new Date(task.due_date), 'MMM dd, yyyy')}
-                      </p>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <Badge className={`text-xs ${getStatusColor(task.status)}`}>
-                        {task.status.replace('_', ' ')}
-                      </Badge>
-                      <Badge className={`text-xs ${getPriorityColor(task.priority)}`}>
-                        {task.priority}
-                      </Badge>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Quick Actions */}
+      {/* Recent Tasks */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            Quick Actions
+            <Calendar className="h-5 w-5" />
+            Recent Tasks
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button variant="outline" className="h-20 flex-col">
-              <UserPlus className="h-6 w-6 mb-2" />
-              Add New Karyakar
-            </Button>
-            <Button variant="outline" className="h-20 flex-col">
-              <Calendar className="h-6 w-6 mb-2" />
-              Create Task
-            </Button>
-            <Button variant="outline" className="h-20 flex-col">
-              <MessageCircle className="h-6 w-6 mb-2" />
-              Send Message
-            </Button>
-          </div>
+          {recentTasks.length === 0 ? (
+            <div className="text-center py-8">
+              <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No recent tasks</h3>
+              <p className="text-gray-600">You don't have any recent tasks to display.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {recentTasks.map((task) => (
+                <div key={task.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex-1">
+                    <h4 className="font-medium text-gray-900">{task.title}</h4>
+                    <p className="text-sm text-gray-600">
+                      Assigned to: {task.assigned_to_profile.full_name} | 
+                      By: {task.assigned_by_profile.full_name}
+                    </p>
+                    {task.due_date && (
+                      <p className="text-sm text-gray-500">
+                        Due: {new Date(task.due_date).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge className={getPriorityColor(task.priority)}>
+                      {task.priority}
+                    </Badge>
+                    <Badge className={getStatusColor(task.status)}>
+                      {task.status}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <Users className="h-6 w-6 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-medium text-gray-900">Manage Karyakars</h3>
+                <p className="text-sm text-gray-600">Add, edit, or view karyakars</p>
+              </div>
+            </div>
+            <Button className="w-full mt-4" variant="outline" onClick={() => window.location.href = '/karyakars'}>
+              Go to Karyakars
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-green-100 rounded-lg">
+                <Calendar className="h-6 w-6 text-green-600" />
+              </div>
+              <div>
+                <h3 className="font-medium text-gray-900">Task Management</h3>
+                <p className="text-sm text-gray-600">Create and track tasks</p>
+              </div>
+            </div>
+            <Button className="w-full mt-4" variant="outline" onClick={() => window.location.href = '/tasks'}>
+              Go to Tasks
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-purple-100 rounded-lg">
+                <BarChart3 className="h-6 w-6 text-purple-600" />
+              </div>
+              <div>
+                <h3 className="font-medium text-gray-900">Reports</h3>
+                <p className="text-sm text-gray-600">View analytics and reports</p>
+              </div>
+            </div>
+            <Button className="w-full mt-4" variant="outline" onClick={() => window.location.href = '/reports'}>
+              Go to Reports
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -218,13 +217,15 @@ const Communication = () => {
       // Transform to proper ChatRoom type
       const transformedRooms: ChatRoom[] = validRooms.map(room => ({
         ...room,
-        chat_participants: room.chat_participants.map(participant => ({
-          user_id: participant.user_id,
-          profiles: {
-            full_name: (participant.profiles as any).full_name,
-            profile_photo_url: (participant.profiles as any).profile_photo_url
-          }
-        }))
+        chat_participants: Array.isArray(room.chat_participants) 
+          ? room.chat_participants.map(participant => ({
+              user_id: participant.user_id,
+              profiles: {
+                full_name: (participant.profiles as any).full_name,
+                profile_photo_url: (participant.profiles as any).profile_photo_url
+              }
+            }))
+          : []
       }));
 
       setChatRooms(transformedRooms);
@@ -272,8 +273,12 @@ const Communication = () => {
       const transformedMessages: Message[] = validMessages.map(msg => ({
         ...msg,
         sender: {
-          full_name: (msg.profiles as any)?.full_name || 'Unknown User',
-          profile_photo_url: (msg.profiles as any)?.profile_photo_url
+          full_name: msg.profiles && typeof msg.profiles === 'object' && 'full_name' in msg.profiles 
+            ? (msg.profiles as any).full_name 
+            : 'Unknown User',
+          profile_photo_url: msg.profiles && typeof msg.profiles === 'object' && 'profile_photo_url' in msg.profiles 
+            ? (msg.profiles as any).profile_photo_url 
+            : undefined
         }
       }));
 
