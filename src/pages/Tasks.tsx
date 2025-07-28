@@ -77,17 +77,29 @@ const Tasks = () => {
 
       if (error) throw error;
       
-      // Filter out records with query errors
+      // Filter out records with query errors and transform the data
       const validTasks = data?.filter(task => {
         return task.assigned_to_profile && 
                typeof task.assigned_to_profile === 'object' && 
                !('error' in task.assigned_to_profile) &&
+               'full_name' in task.assigned_to_profile &&
                task.assigned_by_profile && 
                typeof task.assigned_by_profile === 'object' && 
-               !('error' in task.assigned_by_profile);
+               !('error' in task.assigned_by_profile) &&
+               'full_name' in task.assigned_by_profile;
       }) || [];
 
-      setTasks(validTasks as Task[]);
+      const transformedTasks: Task[] = validTasks.map(task => ({
+        ...task,
+        assigned_to_profile: {
+          full_name: (task.assigned_to_profile as any).full_name
+        },
+        assigned_by_profile: {
+          full_name: (task.assigned_by_profile as any).full_name
+        }
+      }));
+
+      setTasks(transformedTasks);
     } catch (error: any) {
       console.error('Error fetching tasks:', error);
       toast({

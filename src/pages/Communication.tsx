@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -202,18 +203,31 @@ const Communication = () => {
 
       console.log('Fetched chat rooms:', rooms);
       
-      // Filter out rooms with query errors
+      // Filter out rooms with query errors and properly type them
       const validRooms = rooms?.filter(room => {
         return room.chat_participants && 
                Array.isArray(room.chat_participants) && 
                room.chat_participants.every(participant => 
                  participant.profiles && 
                  typeof participant.profiles === 'object' && 
-                 !('error' in participant.profiles)
+                 !('error' in participant.profiles) &&
+                 'full_name' in participant.profiles
                );
       }) || [];
 
-      setChatRooms(validRooms as ChatRoom[]);
+      // Transform to proper ChatRoom type
+      const transformedRooms: ChatRoom[] = validRooms.map(room => ({
+        ...room,
+        chat_participants: room.chat_participants.map(participant => ({
+          user_id: participant.user_id,
+          profiles: {
+            full_name: (participant.profiles as any).full_name,
+            profile_photo_url: (participant.profiles as any).profile_photo_url
+          }
+        }))
+      }));
+
+      setChatRooms(transformedRooms);
     } catch (error: any) {
       console.error('Error fetching chat rooms:', error);
       toast({
@@ -251,10 +265,11 @@ const Communication = () => {
       const validMessages = data?.filter(msg => {
         return msg.profiles && 
                typeof msg.profiles === 'object' && 
-               !('error' in msg.profiles);
+               !('error' in msg.profiles) &&
+               'full_name' in msg.profiles;
       }) || [];
 
-      const transformedMessages = validMessages.map(msg => ({
+      const transformedMessages: Message[] = validMessages.map(msg => ({
         ...msg,
         sender: {
           full_name: (msg.profiles as any)?.full_name || 'Unknown User',

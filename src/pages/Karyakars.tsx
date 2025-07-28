@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -40,22 +39,22 @@ interface Profile {
   is_whatsapp_same_as_mobile?: boolean;
   professions?: {
     name: string;
-  };
+  } | null;
   seva_types?: {
     name: string;
-  };
+  } | null;
   mandirs?: {
     name: string;
-  };
+  } | null;
   kshetras?: {
     name: string;
-  };
+  } | null;
   villages?: {
     name: string;
-  };
+  } | null;
   mandals?: {
     name: string;
-  };
+  } | null;
 }
 
 const Karyakars = () => {
@@ -115,10 +114,15 @@ const Karyakars = () => {
       console.log('Fetched karyakars:', data);
       // Filter out records with query errors
       const validKaryakars = data?.filter(record => {
-        return record.professions === null || (typeof record.professions === 'object' && !('error' in record.professions));
+        return (!record.professions || (typeof record.professions === 'object' && !('error' in record.professions))) &&
+               (!record.seva_types || (typeof record.seva_types === 'object' && !('error' in record.seva_types))) &&
+               (!record.mandirs || (typeof record.mandirs === 'object' && !('error' in record.mandirs))) &&
+               (!record.kshetras || (typeof record.kshetras === 'object' && !('error' in record.kshetras))) &&
+               (!record.villages || (typeof record.villages === 'object' && !('error' in record.villages))) &&
+               (!record.mandals || (typeof record.mandals === 'object' && !('error' in record.mandals)));
       }) || [];
       
-      setKaryakars(validKaryakars as Profile[]);
+      setKaryakars(validKaryakars);
     } catch (error: any) {
       console.error('Error fetching karyakars:', error);
       toast({
@@ -267,7 +271,6 @@ const Karyakars = () => {
                   </DialogTitle>
                 </DialogHeader>
                 <KaryakarForm
-                  karyakar={selectedKaryakar}
                   onSuccess={handleFormSuccess}
                   onCancel={() => setShowForm(false)}
                 />
@@ -290,12 +293,10 @@ const Karyakars = () => {
       </div>
 
       {/* Stats */}
-      <KaryakarStats karyakars={filteredKaryakars} />
+      <KaryakarStats />
 
       {/* Filters */}
       <KaryakarFilters
-        filters={filters}
-        onFiltersChange={setFilters}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
       />

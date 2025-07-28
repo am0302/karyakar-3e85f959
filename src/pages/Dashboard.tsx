@@ -99,15 +99,27 @@ const Dashboard = () => {
         .order('created_at', { ascending: false })
         .limit(5);
 
-      // Filter out tasks with query errors
+      // Filter out tasks with query errors and transform the data
       const validRecentTasks = recentTasksData?.filter(task => {
         return task.assigned_to_profile && 
                typeof task.assigned_to_profile === 'object' && 
                !('error' in task.assigned_to_profile) &&
+               'full_name' in task.assigned_to_profile &&
                task.assigned_by_profile && 
                typeof task.assigned_by_profile === 'object' && 
-               !('error' in task.assigned_by_profile);
+               !('error' in task.assigned_by_profile) &&
+               'full_name' in task.assigned_by_profile;
       }) || [];
+
+      const transformedRecentTasks: RecentTask[] = validRecentTasks.map(task => ({
+        ...task,
+        assigned_to_profile: {
+          full_name: (task.assigned_to_profile as any).full_name
+        },
+        assigned_by_profile: {
+          full_name: (task.assigned_by_profile as any).full_name
+        }
+      }));
 
       // Fetch messages count
       const { count: messagesCount } = await supabase
@@ -123,7 +135,7 @@ const Dashboard = () => {
         recentActivity: []
       });
 
-      setRecentTasks(validRecentTasks as RecentTask[]);
+      setRecentTasks(transformedRecentTasks);
     } catch (error: any) {
       console.error('Error fetching dashboard data:', error);
       toast({

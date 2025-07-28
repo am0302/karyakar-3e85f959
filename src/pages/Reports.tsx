@@ -21,22 +21,22 @@ interface Profile {
   is_active: boolean;
   professions?: {
     name: string;
-  };
+  } | null;
   seva_types?: {
     name: string;
-  };
+  } | null;
   mandirs?: {
     name: string;
-  };
+  } | null;
   kshetras?: {
     name: string;
-  };
+  } | null;
   villages?: {
     name: string;
-  };
+  } | null;
   mandals?: {
     name: string;
-  };
+  } | null;
 }
 
 interface TaskReport {
@@ -102,7 +102,7 @@ const Reports = () => {
                (!profile.mandals || (typeof profile.mandals === 'object' && !('error' in profile.mandals)));
       }) || [];
 
-      setProfiles(validProfiles as Profile[]);
+      setProfiles(validProfiles);
 
       // Fetch tasks
       const { data: tasksData, error: tasksError } = await supabase
@@ -121,17 +121,29 @@ const Reports = () => {
 
       if (tasksError) throw tasksError;
 
-      // Filter out tasks with query errors
+      // Filter out tasks with query errors and transform the data
       const validTasks = tasksData?.filter(task => {
         return task.assigned_to_profile && 
                typeof task.assigned_to_profile === 'object' && 
                !('error' in task.assigned_to_profile) &&
+               'full_name' in task.assigned_to_profile &&
                task.assigned_by_profile && 
                typeof task.assigned_by_profile === 'object' && 
-               !('error' in task.assigned_by_profile);
+               !('error' in task.assigned_by_profile) &&
+               'full_name' in task.assigned_by_profile;
       }) || [];
 
-      setTasks(validTasks as TaskReport[]);
+      const transformedTasks: TaskReport[] = validTasks.map(task => ({
+        ...task,
+        assigned_to_profile: {
+          full_name: (task.assigned_to_profile as any).full_name
+        },
+        assigned_by_profile: {
+          full_name: (task.assigned_by_profile as any).full_name
+        }
+      }));
+
+      setTasks(transformedTasks);
     } catch (error: any) {
       console.error('Error fetching reports data:', error);
       toast({
