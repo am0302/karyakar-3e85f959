@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -105,8 +106,22 @@ const Karyakars = () => {
         throw error;
       }
 
-      console.log('Fetched karyakars:', data);
-      setKaryakars(data || []);
+      // Filter out records with invalid relations
+      const validKaryakars = data?.filter((record: any) => {
+        const hasValidRelations = (
+          (!record.professions || typeof record.professions === 'object') &&
+          (!record.seva_types || typeof record.seva_types === 'object') &&
+          (!record.mandirs || typeof record.mandirs === 'object') &&
+          (!record.kshetras || typeof record.kshetras === 'object') &&
+          (!record.villages || typeof record.villages === 'object') &&
+          (!record.mandals || typeof record.mandals === 'object')
+        );
+        
+        return hasValidRelations;
+      }) || [];
+
+      console.log('Fetched karyakars:', validKaryakars);
+      setKaryakars(validKaryakars);
     } catch (error: any) {
       console.error('Failed to fetch karyakars:', error);
       toast({
