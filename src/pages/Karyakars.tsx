@@ -16,7 +16,7 @@ import { KaryakarStats } from '@/components/KaryakarStats';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import type { Database } from '@/integrations/supabase/types';
 
-type UserRole = Database['public']['Enums']['user_role'];
+type UserRole = 'super_admin' | 'sant_nirdeshak' | 'sah_nirdeshak' | 'mandal_sanchalak' | 'karyakar' | 'sevak';
 
 interface Profile {
   id: string;
@@ -357,14 +357,14 @@ const Karyakars = () => {
       {/* Content */}
       {viewMode === 'grid' ? (
         <KaryakarGridView
-          karyakars={filteredKaryakars as any}
-          onEdit={handleEdit as any}
+          karyakars={filteredKaryakars}
+          onEdit={handleEdit}
           onDelete={handleDelete}
         />
       ) : (
         <KaryakarTableView
-          karyakars={filteredKaryakars as any}
-          onEdit={handleEdit as any}
+          karyakars={filteredKaryakars}
+          onEdit={handleEdit}
           onDelete={handleDelete}
         />
       )}

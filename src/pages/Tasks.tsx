@@ -37,12 +37,12 @@ interface Task {
   updated_at: string;
   assigned_to?: string;
   assigned_by: string;
-  assigned_to_profile: {
+  assigned_to_profile?: {
     full_name: string;
-  };
-  assigned_by_profile: {
+  } | null;
+  assigned_by_profile?: {
     full_name: string;
-  };
+  } | null;
 }
 
 const Tasks = () => {
@@ -91,29 +91,25 @@ const Tasks = () => {
       
       // Filter out tasks with query errors and transform the data
       const validTasks = data?.filter(task => {
-        const hasValidAssignedTo = task.assigned_to_profile && 
-          typeof task.assigned_to_profile === 'object' && 
-          !('error' in task.assigned_to_profile) &&
-          'full_name' in task.assigned_to_profile;
+        const hasValidAssignedTo = !task.assigned_to_profile || 
+          (typeof task.assigned_to_profile === 'object' && 
+           !('error' in task.assigned_to_profile) &&
+           'full_name' in task.assigned_to_profile);
         
-        const hasValidAssignedBy = task.assigned_by_profile && 
-          typeof task.assigned_by_profile === 'object' && 
-          !('error' in task.assigned_by_profile) &&
-          'full_name' in task.assigned_by_profile;
+        const hasValidAssignedBy = !task.assigned_by_profile || 
+          (typeof task.assigned_by_profile === 'object' && 
+           !('error' in task.assigned_by_profile) &&
+           'full_name' in task.assigned_by_profile);
         
         return hasValidAssignedTo && hasValidAssignedBy;
       }).map(task => ({
         ...task,
-        assigned_to_profile: {
-          full_name: task.assigned_to_profile && typeof task.assigned_to_profile === 'object' && 'full_name' in task.assigned_to_profile 
-            ? (task.assigned_to_profile as any).full_name || 'Unknown User'
-            : 'Unknown User'
-        },
-        assigned_by_profile: {
-          full_name: task.assigned_by_profile && typeof task.assigned_by_profile === 'object' && 'full_name' in task.assigned_by_profile 
-            ? (task.assigned_by_profile as any).full_name || 'Unknown User'
-            : 'Unknown User'
-        }
+        assigned_to_profile: task.assigned_to_profile && typeof task.assigned_to_profile === 'object' && 'full_name' in task.assigned_to_profile
+          ? { full_name: (task.assigned_to_profile as any).full_name || 'Unknown User' }
+          : null,
+        assigned_by_profile: task.assigned_by_profile && typeof task.assigned_by_profile === 'object' && 'full_name' in task.assigned_by_profile
+          ? { full_name: (task.assigned_by_profile as any).full_name || 'Unknown User' }
+          : null
       })) || [];
 
       setTasks(validTasks);

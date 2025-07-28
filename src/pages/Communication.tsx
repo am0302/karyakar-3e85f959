@@ -388,7 +388,7 @@ const Communication = () => {
                         {msg.sender_id !== user?.id && (
                           <div className="flex items-center space-x-2 mb-1">
                             <Avatar className="h-6 w-6">
-                              <AvatarImage src={msg.profiles?.profile_photo_url} />
+                              <AvatarImage src={msg.profiles?.profile_photo_url || undefined} />
                               <AvatarFallback className="text-xs">
                                 {(msg.profiles?.full_name || 'Unknown User').charAt(0).toUpperCase()}
                               </AvatarFallback>

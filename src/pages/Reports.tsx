@@ -3,9 +3,19 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Download, TrendingUp, TrendingDown, Users, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { 
+  Download, 
+  Filter, 
+  FileText, 
+  Users, 
+  TrendingUp, 
+  Calendar,
+  BarChart3,
+  Search
+} from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -39,40 +49,42 @@ interface Profile {
 interface Task {
   id: string;
   title: string;
-  status: 'pending' | 'in_progress' | 'completed';
-  priority: 'low' | 'medium' | 'high';
+  status: string;
+  priority: string;
   created_at: string;
-  assigned_to_profile: {
+  assigned_to_profile?: {
     full_name: string;
-  };
-  assigned_by_profile: {
+  } | null;
+  assigned_by_profile?: {
     full_name: string;
-  };
+  } | null;
 }
 
 const Reports = () => {
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
   const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
-  const [selectedReport, setSelectedReport] = useState('profiles');
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [reportType, setReportType] = useState<'profiles' | 'tasks'>('profiles');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d' | 'all'>('30d');
 
   const canView = hasPermission('reports', 'view');
   const canExport = hasPermission('reports', 'export');
 
   useEffect(() => {
     if (canView) {
-      fetchReportsData();
+      fetchData();
     }
-  }, [canView, selectedReport]);
+  }, [canView, reportType, dateRange]);
 
-  const fetchReportsData = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
       
-      if (selectedReport === 'profiles') {
+      if (reportType === 'profiles') {
         const { data, error } = await supabase
           .from('profiles')
           .select(`
@@ -92,7 +104,6 @@ const Reports = () => {
 
         if (error) throw error;
         
-        console.log('Fetched profiles:', data);
         // Filter out records with query errors and transform the data
         const validProfiles = data?.filter(profile => {
           return (!profile.professions || (typeof profile.professions === 'object' && !('error' in profile.professions))) &&
@@ -124,7 +135,7 @@ const Reports = () => {
         })) || [];
         
         setProfiles(validProfiles as Profile[]);
-      } else if (selectedReport === 'tasks') {
+      } else {
         const { data, error } = await supabase
           .from('tasks')
           .select(`
@@ -140,41 +151,36 @@ const Reports = () => {
 
         if (error) throw error;
         
-        console.log('Fetched tasks:', data);
         // Filter out tasks with query errors and transform the data
         const validTasks = data?.filter(task => {
-          const hasValidAssignedTo = task.assigned_to_profile && 
-            typeof task.assigned_to_profile === 'object' && 
-            !('error' in task.assigned_to_profile) &&
-            'full_name' in task.assigned_to_profile;
+          const hasValidAssignedTo = !task.assigned_to_profile || 
+            (typeof task.assigned_to_profile === 'object' && 
+             !('error' in task.assigned_to_profile) &&
+             'full_name' in task.assigned_to_profile);
           
-          const hasValidAssignedBy = task.assigned_by_profile && 
-            typeof task.assigned_by_profile === 'object' && 
-            !('error' in task.assigned_by_profile) &&
-            'full_name' in task.assigned_by_profile;
+          const hasValidAssignedBy = !task.assigned_by_profile || 
+            (typeof task.assigned_by_profile === 'object' && 
+             !('error' in task.assigned_by_profile) &&
+             'full_name' in task.assigned_by_profile);
           
           return hasValidAssignedTo && hasValidAssignedBy;
         }).map(task => ({
           ...task,
-          assigned_to_profile: {
-            full_name: task.assigned_to_profile && typeof task.assigned_to_profile === 'object' && 'full_name' in task.assigned_to_profile 
-              ? (task.assigned_to_profile as any).full_name || 'Unknown User'
-              : 'Unknown User'
-          },
-          assigned_by_profile: {
-            full_name: task.assigned_by_profile && typeof task.assigned_by_profile === 'object' && 'full_name' in task.assigned_by_profile 
-              ? (task.assigned_by_profile as any).full_name || 'Unknown User'
-              : 'Unknown User'
-          }
+          assigned_to_profile: task.assigned_to_profile && typeof task.assigned_to_profile === 'object' && 'full_name' in task.assigned_to_profile
+            ? { full_name: (task.assigned_to_profile as any).full_name || 'Unknown User' }
+            : null,
+          assigned_by_profile: task.assigned_by_profile && typeof task.assigned_by_profile === 'object' && 'full_name' in task.assigned_by_profile
+            ? { full_name: (task.assigned_by_profile as any).full_name || 'Unknown User' }
+            : null
         })) || [];
         
         setTasks(validTasks as Task[]);
       }
     } catch (error: any) {
-      console.error('Error fetching reports data:', error);
+      console.error('Error fetching data:', error);
       toast({
         title: 'Error',
-        description: 'Failed to fetch reports data',
+        description: 'Failed to fetch report data',
         variant: 'destructive',
       });
     } finally {
@@ -199,31 +205,13 @@ const Reports = () => {
     });
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'in_progress':
-        return 'bg-blue-100 text-blue-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
+  const filteredProfiles = profiles.filter(profile => 
+    profile.full_name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return 'bg-red-100 text-red-800';
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'low':
-        return 'bg-green-100 text-green-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
+  const filteredTasks = tasks.filter(task => 
+    task.title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading reports...</div>;
@@ -246,223 +234,198 @@ const Reports = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Reports</h1>
-          <p className="text-gray-600">View and analyze your organization's data</p>
+          <p className="text-gray-600">Generate and view organizational reports</p>
         </div>
         
-        <div className="flex gap-2">
-          <Select value={selectedReport} onValueChange={setSelectedReport}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Select report type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="profiles">Profiles Report</SelectItem>
-              <SelectItem value="tasks">Tasks Report</SelectItem>
-            </SelectContent>
-          </Select>
-          
+        <div className="flex flex-wrap gap-2">
           {canExport && (
-            <Button variant="outline" onClick={handleExport}>
+            <Button onClick={handleExport}>
               <Download className="h-4 w-4 mr-2" />
-              Export
+              Export Report
             </Button>
           )}
         </div>
       </div>
 
-      {/* Reports Content */}
-      {selectedReport === 'profiles' && (
-        <div className="space-y-6">
-          {/* Profile Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Total Profiles</p>
-                    <p className="text-2xl font-bold">{profiles.length}</p>
-                  </div>
-                  <Users className="h-8 w-8 text-blue-500" />
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Active Profiles</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {profiles.filter(p => p.is_active).length}
-                    </p>
-                  </div>
-                  <CheckCircle className="h-8 w-8 text-green-500" />
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Inactive Profiles</p>
-                    <p className="text-2xl font-bold text-red-600">
-                      {profiles.filter(p => !p.is_active).length}
-                    </p>
-                  </div>
-                  <AlertCircle className="h-8 w-8 text-red-500" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Profiles Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Profiles Overview</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full table-auto">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left p-2">Name</th>
-                      <th className="text-left p-2">Role</th>
-                      <th className="text-left p-2">Profession</th>
-                      <th className="text-left p-2">Seva Type</th>
-                      <th className="text-left p-2">Location</th>
-                      <th className="text-left p-2">Status</th>
-                      <th className="text-left p-2">Created</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {profiles.map((profile) => (
-                      <tr key={profile.id} className="border-b">
-                        <td className="p-2">{profile.full_name}</td>
-                        <td className="p-2">
-                          <Badge variant="outline">{profile.role}</Badge>
-                        </td>
-                        <td className="p-2">{profile.professions?.name || 'N/A'}</td>
-                        <td className="p-2">{profile.seva_types?.name || 'N/A'}</td>
-                        <td className="p-2">{profile.villages?.name || 'N/A'}</td>
-                        <td className="p-2">
-                          <Badge className={profile.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                            {profile.is_active ? 'Active' : 'Inactive'}
-                          </Badge>
-                        </td>
-                        <td className="p-2">{new Date(profile.created_at).toLocaleDateString()}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+      {/* Filters */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {selectedReport === 'tasks' && (
-        <div className="space-y-6">
-          {/* Task Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Total Tasks</p>
-                    <p className="text-2xl font-bold">{tasks.length}</p>
-                  </div>
-                  <CheckCircle className="h-8 w-8 text-blue-500" />
-                </div>
-              </CardContent>
-            </Card>
+            </div>
             
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Completed</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {tasks.filter(t => t.status === 'completed').length}
-                    </p>
-                  </div>
-                  <CheckCircle className="h-8 w-8 text-green-500" />
-                </div>
-              </CardContent>
-            </Card>
+            <Select value={reportType} onValueChange={(value: 'profiles' | 'tasks') => setReportType(value)}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="profiles">Profiles</SelectItem>
+                <SelectItem value="tasks">Tasks</SelectItem>
+              </SelectContent>
+            </Select>
             
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">In Progress</p>
-                    <p className="text-2xl font-bold text-blue-600">
-                      {tasks.filter(t => t.status === 'in_progress').length}
-                    </p>
-                  </div>
-                  <Clock className="h-8 w-8 text-blue-500" />
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Pending</p>
-                    <p className="text-2xl font-bold text-yellow-600">
-                      {tasks.filter(t => t.status === 'pending').length}
-                    </p>
-                  </div>
-                  <AlertCircle className="h-8 w-8 text-yellow-500" />
-                </div>
-              </CardContent>
-            </Card>
+            <Select value={dateRange} onValueChange={(value: '7d' | '30d' | '90d' | 'all') => setDateRange(value)}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7d">Last 7 days</SelectItem>
+                <SelectItem value="30d">Last 30 days</SelectItem>
+                <SelectItem value="90d">Last 90 days</SelectItem>
+                <SelectItem value="all">All time</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
+        </CardContent>
+      </Card>
 
-          {/* Tasks Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Tasks Overview</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full table-auto">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left p-2">Title</th>
-                      <th className="text-left p-2">Status</th>
-                      <th className="text-left p-2">Priority</th>
-                      <th className="text-left p-2">Assigned To</th>
-                      <th className="text-left p-2">Assigned By</th>
-                      <th className="text-left p-2">Created</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tasks.map((task) => (
-                      <tr key={task.id} className="border-b">
-                        <td className="p-2">{task.title}</td>
-                        <td className="p-2">
-                          <Badge className={getStatusColor(task.status)}>
-                            {task.status.replace('_', ' ')}
-                          </Badge>
-                        </td>
-                        <td className="p-2">
-                          <Badge className={getPriorityColor(task.priority)}>
-                            {task.priority}
-                          </Badge>
-                        </td>
-                        <td className="p-2">{task.assigned_to_profile?.full_name || 'Unassigned'}</td>
-                        <td className="p-2">{task.assigned_by_profile?.full_name || 'Unknown'}</td>
-                        <td className="p-2">{new Date(task.created_at).toLocaleDateString()}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Total Records</p>
+                <p className="text-2xl font-bold">
+                  {reportType === 'profiles' ? filteredProfiles.length : filteredTasks.length}
+                </p>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <FileText className="h-6 w-6 text-blue-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Active Records</p>
+                <p className="text-2xl font-bold">
+                  {reportType === 'profiles' 
+                    ? filteredProfiles.filter(p => p.is_active).length
+                    : filteredTasks.filter(t => t.status === 'completed').length
+                  }
+                </p>
+              </div>
+              <div className="p-3 bg-green-100 rounded-lg">
+                <TrendingUp className="h-6 w-6 text-green-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">This Month</p>
+                <p className="text-2xl font-bold">
+                  {reportType === 'profiles' 
+                    ? filteredProfiles.filter(p => {
+                        const created = new Date(p.created_at);
+                        const now = new Date();
+                        return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
+                      }).length
+                    : filteredTasks.filter(t => {
+                        const created = new Date(t.created_at);
+                        const now = new Date();
+                        return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
+                      }).length
+                  }
+                </p>
+              </div>
+              <div className="p-3 bg-purple-100 rounded-lg">
+                <Calendar className="h-6 w-6 text-purple-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Report Content */}
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            {reportType === 'profiles' ? 'Profiles Report' : 'Tasks Report'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b">
+                  {reportType === 'profiles' ? (
+                    <>
+                      <th className="text-left p-4">Name</th>
+                      <th className="text-left p-4">Role</th>
+                      <th className="text-left p-4">Profession</th>
+                      <th className="text-left p-4">Status</th>
+                      <th className="text-left p-4">Created</th>
+                    </>
+                  ) : (
+                    <>
+                      <th className="text-left p-4">Title</th>
+                      <th className="text-left p-4">Status</th>
+                      <th className="text-left p-4">Priority</th>
+                      <th className="text-left p-4">Assigned To</th>
+                      <th className="text-left p-4">Created</th>
+                    </>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {reportType === 'profiles' ? (
+                  filteredProfiles.map((profile) => (
+                    <tr key={profile.id} className="border-b">
+                      <td className="p-4">{profile.full_name}</td>
+                      <td className="p-4">
+                        <Badge variant="outline">{profile.role}</Badge>
+                      </td>
+                      <td className="p-4">{profile.professions?.name || 'N/A'}</td>
+                      <td className="p-4">
+                        <Badge variant={profile.is_active ? 'default' : 'secondary'}>
+                          {profile.is_active ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </td>
+                      <td className="p-4">{new Date(profile.created_at).toLocaleDateString()}</td>
+                    </tr>
+                  ))
+                ) : (
+                  filteredTasks.map((task) => (
+                    <tr key={task.id} className="border-b">
+                      <td className="p-4">{task.title}</td>
+                      <td className="p-4">
+                        <Badge variant="outline">{task.status}</Badge>
+                      </td>
+                      <td className="p-4">
+                        <Badge variant={
+                          task.priority === 'high' ? 'destructive' :
+                          task.priority === 'medium' ? 'default' : 'secondary'
+                        }>
+                          {task.priority}
+                        </Badge>
+                      </td>
+                      <td className="p-4">{task.assigned_to_profile?.full_name || 'Unassigned'}</td>
+                      <td className="p-4">{new Date(task.created_at).toLocaleDateString()}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
