@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -121,11 +122,8 @@ const Communication = () => {
         }
         setProfiles(data || []);
       } else {
-        // For non-super admin users, try to get profiles they can see based on hierarchy
-        // First get current user's role level
-        const currentUserLevel = roleHierarchy[user?.role || 'sevak'] || 999;
-        
-        // Get all profiles - RLS will filter based on permissions
+        // For non-super admin users, get profiles they can see
+        // First try to get all profiles - RLS will filter based on permissions
         const { data, error } = await supabase
           .from('profiles')
           .select('id, full_name, role, profile_photo_url')
@@ -134,15 +132,19 @@ const Communication = () => {
 
         if (error) {
           console.error('Error fetching profiles:', error);
-          // If RLS blocks access, at least include current user
-          setProfiles([{
-            id: user?.id || '',
-            full_name: user?.full_name || 'You',
-            role: user?.role || 'sevak',
-            profile_photo_url: user?.profile_photo_url
-          }]);
+          // If RLS blocks access, create a fallback with current user
+          const fallbackProfiles = user ? [{
+            id: user.id,
+            full_name: user.full_name || 'You',
+            role: user.role || 'sevak',
+            profile_photo_url: user.profile_photo_url
+          }] : [];
+          setProfiles(fallbackProfiles);
         } else {
           // Filter profiles based on role hierarchy if needed
+          const currentUserRole = user?.role || 'sevak';
+          const currentUserLevel = roleHierarchy[currentUserRole] || 999;
+          
           const filteredProfiles = (data || []).filter(profile => {
             const profileLevel = roleHierarchy[profile.role] || 999;
             // Can see profiles at same level or lower, plus always include self
@@ -310,7 +312,8 @@ const Communication = () => {
     try {
       console.log('Attempting to delete room:', roomId);
       
-      // First delete all participants
+      // Step 1: Delete all participants for this room
+      console.log('Deleting participants for room:', roomId);
       const { error: participantsError } = await supabase
         .from('chat_participants')
         .delete()
@@ -318,10 +321,11 @@ const Communication = () => {
 
       if (participantsError) {
         console.error('Error deleting participants:', participantsError);
-        throw participantsError;
+        throw new Error(`Failed to delete participants: ${participantsError.message}`);
       }
 
-      // Then delete all messages
+      // Step 2: Delete all messages for this room
+      console.log('Deleting messages for room:', roomId);
       const { error: messagesError } = await supabase
         .from('messages')
         .delete()
@@ -329,10 +333,11 @@ const Communication = () => {
 
       if (messagesError) {
         console.error('Error deleting messages:', messagesError);
-        throw messagesError;
+        throw new Error(`Failed to delete messages: ${messagesError.message}`);
       }
 
-      // Finally delete the room
+      // Step 3: Finally delete the room itself
+      console.log('Deleting room:', roomId);
       const { error: roomError } = await supabase
         .from('chat_rooms')
         .delete()
@@ -340,7 +345,7 @@ const Communication = () => {
 
       if (roomError) {
         console.error('Error deleting room:', roomError);
-        throw roomError;
+        throw new Error(`Failed to delete room: ${roomError.message}`);
       }
 
       toast({
@@ -355,12 +360,12 @@ const Communication = () => {
       }
 
       // Refresh rooms list
-      fetchRooms();
+      await fetchRooms();
     } catch (error: any) {
       console.error('Error deleting room:', error);
       toast({
         title: 'Error',
-        description: error.message || 'Failed to delete chat room',
+        description: error.message || 'Failed to delete chat room. Please try again.',
         variant: 'destructive',
       });
     }
