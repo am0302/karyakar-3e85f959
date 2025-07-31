@@ -1,6 +1,7 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -18,6 +19,7 @@ import { Link } from 'react-router-dom';
 const Header = () => {
   const { user, signOut } = useAuth();
   const [globalSearch, setGlobalSearch] = useState('');
+  
   const handleSignOut = async () => {
     try {
       await signOut();
