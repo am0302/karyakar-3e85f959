@@ -17,7 +17,7 @@ import { Link } from 'react-router-dom';
 
 const Header = () => {
   const { user, signOut } = useAuth();
-
+  const [globalSearch, setGlobalSearch] = useState('');
   const handleSignOut = async () => {
     try {
       await signOut();
