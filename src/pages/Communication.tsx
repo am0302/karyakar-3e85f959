@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -136,13 +135,13 @@ const Communication = () => {
           const fallbackProfiles = user ? [{
             id: user.id,
             full_name: user.full_name || 'You',
-            role: user.role || 'sevak',
+            role: (user.role || 'sevak') as 'super_admin' | 'sant_nirdeshak' | 'sah_nirdeshak' | 'mandal_sanchalak' | 'sevak' | 'karyakar' | 'admin' | 'moderator' | 'user',
             profile_photo_url: user.profile_photo_url
           }] : [];
           setProfiles(fallbackProfiles);
         } else {
           // Filter profiles based on role hierarchy if needed
-          const currentUserRole = user?.role || 'sevak';
+          const currentUserRole = (user?.role || 'sevak') as string;
           const currentUserLevel = roleHierarchy[currentUserRole] || 999;
           
           const filteredProfiles = (data || []).filter(profile => {
@@ -157,7 +156,7 @@ const Communication = () => {
             filteredProfiles.unshift({
               id: user.id,
               full_name: user.full_name || 'You',
-              role: user.role || 'sevak',
+              role: (user.role || 'sevak') as 'super_admin' | 'sant_nirdeshak' | 'sah_nirdeshak' | 'mandal_sanchalak' | 'sevak' | 'karyakar' | 'admin' | 'moderator' | 'user',
               profile_photo_url: user.profile_photo_url
             });
           }
@@ -172,7 +171,7 @@ const Communication = () => {
         setProfiles([{
           id: user.id,
           full_name: user.full_name || 'You',
-          role: user.role || 'sevak',
+          role: (user.role || 'sevak') as 'super_admin' | 'sant_nirdeshak' | 'sah_nirdeshak' | 'mandal_sanchalak' | 'sevak' | 'karyakar' | 'admin' | 'moderator' | 'user',
           profile_photo_url: user.profile_photo_url
         }]);
       }
