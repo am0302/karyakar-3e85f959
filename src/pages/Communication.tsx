@@ -315,10 +315,10 @@ const Communication = () => {
       console.log('Deleting participants for room:', roomId);
       await supabase.from('chat_rooms').delete().eq('id', roomId);
       setRooms(prev => prev.filter(r => r.id !== roomId));
-     /* const { error: participantsError } = await supabase
+     const { error: participantsError } = await supabase
         .from('chat_participants')
         .delete()
-        .eq('room_id', roomId);*/
+        .eq('room_id', roomId);
 
       if (participantsError) {
         console.error('Error deleting participants:', participantsError);
