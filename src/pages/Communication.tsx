@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -106,15 +105,75 @@ const Communication = () => {
 
   const fetchProfiles = async () => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, role, profile_photo_url')
-        .eq('is_active', true);
+      console.log('Fetching profiles for user:', user?.id);
+      
+      // For super admin, get all active profiles
+      if (user?.role === 'super_admin') {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, full_name, role, profile_photo_url')
+          .eq('is_active', true)
+          .order('full_name');
 
-      if (error) throw error;
-      setProfiles(data || []);
+        if (error) {
+          console.error('Error fetching profiles for super admin:', error);
+          throw error;
+        }
+        setProfiles(data || []);
+      } else {
+        // For non-super admin users, try to get profiles they can see based on hierarchy
+        // First get current user's role level
+        const currentUserLevel = roleHierarchy[user?.role || 'sevak'] || 999;
+        
+        // Get all profiles - RLS will filter based on permissions
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, full_name, role, profile_photo_url')
+          .eq('is_active', true)
+          .order('full_name');
+
+        if (error) {
+          console.error('Error fetching profiles:', error);
+          // If RLS blocks access, at least include current user
+          setProfiles([{
+            id: user?.id || '',
+            full_name: user?.full_name || 'You',
+            role: user?.role || 'sevak',
+            profile_photo_url: user?.profile_photo_url
+          }]);
+        } else {
+          // Filter profiles based on role hierarchy if needed
+          const filteredProfiles = (data || []).filter(profile => {
+            const profileLevel = roleHierarchy[profile.role] || 999;
+            // Can see profiles at same level or lower, plus always include self
+            return profile.id === user?.id || profileLevel >= currentUserLevel;
+          });
+          
+          // Always include current user if not in the list
+          const hasCurrentUser = filteredProfiles.some(p => p.id === user?.id);
+          if (!hasCurrentUser && user) {
+            filteredProfiles.unshift({
+              id: user.id,
+              full_name: user.full_name || 'You',
+              role: user.role || 'sevak',
+              profile_photo_url: user.profile_photo_url
+            });
+          }
+          
+          setProfiles(filteredProfiles);
+        }
+      }
     } catch (error: any) {
       console.error('Error fetching profiles:', error);
+      // Fallback to at least show current user
+      if (user) {
+        setProfiles([{
+          id: user.id,
+          full_name: user.full_name || 'You',
+          role: user.role || 'sevak',
+          profile_photo_url: user.profile_photo_url
+        }]);
+      }
     }
   };
 
@@ -249,29 +308,59 @@ const Communication = () => {
     if (!confirm('Are you sure you want to delete this chat room? This action cannot be undone.')) return;
 
     try {
-      const { error } = await supabase
+      console.log('Attempting to delete room:', roomId);
+      
+      // First delete all participants
+      const { error: participantsError } = await supabase
+        .from('chat_participants')
+        .delete()
+        .eq('room_id', roomId);
+
+      if (participantsError) {
+        console.error('Error deleting participants:', participantsError);
+        throw participantsError;
+      }
+
+      // Then delete all messages
+      const { error: messagesError } = await supabase
+        .from('messages')
+        .delete()
+        .eq('room_id', roomId);
+
+      if (messagesError) {
+        console.error('Error deleting messages:', messagesError);
+        throw messagesError;
+      }
+
+      // Finally delete the room
+      const { error: roomError } = await supabase
         .from('chat_rooms')
         .delete()
         .eq('id', roomId);
 
-      if (error) throw error;
+      if (roomError) {
+        console.error('Error deleting room:', roomError);
+        throw roomError;
+      }
 
       toast({
         title: 'Success',
         description: 'Chat room deleted successfully',
       });
 
+      // Clear selected room if it was deleted
       if (selectedRoom?.id === roomId) {
         setSelectedRoom(null);
         setMessages([]);
       }
 
+      // Refresh rooms list
       fetchRooms();
     } catch (error: any) {
       console.error('Error deleting room:', error);
       toast({
         title: 'Error',
-        description: 'Failed to delete chat room',
+        description: error.message || 'Failed to delete chat room',
         variant: 'destructive',
       });
     }
@@ -382,26 +471,31 @@ const Communication = () => {
                   <label className="text-sm">Group Chat</label>
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Participants</label>
+                  <label className="text-sm font-medium">Participants ({profiles.length} available)</label>
                   <ScrollArea className="h-32 border rounded-lg p-2">
-                    {profiles.map((profile) => (
-                      <div key={profile.id} className="flex items-center space-x-2 py-1">
-                        <Checkbox
-                          checked={roomForm.selectedParticipants.includes(profile.id)}
-                          onCheckedChange={() => handleParticipantToggle(profile.id)}
-                        />
-                        <Avatar className="h-6 w-6">
-                          <AvatarImage src={profile.profile_photo_url || ''} />
-                          <AvatarFallback className="text-xs">
-                            {profile.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm">{profile.full_name}</span>
-                      </div>
-                    ))}
+                    {profiles.length === 0 ? (
+                      <div className="text-sm text-gray-500 p-2">No participants available</div>
+                    ) : (
+                      profiles.map((profile) => (
+                        <div key={profile.id} className="flex items-center space-x-2 py-1">
+                          <Checkbox
+                            checked={roomForm.selectedParticipants.includes(profile.id)}
+                            onCheckedChange={() => handleParticipantToggle(profile.id)}
+                          />
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage src={profile.profile_photo_url || ''} />
+                            <AvatarFallback className="text-xs">
+                              {profile.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm">{profile.full_name}</span>
+                          <Badge variant="outline" className="text-xs">{profile.role}</Badge>
+                        </div>
+                      ))
+                    )}
                   </ScrollArea>
                 </div>
-                <Button onClick={createRoom} className="w-full">
+                <Button onClick={createRoom} className="w-full" disabled={!roomForm.name.trim()}>
                   Create Room
                 </Button>
               </div>
