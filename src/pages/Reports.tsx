@@ -35,6 +35,8 @@ type Profile = Database['public']['Tables']['profiles']['Row'] & {
   mandals?: { name: string } | null;
 };
 
+type CustomRole = Database['public']['Tables']['custom_roles']['Row'];
+
 const Reports = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -46,11 +48,13 @@ const Reports = () => {
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [mandirFilter, setMandirFilter] = useState<string>('all');
   const [mandirs, setMandirs] = useState<any[]>([]);
+  const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
 
   useEffect(() => {
     if (user) {
       fetchKaryakars();
       fetchMandirs();
+      fetchCustomRoles();
     }
   }, [user]);
 
@@ -100,6 +104,25 @@ const Reports = () => {
       toast({
         title: 'Error',
         description: 'Failed to fetch mandirs',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const fetchCustomRoles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('custom_roles')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_name');
+
+      if (error) throw error;
+      setCustomRoles(data || []);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch custom roles',
         variant: 'destructive',
       });
     }
@@ -155,6 +178,11 @@ const Reports = () => {
     }
   };
 
+  const getRoleDisplayName = (roleName: string) => {
+    const role = customRoles.find(r => r.role_name === roleName);
+    return role?.display_name || roleName;
+  };
+
   const KaryakarCard = ({ karyakar }: { karyakar: Profile }) => (
     <Card className="p-4">
       <div className="flex items-center space-x-4">
@@ -170,7 +198,7 @@ const Reports = () => {
           <p className="text-sm text-gray-600">{karyakar.email}</p>
           <div className="flex items-center space-x-2 mt-2">
             <Badge className={getRoleColor(karyakar.role)}>
-              {karyakar.role.replace('_', ' ').toUpperCase()}
+              {getRoleDisplayName(karyakar.role)}
             </Badge>
             <span className="text-xs text-gray-500">{karyakar.mandirs?.name}</span>
           </div>
@@ -217,7 +245,7 @@ const Reports = () => {
             <TableCell>{karyakar.mobile_number}</TableCell>
             <TableCell>
               <Badge className={getRoleColor(karyakar.role)}>
-                {karyakar.role.replace('_', ' ').toUpperCase()}
+                {getRoleDisplayName(karyakar.role)}
               </Badge>
             </TableCell>
             <TableCell>{karyakar.professions?.name || 'N/A'}</TableCell>
@@ -277,17 +305,11 @@ const Reports = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Roles</SelectItem>
-                  {custom_roles.map((role) => (
-                    <SelectItem key={role.id} value={role.id}>
-                      {role.role_name}
+                  {customRoles.map((role) => (
+                    <SelectItem key={role.id} value={role.role_name}>
+                      {role.display_name}
                     </SelectItem>
                   ))}
-                  {/*   <SelectItem value="sevak">Sevak</SelectItem>
-                  <SelectItem value="karyakar">Karyakar</SelectItem>
-                  <SelectItem value="mandal_sanchalak">Mandal Sanchalak</SelectItem>
-                  <SelectItem value="sah_nirdeshak">Sah Nirdeshak</SelectItem>
-                  <SelectItem value="sant_nirdeshak">Sant Nirdeshak</SelectItem>
-                  <SelectItem value="super_admin">Super Admin</SelectItem>*/}
                 </SelectContent>
               </Select>
             </div>
@@ -412,14 +434,14 @@ const Reports = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {['super_admin', 'sant_nirdeshak', 'sah_nirdeshak', 'mandal_sanchalak', 'karyakar', 'sevak'].map(role => {
-                  const count = filteredKaryakars.filter(k => k.role === role).length;
+                {customRoles.map(role => {
+                  const count = filteredKaryakars.filter(k => k.role === role.role_name).length;
                   const percentage = filteredKaryakars.length > 0 ? (count / filteredKaryakars.length) * 100 : 0;
                   return (
-                    <div key={role} className="flex items-center justify-between p-3 border rounded">
+                    <div key={role.id} className="flex items-center justify-between p-3 border rounded">
                       <div className="flex items-center space-x-3">
-                        <Badge className={getRoleColor(role)}>
-                          {role.replace('_', ' ').toUpperCase()}
+                        <Badge className={getRoleColor(role.role_name)}>
+                          {role.display_name}
                         </Badge>
                         <span className="font-medium">{count} karyakars</span>
                       </div>
