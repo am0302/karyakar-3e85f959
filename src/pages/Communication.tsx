@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -87,7 +88,8 @@ const Communication = () => {
     'sant_nirdeshak': 1,
     'sah_nirdeshak': 2,
     'mandal_sanchalak': 3,
-    'sevak': 4
+    'sevak': 4,
+    'karyakar': 5
   };
 
   useEffect(() => {
@@ -107,62 +109,45 @@ const Communication = () => {
     try {
       console.log('Fetching profiles for user:', user?.id);
       
-      // For super admin, get all active profiles
-      if (user?.role === 'super_admin') {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id, full_name, role, profile_photo_url')
-          .eq('is_active', true)
-          .order('full_name');
+      // Get all active profiles first
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, role, profile_photo_url')
+        .eq('is_active', true)
+        .order('full_name');
 
-        if (error) {
-          console.error('Error fetching profiles for super admin:', error);
-          throw error;
-        }
+      if (error) {
+        console.error('Error fetching profiles:', error);
+        throw error;
+      }
+
+      // Filter profiles based on role hierarchy
+      if (user?.role === 'super_admin') {
+        // Super admin can see all profiles
         setProfiles(data || []);
       } else {
-        // For non-super admin users, get profiles they can see
-        // First try to get all profiles - RLS will filter based on permissions
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id, full_name, role, profile_photo_url')
-          .eq('is_active', true)
-          .order('full_name');
-
-        if (error) {
-          console.error('Error fetching profiles:', error);
-          // If RLS blocks access, create a fallback with current user
-          const fallbackProfiles = user ? [{
+        const currentUserRole = user?.role || 'sevak';
+        const currentUserLevel = roleHierarchy[currentUserRole] || 999;
+        
+        // Filter to show users with same or lower hierarchy level (higher number)
+        const filteredProfiles = (data || []).filter(profile => {
+          const profileLevel = roleHierarchy[profile.role] || 999;
+          // Can see profiles at same level or lower (higher number), plus always include self
+          return profile.id === user?.id || profileLevel >= currentUserLevel;
+        });
+        
+        // Always include current user if not in the list
+        const hasCurrentUser = filteredProfiles.some(p => p.id === user?.id);
+        if (!hasCurrentUser && user) {
+          filteredProfiles.unshift({
             id: user.id,
             full_name: user.full_name || 'You',
-            role: (user.role || 'sevak') as 'super_admin' | 'sant_nirdeshak' | 'sah_nirdeshak' | 'mandal_sanchalak' | 'sevak' | 'karyakar' | 'admin' | 'moderator' | 'user',
+            role: user.role || 'sevak',
             profile_photo_url: user.profile_photo_url
-          }] : [];
-          setProfiles(fallbackProfiles);
-        } else {
-          // Filter profiles based on role hierarchy if needed
-          const currentUserRole = (user?.role || 'sevak') as string;
-          const currentUserLevel = roleHierarchy[currentUserRole] || 999;
-          
-          const filteredProfiles = (data || []).filter(profile => {
-            const profileLevel = roleHierarchy[profile.role] || 999;
-            // Can see profiles at same level or lower, plus always include self
-            return profile.id === user?.id || profileLevel >= currentUserLevel;
           });
-          
-          // Always include current user if not in the list
-          const hasCurrentUser = filteredProfiles.some(p => p.id === user?.id);
-          if (!hasCurrentUser && user) {
-            filteredProfiles.unshift({
-              id: user.id,
-              full_name: user.full_name || 'You',
-              role: (user.role || 'sevak') as 'super_admin' | 'sant_nirdeshak' | 'sah_nirdeshak' | 'mandal_sanchalak' | 'sevak' | 'karyakar' | 'admin' | 'moderator' | 'user',
-              profile_photo_url: user.profile_photo_url
-            });
-          }
-          
-          setProfiles(filteredProfiles);
         }
+        
+        setProfiles(filteredProfiles);
       }
     } catch (error: any) {
       console.error('Error fetching profiles:', error);
@@ -171,7 +156,7 @@ const Communication = () => {
         setProfiles([{
           id: user.id,
           full_name: user.full_name || 'You',
-          role: (user.role || 'sevak') as 'super_admin' | 'sant_nirdeshak' | 'sah_nirdeshak' | 'mandal_sanchalak' | 'sevak' | 'karyakar' | 'admin' | 'moderator' | 'user',
+          role: user.role || 'sevak',
           profile_photo_url: user.profile_photo_url
         }]);
       }
@@ -306,67 +291,70 @@ const Communication = () => {
   };
 
   const deleteRoom = async (roomId: string) => {
-  if (!confirm('Are you sure you want to delete this chat room? This action cannot be undone.')) return;
+    if (!confirm('Are you sure you want to delete this chat room? This action cannot be undone.')) return;
 
-  try {
-    console.log('Attempting to delete room:', roomId);
+    try {
+      console.log('Attempting to delete room:', roomId);
 
-    // Step 1: Delete messages first
-    console.log('Deleting messages for room:', roomId);
-    const { error: messagesError } = await supabase
-      .from('messages')
-      .delete()
-      .eq('room_id', roomId);
+      // Step 1: Delete messages first
+      console.log('Deleting messages for room:', roomId);
+      const { error: messagesError } = await supabase
+        .from('messages')
+        .delete()
+        .eq('room_id', roomId);
 
-    if (messagesError) {
-      throw new Error(`Failed to delete messages: ${messagesError.message}`);
+      if (messagesError) {
+        console.error('Failed to delete messages:', messagesError);
+        throw new Error(`Failed to delete messages: ${messagesError.message}`);
+      }
+
+      // Step 2: Delete participants
+      console.log('Deleting participants for room:', roomId);
+      const { error: participantsError } = await supabase
+        .from('chat_participants')
+        .delete()
+        .eq('room_id', roomId);
+
+      if (participantsError) {
+        console.error('Failed to delete participants:', participantsError);
+        throw new Error(`Failed to delete participants: ${participantsError.message}`);
+      }
+
+      // Step 3: Finally, delete the room
+      console.log('Deleting room:', roomId);
+      const { error: roomError } = await supabase
+        .from('chat_rooms')
+        .delete()
+        .eq('id', roomId);
+
+      if (roomError) {
+        console.error('Failed to delete room:', roomError);
+        throw new Error(`Failed to delete room: ${roomError.message}`);
+      }
+
+      // Update UI
+      toast({
+        title: 'Success',
+        description: 'Chat room deleted successfully',
+      });
+
+      if (selectedRoom?.id === roomId) {
+        setSelectedRoom(null);
+        setMessages([]);
+      }
+
+      // Refresh the rooms list
+      await fetchRooms();
+      
+    } catch (error: any) {
+      console.error('Error deleting room:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete chat room. Please try again.',
+        variant: 'destructive',
+      });
     }
-
-    // Step 2: Delete participants
-    console.log('Deleting participants for room:', roomId);
-    const { error: participantsError } = await supabase
-      .from('chat_participants')
-      .delete()
-      .eq('room_id', roomId);
-
-    if (participantsError) {
-      throw new Error(`Failed to delete participants: ${participantsError.message}`);
-    }
-
-    // Step 3: Finally, delete the room
-    console.log('Deleting room:', roomId);
-    const { error: roomError } = await supabase
-      .from('chat_rooms')
-      .delete()
-      .eq('id', roomId);
-
-    if (roomError) {
-      throw new Error(`Failed to delete room: ${roomError.message}`);
-    }
-
-    // Update UI
-    toast({
-      title: 'Success',
-      description: 'Chat room deleted successfully',
-    });
-
-    if (selectedRoom?.id === roomId) {
-      setSelectedRoom(null);
-      setMessages([]);
-    }
-
-    setRooms(prev => prev.filter(r => r.id !== roomId));
-    await fetchRooms();
-    
-  } catch (error: any) {
-    console.error('Error deleting room:', error);
-    toast({
-      title: 'Error',
-      description: error.message || 'Failed to delete chat room. Please try again.',
-      variant: 'destructive',
-    });
-  }
-};
+  };
 
   const sendMessage = async () => {
     if (!user || !selectedRoom || !newMessage.trim()) return;
