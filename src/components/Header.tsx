@@ -35,7 +35,15 @@ const Header = () => {
             <h1 className="text-lg lg:text-xl font-bold">Karyakar Portal</h1>
           </Link>
         </div>
-
+<div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Input
+            placeholder="Global search..."
+            value={globalSearch}
+            onChange={(e) => setGlobalSearch(e.target.value)}
+            className="pl-10"
+          />
+        </div>
         {user && (
           <div className="flex items-center space-x-2 lg:space-x-4">
             <DropdownMenu>
