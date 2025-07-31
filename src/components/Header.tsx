@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/components/AuthProvider';
 import { SlideOutMenu } from '@/components/SlideOutMenu';
-import { LogOut, Settings, User } from 'lucide-react';
+import { LogOut, Settings, User, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Header = () => {
