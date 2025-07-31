@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -15,11 +15,11 @@ import { useAuth } from '@/components/AuthProvider';
 import { SlideOutMenu } from '@/components/SlideOutMenu';
 import { LogOut, Settings, User, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useState } from "react";
 
 const Header = () => {
   const { user, signOut } = useAuth();
   const [globalSearch, setGlobalSearch] = useState('');
+  
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -37,7 +37,7 @@ const Header = () => {
             <h1 className="text-lg lg:text-xl font-bold">Karyakar Portal</h1>
           </Link>
         </div>
-<div className="relative max-w-md">
+        <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
             placeholder="Global search..."
