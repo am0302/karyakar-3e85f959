@@ -277,9 +277,9 @@ const Reports = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Roles</SelectItem>
-                  {mandirs.map((mandir) => (
-                    <SelectItem key={mandir.id} value={mandir.id}>
-                      {mandir.name}
+                  {custom_roles.map((role) => (
+                    <SelectItem key={role.id} value={role.id}>
+                      {role.role_name}
                     </SelectItem>
                   ))}
                   {/*   <SelectItem value="sevak">Sevak</SelectItem>
