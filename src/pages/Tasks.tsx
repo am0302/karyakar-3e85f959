@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -668,7 +667,7 @@ const Tasks = () => {
                             value={task.status} 
                             onValueChange={(value: TaskStatus) => updateTaskStatus(task.id, value)}
                           >
-                            <SelectTrigger className="w-32">
+                            <SelectTrigger className="w-32" onClick={(e) => e.stopPropagation()}>
                               <Badge className={`${getStatusColor(task.status)} text-white`}>
                                 {task.status.replace('_', ' ')}
                               </Badge>
@@ -741,9 +740,8 @@ const Tasks = () => {
                       <Select 
                         value={task.status} 
                         onValueChange={(value: TaskStatus) => updateTaskStatus(task.id, value)}
-                        onClick={(e) => e.stopPropagation()}
                       >
-                        <SelectTrigger className="w-24 h-6 text-xs">
+                        <SelectTrigger className="w-24 h-6 text-xs" onClick={(e) => e.stopPropagation()}>
                           <Badge variant="outline" className={`text-xs ${getStatusColor(task.status)} text-white`}>
                             {task.status.replace('_', ' ')}
                           </Badge>
