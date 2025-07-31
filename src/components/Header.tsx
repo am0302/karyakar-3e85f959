@@ -1,7 +1,7 @@
 
-import React, { useState } from 'react';
+import React from 'react';
+import { Input } from "@/components/ui/input";
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -15,11 +15,11 @@ import { useAuth } from '@/components/AuthProvider';
 import { SlideOutMenu } from '@/components/SlideOutMenu';
 import { LogOut, Settings, User, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useState } from "react";
 
 const Header = () => {
   const { user, signOut } = useAuth();
   const [globalSearch, setGlobalSearch] = useState('');
-  
   const handleSignOut = async () => {
     try {
       await signOut();
