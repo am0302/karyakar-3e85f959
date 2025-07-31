@@ -53,10 +53,12 @@ type Message = {
   sender_profile?: { full_name: string };
 };
 
+type UserRole = 'user' | 'super_admin' | 'sant_nirdeshak' | 'sah_nirdeshak' | 'mandal_sanchalak' | 'sevak' | 'karyakar' | 'admin' | 'moderator';
+
 type Profile = {
   id: string;
   full_name: string;
-  role: string;
+  role: UserRole;
   profile_photo_url?: string;
 };
 
@@ -124,9 +126,13 @@ const Communication = () => {
       // Filter profiles based on role hierarchy
       if (user?.role === 'super_admin') {
         // Super admin can see all profiles
-        setProfiles(data || []);
+        const validProfiles = (data || []).map(profile => ({
+          ...profile,
+          role: profile.role as UserRole
+        }));
+        setProfiles(validProfiles);
       } else {
-        const currentUserRole = user?.role || 'sevak';
+        const currentUserRole = user?.role as UserRole || 'sevak';
         const currentUserLevel = roleHierarchy[currentUserRole] || 999;
         
         // Filter to show users with same or lower hierarchy level (higher number)
@@ -134,7 +140,10 @@ const Communication = () => {
           const profileLevel = roleHierarchy[profile.role] || 999;
           // Can see profiles at same level or lower (higher number), plus always include self
           return profile.id === user?.id || profileLevel >= currentUserLevel;
-        });
+        }).map(profile => ({
+          ...profile,
+          role: profile.role as UserRole
+        }));
         
         // Always include current user if not in the list
         const hasCurrentUser = filteredProfiles.some(p => p.id === user?.id);
@@ -142,7 +151,7 @@ const Communication = () => {
           filteredProfiles.unshift({
             id: user.id,
             full_name: user.full_name || 'You',
-            role: user.role || 'sevak',
+            role: (user.role as UserRole) || 'sevak',
             profile_photo_url: user.profile_photo_url
           });
         }
@@ -156,7 +165,7 @@ const Communication = () => {
         setProfiles([{
           id: user.id,
           full_name: user.full_name || 'You',
-          role: user.role || 'sevak',
+          role: (user.role as UserRole) || 'sevak',
           profile_photo_url: user.profile_photo_url
         }]);
       }
