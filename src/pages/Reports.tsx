@@ -277,12 +277,17 @@ const Reports = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value="sevak">Sevak</SelectItem>
+                  {mandirs.map((mandir) => (
+                    <SelectItem key={mandir.id} value={mandir.id}>
+                      {mandir.name}
+                    </SelectItem>
+                  ))}
+                  {/*   <SelectItem value="sevak">Sevak</SelectItem>
                   <SelectItem value="karyakar">Karyakar</SelectItem>
                   <SelectItem value="mandal_sanchalak">Mandal Sanchalak</SelectItem>
                   <SelectItem value="sah_nirdeshak">Sah Nirdeshak</SelectItem>
                   <SelectItem value="sant_nirdeshak">Sant Nirdeshak</SelectItem>
-                  <SelectItem value="super_admin">Super Admin</SelectItem>
+                  <SelectItem value="super_admin">Super Admin</SelectItem>*/}
                 </SelectContent>
               </Select>
             </div>
