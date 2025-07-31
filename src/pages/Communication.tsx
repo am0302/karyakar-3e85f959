@@ -306,71 +306,67 @@ const Communication = () => {
   };
 
   const deleteRoom = async (roomId: string) => {
-    if (!confirm('Are you sure you want to delete this chat room? This action cannot be undone.')) return;
+  if (!confirm('Are you sure you want to delete this chat room? This action cannot be undone.')) return;
 
-    try {
-      console.log('Attempting to delete room:', roomId);
-      
-      // Step 1: Delete all participants for this room
-      console.log('Deleting participants for room:', roomId);
-      await supabase.from('chat_rooms').delete().eq('id', roomId);
-      setRooms(prev => prev.filter(r => r.id !== roomId));
-     const { error: participantsError } = await supabase
-        .from('chat_participants')
-        .delete()
-        .eq('room_id', roomId);
+  try {
+    console.log('Attempting to delete room:', roomId);
 
-      if (participantsError) {
-        console.error('Error deleting participants:', participantsError);
-        throw new Error(`Failed to delete participants: ${participantsError.message}`);
-      }
+    // Step 1: Delete messages first
+    console.log('Deleting messages for room:', roomId);
+    const { error: messagesError } = await supabase
+      .from('messages')
+      .delete()
+      .eq('room_id', roomId);
 
-      // Step 2: Delete all messages for this room
-      console.log('Deleting messages for room:', roomId);
-      const { error: messagesError } = await supabase
-        .from('messages')
-        .delete()
-        .eq('room_id', roomId);
-
-      if (messagesError) {
-        console.error('Error deleting messages:', messagesError);
-        throw new Error(`Failed to delete messages: ${messagesError.message}`);
-      }
-
-      // Step 3: Finally delete the room itself
-      console.log('Deleting room:', roomId);
-      const { error: roomError } = await supabase
-        .from('chat_rooms')
-        .delete()
-        .eq('id', roomId);
-
-      if (roomError) {
-        console.error('Error deleting room:', roomError);
-        throw new Error(`Failed to delete room: ${roomError.message}`);
-      }
-
-      toast({
-        title: 'Success',
-        description: 'Chat room deleted successfully',
-      });
-
-      // Clear selected room if it was deleted
-      if (selectedRoom?.id === roomId) {
-        setSelectedRoom(null);
-        setMessages([]);
-      }
-
-      // Refresh rooms list
-      await fetchRooms();
-    } catch (error: any) {
-      console.error('Error deleting room:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to delete chat room. Please try again.',
-        variant: 'destructive',
-      });
+    if (messagesError) {
+      throw new Error(`Failed to delete messages: ${messagesError.message}`);
     }
-  };
+
+    // Step 2: Delete participants
+    console.log('Deleting participants for room:', roomId);
+    const { error: participantsError } = await supabase
+      .from('chat_participants')
+      .delete()
+      .eq('room_id', roomId);
+
+    if (participantsError) {
+      throw new Error(`Failed to delete participants: ${participantsError.message}`);
+    }
+
+    // Step 3: Finally, delete the room
+    console.log('Deleting room:', roomId);
+    const { error: roomError } = await supabase
+      .from('chat_rooms')
+      .delete()
+      .eq('id', roomId);
+
+    if (roomError) {
+      throw new Error(`Failed to delete room: ${roomError.message}`);
+    }
+
+    // Update UI
+    toast({
+      title: 'Success',
+      description: 'Chat room deleted successfully',
+    });
+
+    if (selectedRoom?.id === roomId) {
+      setSelectedRoom(null);
+      setMessages([]);
+    }
+
+    setRooms(prev => prev.filter(r => r.id !== roomId));
+    await fetchRooms();
+    
+  } catch (error: any) {
+    console.error('Error deleting room:', error);
+    toast({
+      title: 'Error',
+      description: error.message || 'Failed to delete chat room. Please try again.',
+      variant: 'destructive',
+    });
+  }
+};
 
   const sendMessage = async () => {
     if (!user || !selectedRoom || !newMessage.trim()) return;
