@@ -398,7 +398,18 @@ const Tasks = () => {
   };
 
   const canUpdateTaskStatus = (task: Task) => {
-    return isSuperAdmin || task.assigned_by === user?.id || task.assigned_to === user?.id;
+    if (isSuperAdmin) return true;
+    if (task.assigned_by === user?.id) return true;
+    if (task.assigned_to === user?.id) return true;
+    
+    // Check if current user has higher hierarchy than task creator
+    const currentUserRole = user?.role || 'sevak';
+    const taskCreatorRole = task.assigned_by_profile?.role || 'sevak';
+    
+    const currentUserLevel = roleHierarchy[currentUserRole] || 999;
+    const taskCreatorLevel = roleHierarchy[taskCreatorRole] || 999;
+    
+    return currentUserLevel < taskCreatorLevel;
   };
 
   const canDeleteTask = (task: Task) => {
@@ -652,9 +663,27 @@ const Tasks = () => {
                         {task.assigned_to_profile?.full_name || 'Unknown'}
                       </TableCell>
                       <TableCell>
-                        <Badge className={`${getStatusColor(task.status)} text-white`}>
-                          {task.status.replace('_', ' ')}
-                        </Badge>
+                        {canUpdateTaskStatus(task) ? (
+                          <Select 
+                            value={task.status} 
+                            onValueChange={(value: TaskStatus) => updateTaskStatus(task.id, value)}
+                          >
+                            <SelectTrigger className="w-32">
+                              <Badge className={`${getStatusColor(task.status)} text-white`}>
+                                {task.status.replace('_', ' ')}
+                              </Badge>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pending">Pending</SelectItem>
+                              <SelectItem value="in_progress">In Progress</SelectItem>
+                              <SelectItem value="completed">Completed</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Badge className={`${getStatusColor(task.status)} text-white`}>
+                            {task.status.replace('_', ' ')}
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
                         <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)}`} />
@@ -679,27 +708,6 @@ const Tasks = () => {
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
-                          )}
-                          {canUpdateTaskStatus(task) && task.status !== 'completed' && (
-                            <>
-                              {task.status === 'pending' && (
-                                <Button 
-                                  size="sm" 
-                                  variant="outline"
-                                  onClick={() => updateTaskStatus(task.id, 'in_progress')}
-                                >
-                                  Start
-                                </Button>
-                              )}
-                              {task.status === 'in_progress' && (
-                                <Button 
-                                  size="sm"
-                                  onClick={() => updateTaskStatus(task.id, 'completed')}
-                                >
-                                  Complete
-                                </Button>
-                              )}
-                            </>
                           )}
                           {canDeleteTask(task) && (
                             <Button
@@ -729,9 +737,28 @@ const Tasks = () => {
                   <CardTitle className="text-lg">{task.title}</CardTitle>
                   <div className="flex gap-1">
                     <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)}`} />
-                    <Badge variant="outline" className={`text-xs ${getStatusColor(task.status)} text-white`}>
-                      {task.status.replace('_', ' ')}
-                    </Badge>
+                    {canUpdateTaskStatus(task) ? (
+                      <Select 
+                        value={task.status} 
+                        onValueChange={(value: TaskStatus) => updateTaskStatus(task.id, value)}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <SelectTrigger className="w-24 h-6 text-xs">
+                          <Badge variant="outline" className={`text-xs ${getStatusColor(task.status)} text-white`}>
+                            {task.status.replace('_', ' ')}
+                          </Badge>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Badge variant="outline" className={`text-xs ${getStatusColor(task.status)} text-white`}>
+                        {task.status.replace('_', ' ')}
+                      </Badge>
+                    )}
                   </div>
                 </div>
                 <CardDescription className="line-clamp-2">
@@ -762,20 +789,6 @@ const Tasks = () => {
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
-                  )}
-                  {canUpdateTaskStatus(task) && task.status !== 'completed' && (
-                    <>
-                      {task.status === 'pending' && (
-                        <Button size="sm" onClick={(e) => { e.stopPropagation(); updateTaskStatus(task.id, 'in_progress'); }}>
-                          Start
-                        </Button>
-                      )}
-                      {task.status === 'in_progress' && (
-                        <Button size="sm" onClick={(e) => { e.stopPropagation(); updateTaskStatus(task.id, 'completed'); }}>
-                          Complete
-                        </Button>
-                      )}
-                    </>
                   )}
                   {canDeleteTask(task) && (
                     <Button

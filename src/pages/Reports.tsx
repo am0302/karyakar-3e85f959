@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,7 +22,9 @@ import {
   MapPin,
   Activity,
   LayoutGrid,
-  List
+  List,
+  TreePine,
+  Home
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
@@ -47,20 +50,29 @@ const Reports = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [mandirFilter, setMandirFilter] = useState<string>('all');
+  const [kshetraFilter, setKshetraFilter] = useState<string>('all');
+  const [mandalFilter, setMandalFilter] = useState<string>('all');
+  const [villageFilter, setVillageFilter] = useState<string>('all');
   const [mandirs, setMandirs] = useState<any[]>([]);
+  const [kshetras, setKshetras] = useState<any[]>([]);
+  const [mandals, setMandals] = useState<any[]>([]);
+  const [villages, setVillages] = useState<any[]>([]);
   const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
 
   useEffect(() => {
     if (user) {
       fetchKaryakars();
       fetchMandirs();
+      fetchKshetras();
+      fetchMandals();
+      fetchVillages();
       fetchCustomRoles();
     }
   }, [user]);
 
   useEffect(() => {
     filterKaryakars();
-  }, [karyakars, searchTerm, roleFilter, mandirFilter]);
+  }, [karyakars, searchTerm, roleFilter, mandirFilter, kshetraFilter, mandalFilter, villageFilter]);
 
   const fetchKaryakars = async () => {
     try {
@@ -109,6 +121,60 @@ const Reports = () => {
     }
   };
 
+  const fetchKshetras = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('kshetras')
+        .select('id, name')
+        .eq('is_active', true);
+
+      if (error) throw error;
+      setKshetras(data || []);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch kshetras',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const fetchMandals = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('mandals')
+        .select('id, name')
+        .eq('is_active', true);
+
+      if (error) throw error;
+      setMandals(data || []);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch mandals',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const fetchVillages = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('villages')
+        .select('id, name')
+        .eq('is_active', true);
+
+      if (error) throw error;
+      setVillages(data || []);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch villages',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const fetchCustomRoles = async () => {
     try {
       const { data, error } = await supabase
@@ -144,6 +210,18 @@ const Reports = () => {
 
     if (mandirFilter !== 'all') {
       filtered = filtered.filter(k => k.mandir_id === mandirFilter);
+    }
+
+    if (kshetraFilter !== 'all') {
+      filtered = filtered.filter(k => k.kshetra_id === kshetraFilter);
+    }
+
+    if (mandalFilter !== 'all') {
+      filtered = filtered.filter(k => k.mandal_id === mandalFilter);
+    }
+
+    if (villageFilter !== 'all') {
+      filtered = filtered.filter(k => k.village_id === villageFilter);
     }
 
     setFilteredKaryakars(filtered);
@@ -226,6 +304,7 @@ const Reports = () => {
           <TableHead>Profession</TableHead>
           <TableHead>Mandir</TableHead>
           <TableHead>Kshetra</TableHead>
+          <TableHead>Village</TableHead>
           <TableHead>Mandal</TableHead>
         </TableRow>
       </TableHeader>
@@ -251,6 +330,7 @@ const Reports = () => {
             <TableCell>{karyakar.professions?.name || 'N/A'}</TableCell>
             <TableCell>{karyakar.mandirs?.name || 'N/A'}</TableCell>
             <TableCell>{karyakar.kshetras?.name || 'N/A'}</TableCell>
+            <TableCell>{karyakar.villages?.name || 'N/A'}</TableCell>
             <TableCell>{karyakar.mandals?.name || 'N/A'}</TableCell>
           </TableRow>
         ))}
@@ -287,7 +367,7 @@ const Reports = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <div className="space-y-2">
               <Label htmlFor="search">Search</Label>
               <Input
@@ -330,30 +410,78 @@ const Reports = () => {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="view">View Mode</Label>
-              <div className="flex space-x-2">
-                <Button
-                  variant={viewMode === 'list' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('list')}
-                >
-                  <List className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant={viewMode === 'card' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('card')}
-                >
-                  <LayoutGrid className="w-4 h-4" />
-                </Button>
-              </div>
+              <Label htmlFor="kshetra">Kshetra</Label>
+              <Select value={kshetraFilter} onValueChange={setKshetraFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Kshetra" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Kshetras</SelectItem>
+                  {kshetras.map((kshetra) => (
+                    <SelectItem key={kshetra.id} value={kshetra.id}>
+                      {kshetra.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="mandal">Mandal</Label>
+              <Select value={mandalFilter} onValueChange={setMandalFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Mandal" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Mandals</SelectItem>
+                  {mandals.map((mandal) => (
+                    <SelectItem key={mandal.id} value={mandal.id}>
+                      {mandal.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="village">Village</Label>
+              <Select value={villageFilter} onValueChange={setVillageFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Village" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Villages</SelectItem>
+                  {villages.map((village) => (
+                    <SelectItem key={village.id} value={village.id}>
+                      {village.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2 mt-4">
+            <Label htmlFor="view">View Mode</Label>
+            <div className="flex space-x-2">
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+              >
+                <List className="w-4 h-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'card' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('card')}
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Karyakars</CardTitle>
@@ -376,23 +504,34 @@ const Reports = () => {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Unique Kshetras</CardTitle>
+            <TreePine className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {new Set(filteredKaryakars.map(k => k.kshetra_id)).size}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Unique Mandals</CardTitle>
+            <Home className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {new Set(filteredKaryakars.map(k => k.mandal_id)).size}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Unique Villages</CardTitle>
             <MapPin className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
               {new Set(filteredKaryakars.map(k => k.village_id)).size}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Super Admins</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {filteredKaryakars.filter(k => k.role === 'super_admin').length}
             </div>
           </CardContent>
         </Card>
@@ -455,30 +594,77 @@ const Reports = () => {
         </TabsContent>
 
         <TabsContent value="locations">
-          <Card>
-            <CardHeader>
-              <CardTitle>Location Analysis</CardTitle>
-              <CardDescription>Distribution across mandirs and regions</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <div>
-                  <h3 className="font-medium mb-3">By Mandir</h3>
-                  <div className="space-y-2">
-                    {mandirs.map(mandir => {
-                      const count = filteredKaryakars.filter(k => k.mandir_id === mandir.id).length;
-                      return (
-                        <div key={mandir.id} className="flex items-center justify-between p-2 border rounded">
-                          <span>{mandir.name}</span>
-                          <Badge variant="outline">{count}</Badge>
-                        </div>
-                      );
-                    })}
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Location Analysis</CardTitle>
+                <CardDescription>Distribution across mandirs, kshetras, mandals, and villages</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="font-medium mb-3">By Mandir</h3>
+                    <div className="space-y-2">
+                      {mandirs.map(mandir => {
+                        const count = filteredKaryakars.filter(k => k.mandir_id === mandir.id).length;
+                        return (
+                          <div key={mandir.id} className="flex items-center justify-between p-2 border rounded">
+                            <span>{mandir.name}</span>
+                            <Badge variant="outline">{count}</Badge>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-medium mb-3">By Kshetra</h3>
+                    <div className="space-y-2">
+                      {kshetras.map(kshetra => {
+                        const count = filteredKaryakars.filter(k => k.kshetra_id === kshetra.id).length;
+                        return (
+                          <div key={kshetra.id} className="flex items-center justify-between p-2 border rounded">
+                            <span>{kshetra.name}</span>
+                            <Badge variant="outline">{count}</Badge>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="font-medium mb-3">By Mandal</h3>
+                    <div className="space-y-2">
+                      {mandals.map(mandal => {
+                        const count = filteredKaryakars.filter(k => k.mandal_id === mandal.id).length;
+                        return (
+                          <div key={mandal.id} className="flex items-center justify-between p-2 border rounded">
+                            <span>{mandal.name}</span>
+                            <Badge variant="outline">{count}</Badge>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="font-medium mb-3">By Village</h3>
+                    <div className="space-y-2">
+                      {villages.map(village => {
+                        const count = filteredKaryakars.filter(k => k.village_id === village.id).length;
+                        return (
+                          <div key={village.id} className="flex items-center justify-between p-2 border rounded">
+                            <span>{village.name}</span>
+                            <Badge variant="outline">{count}</Badge>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
