@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -31,8 +32,8 @@ type Task = {
   created_at: string;
   assigned_by: string;
   assigned_to: string;
-  assigned_by_profile?: { full_name: string };
-  assigned_to_profile?: { full_name: string };
+  assigned_by_profile?: { full_name: string; role: string };
+  assigned_to_profile?: { full_name: string; role: string };
 };
 
 type Profile = {
@@ -56,7 +57,9 @@ const Tasks = () => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [view, setView] = useState<'list' | 'calendar' | 'table'>('list');
@@ -83,7 +86,32 @@ const Tasks = () => {
     due_date: ''
   });
 
+  const [editFormData, setEditFormData] = useState<{
+    title: string;
+    description: string;
+    assigned_to: string;
+    priority: TaskPriority;
+    task_type: TaskType;
+    due_date: string;
+  }>({
+    title: '',
+    description: '',
+    assigned_to: '',
+    priority: 'medium',
+    task_type: 'delegated',
+    due_date: ''
+  });
+
   const isSuperAdmin = user?.role === 'super_admin';
+
+  // Role hierarchy levels for permission checking
+  const roleHierarchy: Record<string, number> = {
+    'super_admin': 0,
+    'sant_nirdeshak': 1,
+    'sah_nirdeshak': 2,
+    'mandal_sanchalak': 3,
+    'sevak': 4
+  };
 
   useEffect(() => {
     if (user) {
@@ -116,8 +144,8 @@ const Tasks = () => {
         .from('tasks')
         .select(`
           *,
-          assigned_by_profile:profiles!tasks_assigned_by_fkey(full_name),
-          assigned_to_profile:profiles!tasks_assigned_to_fkey(full_name)
+          assigned_by_profile:profiles!tasks_assigned_by_fkey(full_name, role),
+          assigned_to_profile:profiles!tasks_assigned_to_fkey(full_name, role)
         `);
 
       // Apply user-based filtering
@@ -206,6 +234,44 @@ const Tasks = () => {
       toast({
         title: 'Error',
         description: 'Failed to create task',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const updateTask = async () => {
+    if (!editingTask || !editFormData.title.trim()) return;
+
+    try {
+      const taskData = {
+        title: editFormData.title,
+        description: editFormData.description,
+        assigned_to: editFormData.assigned_to,
+        priority: editFormData.priority,
+        task_type: editFormData.task_type,
+        due_date: editFormData.due_date || null
+      };
+
+      const { error } = await supabase
+        .from('tasks')
+        .update(taskData)
+        .eq('id', editingTask.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Task updated successfully',
+      });
+
+      setShowEditDialog(false);
+      setEditingTask(null);
+      fetchTasks();
+    } catch (error: any) {
+      console.error('Error updating task:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update task',
         variant: 'destructive',
       });
     }
@@ -318,12 +384,39 @@ const Tasks = () => {
     fetchComments(task.id);
   };
 
+  const openEditDialog = (task: Task) => {
+    setEditingTask(task);
+    setEditFormData({
+      title: task.title,
+      description: task.description || '',
+      assigned_to: task.assigned_to,
+      priority: task.priority,
+      task_type: task.task_type,
+      due_date: task.due_date ? task.due_date.slice(0, 16) : ''
+    });
+    setShowEditDialog(true);
+  };
+
   const canUpdateTaskStatus = (task: Task) => {
     return isSuperAdmin || task.assigned_by === user?.id || task.assigned_to === user?.id;
   };
 
   const canDeleteTask = (task: Task) => {
     return isSuperAdmin || task.assigned_by === user?.id;
+  };
+
+  const canEditTask = (task: Task) => {
+    if (isSuperAdmin) return true;
+    if (task.assigned_by === user?.id) return true;
+    
+    // Check if current user has higher hierarchy than task creator
+    const currentUserRole = user?.role || 'sevak';
+    const taskCreatorRole = task.assigned_by_profile?.role || 'sevak';
+    
+    const currentUserLevel = roleHierarchy[currentUserRole] || 999;
+    const taskCreatorLevel = roleHierarchy[taskCreatorRole] || 999;
+    
+    return currentUserLevel < taskCreatorLevel;
   };
 
   const getPriorityColor = (priority: string) => {
@@ -578,6 +671,15 @@ const Tasks = () => {
                           >
                             <MessageSquare className="h-4 w-4" />
                           </Button>
+                          {canEditTask(task) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openEditDialog(task)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          )}
                           {canUpdateTaskStatus(task) && task.status !== 'completed' && (
                             <>
                               {task.status === 'pending' && (
@@ -652,6 +754,15 @@ const Tasks = () => {
                   </div>
                 )}
                 <div className="flex gap-2 mt-3">
+                  {canEditTask(task) && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={(e) => { e.stopPropagation(); openEditDialog(task); }}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  )}
                   {canUpdateTaskStatus(task) && task.status !== 'completed' && (
                     <>
                       {task.status === 'pending' && (
@@ -689,6 +800,97 @@ const Tasks = () => {
           <p className="text-gray-600 mb-4">Create your first task or adjust your filters.</p>
         </div>
       )}
+
+      {/* Edit Task Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Task</DialogTitle>
+            <DialogDescription>
+              Update task details
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Title</label>
+              <Input
+                value={editFormData.title}
+                onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+                placeholder="Enter task title"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Description</label>
+              <Textarea
+                value={editFormData.description}
+                onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                placeholder="Enter task description"
+                rows={3}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Assign To</label>
+              <Select value={editFormData.assigned_to} onValueChange={(value) => setEditFormData({ ...editFormData, assigned_to: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select assignee" />
+                </SelectTrigger>
+                <SelectContent>
+                  {profiles.map((profile) => (
+                    <SelectItem key={profile.id} value={profile.id}>
+                      {profile.full_name} ({profile.role})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium">Priority</label>
+                <Select value={editFormData.priority} onValueChange={(value: TaskPriority) => setEditFormData({ ...editFormData, priority: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="urgent">Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Type</label>
+                <Select value={editFormData.task_type} onValueChange={(value: TaskType) => setEditFormData({ ...editFormData, task_type: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="personal">Personal</SelectItem>
+                    <SelectItem value="delegated">Delegated</SelectItem>
+                    <SelectItem value="broadcasted">Broadcasted</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Due Date</label>
+              <Input
+                type="datetime-local"
+                value={editFormData.due_date}
+                onChange={(e) => setEditFormData({ ...editFormData, due_date: e.target.value })}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={updateTask} className="flex-1">
+                Update Task
+              </Button>
+              <Button variant="outline" onClick={() => setShowEditDialog(false)} className="flex-1">
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Task Details Dialog */}
       <Dialog open={!!selectedTask} onOpenChange={() => setSelectedTask(null)}>
