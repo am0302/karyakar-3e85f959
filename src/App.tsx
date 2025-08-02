@@ -8,6 +8,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Layout } from "@/components/Layout";
+import { Profile } from "@/pages/Profile";
+import { Settings } from "@/pages/Settings";
 
 const queryClient = new QueryClient();
 
