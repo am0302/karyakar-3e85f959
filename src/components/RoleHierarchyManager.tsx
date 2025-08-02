@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,6 +29,7 @@ interface CustomRole {
   description?: string;
   is_system_role: boolean;
   is_active: boolean;
+  level?: number;
   created_at: string;
   updated_at: string;
 }
@@ -54,7 +56,7 @@ export const RoleHierarchyManager = () => {
   const [editingRole, setEditingRole] = useState<RoleHierarchy | null>(null);
   const [editingCustomRole, setEditingCustomRole] = useState<CustomRole | null>(null);
   const [newRole, setNewRole] = useState({ role: '', level: 0, parent_role: '' });
-  const [newCustomRole, setNewCustomRole] = useState({ role_name: '', display_name: '', description: '' });
+  const [newCustomRole, setNewCustomRole] = useState({ role_name: '', display_name: '', description: '', level: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -67,7 +69,7 @@ export const RoleHierarchyManager = () => {
       
       const [rolesRes, customRolesRes, permissionsRes] = await Promise.all([
         supabase.from('role_hierarchy').select('*').order('level'),
-        supabase.from('custom_roles').select('*').order('role_name'),
+        supabase.from('custom_roles').select('*').order('level'),
         supabase.from('hierarchy_permissions').select('*')
       ]);
 
@@ -128,6 +130,7 @@ export const RoleHierarchyManager = () => {
           role_name: customRoleData.role_name,
           display_name: customRoleData.display_name,
           description: customRoleData.description,
+          level: customRoleData.level,
         })
         .eq('id', customRoleData.id);
 
@@ -151,6 +154,8 @@ export const RoleHierarchyManager = () => {
   };
 
   const handleDeleteCustomRole = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this custom role?')) return;
+
     try {
       const { error } = await supabase
         .from('custom_roles')
@@ -183,6 +188,7 @@ export const RoleHierarchyManager = () => {
           role_name: newCustomRole.role_name,
           display_name: newCustomRole.display_name,
           description: newCustomRole.description,
+          level: newCustomRole.level,
           is_system_role: false,
           is_active: true,
         }]);
@@ -194,7 +200,7 @@ export const RoleHierarchyManager = () => {
         description: 'Custom role created successfully',
       });
 
-      setNewCustomRole({ role_name: '', display_name: '', description: '' });
+      setNewCustomRole({ role_name: '', display_name: '', description: '', level: 0 });
       fetchData();
     } catch (error: any) {
       console.error('Error creating custom role:', error);
@@ -297,7 +303,7 @@ export const RoleHierarchyManager = () => {
             {/* Add new custom role */}
             <div className="p-4 border rounded-lg bg-gray-50">
               <h3 className="font-medium mb-3">Add New Custom Role</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <Label>Role Name</Label>
                   <Input
@@ -331,11 +337,24 @@ export const RoleHierarchyManager = () => {
                     placeholder="Description"
                   />
                 </div>
+                <div>
+                  <Label>Hierarchy Level</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={newCustomRole.level}
+                    onChange={(e) => setNewCustomRole({
+                      ...newCustomRole,
+                      level: parseInt(e.target.value) || 0
+                    })}
+                    placeholder="Level"
+                  />
+                </div>
               </div>
               <Button 
                 className="mt-3" 
                 onClick={handleCreateCustomRole}
-                disabled={!newCustomRole.role_name || !newCustomRole.display_name}
+                disabled={!newCustomRole.role_name || !newCustomRole.display_name || !newCustomRole.level}
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Create Custom Role
@@ -378,6 +397,18 @@ export const RoleHierarchyManager = () => {
                         })}
                       />
                     </div>
+                    <div>
+                      <Label>Level</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={editingCustomRole.level || 0}
+                        onChange={(e) => setEditingCustomRole({
+                          ...editingCustomRole,
+                          level: parseInt(e.target.value) || 0
+                        })}
+                      />
+                    </div>
                     <div className="flex space-x-2">
                       <Button size="sm" onClick={() => handleSaveCustomRole(editingCustomRole)}>
                         <Save className="w-4 h-4" />
@@ -393,6 +424,7 @@ export const RoleHierarchyManager = () => {
                       <Badge variant={role.is_system_role ? "default" : "secondary"}>
                         {role.is_system_role ? 'System' : 'Custom'}
                       </Badge>
+                      <Badge variant="outline">Level {role.level || 'N/A'}</Badge>
                       <div>
                         <span className="font-medium">{role.display_name}</span>
                         <span className="text-gray-500 ml-2">({role.role_name})</span>

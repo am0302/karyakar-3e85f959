@@ -1,4 +1,3 @@
-
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { PermissionsManager } from "@/components/PermissionsManager";
@@ -115,22 +114,23 @@ const Admin = () => {
                     { name: 'role_name', label: 'Role Name', type: 'text', required: true },
                     { name: 'display_name', label: 'Display Name', type: 'text', required: true },
                     { name: 'description', label: 'Description', type: 'textarea' },
+                    { name: 'level', label: 'Hierarchy Level', type: 'number', required: true },
                     { 
-                      name: 'type', 
-                      label: 'Type', 
+                      name: 'is_system_role', 
+                      label: 'Is System Role', 
                       type: 'select', 
                       options: [
-                        { value: 'system', label: 'System' },
-                        { value: 'custom', label: 'Custom' }
+                        { value: true, label: 'Yes' },
+                        { value: false, label: 'No' }
                       ]
                     },
                     { 
-                      name: 'status', 
+                      name: 'is_active', 
                       label: 'Status', 
                       type: 'select', 
                       options: [
-                        { value: 'active', label: 'Active' },
-                        { value: 'inactive', label: 'Inactive' }
+                        { value: true, label: 'Active' },
+                        { value: false, label: 'Inactive' }
                       ]
                     },
                   ]}

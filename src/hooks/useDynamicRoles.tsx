@@ -10,6 +10,7 @@ interface CustomRole {
   description?: string;
   is_system_role: boolean;
   is_active: boolean;
+  level?: number;
   created_at: string;
   updated_at: string;
 }
@@ -26,7 +27,7 @@ export const useDynamicRoles = () => {
         .from('custom_roles')
         .select('*')
         .eq('is_active', true)
-        .order('role_name');
+        .order('level', { nullsLast: true });
 
       if (error) throw error;
       setRoles(data || []);
@@ -49,7 +50,7 @@ export const useDynamicRoles = () => {
   const getRoleOptions = () => {
     return roles.map(role => ({
       value: role.role_name,
-      label: role.display_name
+      label: `${role.display_name}${role.level ? ` (Level ${role.level})` : ''}`
     }));
   };
 
@@ -58,11 +59,17 @@ export const useDynamicRoles = () => {
     return role?.display_name || roleName;
   };
 
+  const getRoleLevel = (roleName: string) => {
+    const role = roles.find(r => r.role_name === roleName);
+    return role?.level;
+  };
+
   return {
     roles,
     loading,
     fetchRoles,
     getRoleOptions,
-    getRoleDisplayName
+    getRoleDisplayName,
+    getRoleLevel
   };
 };

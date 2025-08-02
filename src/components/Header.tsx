@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/components/AuthProvider';
 import { SlideOutMenu } from '@/components/SlideOutMenu';
+import { NotificationDropdown } from '@/components/NotificationDropdown';
 import { LogOut, Settings, User, Search } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -141,40 +142,43 @@ const Header = () => {
             <h1 className="text-lg lg:text-xl font-bold">Karyakar Portal</h1>
           </Link>
         </div>
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <Input
-            placeholder="Global search..."
-            value={globalSearch}
-            onChange={handleSearchChange}
-            className="pl-10"
-          />
-          {searchResults.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-64 overflow-y-auto z-50">
-              {searchResults.map((result: any, index) => (
-                <div
-                  key={index}
-                  className="px-4 py-2 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
-                  onClick={() => handleResultClick(result)}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs px-2 py-1 bg-gray-100 rounded text-gray-600 capitalize">
-                      {result.type}
-                    </span>
-                    <div>
-                      <div className="font-medium text-sm">{result.title}</div>
-                      <div className="text-xs text-gray-500">{result.subtitle}</div>
+        <div className="flex items-center space-x-2 lg:space-x-4">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              placeholder="Global search..."
+              value={globalSearch}
+              onChange={handleSearchChange}
+              className="pl-10"
+            />
+            {searchResults.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-64 overflow-y-auto z-50">
+                {searchResults.map((result: any, index) => (
+                  <div
+                    key={index}
+                    className="px-4 py-2 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+                    onClick={() => handleResultClick(result)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs px-2 py-1 bg-gray-100 rounded text-gray-600 capitalize">
+                        {result.type}
+                      </span>
+                      <div>
+                        <div className="font-medium text-sm">{result.title}</div>
+                        <div className="text-xs text-gray-500">{result.subtitle}</div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-          {isSearching && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg p-4 z-50">
-              <div className="text-center text-sm text-gray-500">Searching...</div>
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+            {isSearching && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg p-4 z-50">
+                <div className="text-center text-sm text-gray-500">Searching...</div>
+              </div>
+            )}
+          </div>
+          {user && <NotificationDropdown />}
         </div>
         {user && (
           <div className="flex items-center space-x-2 lg:space-x-4">
