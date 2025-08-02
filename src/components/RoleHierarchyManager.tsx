@@ -219,7 +219,7 @@ export const RoleHierarchyManager = () => {
   return (
     <div className="space-y-6">
       {/* Role Hierarchy */}
-      <Card className="mt-6">
+      <Card className="mt-10">
         <CardHeader>
           <CardTitle>Role Hierarchy</CardTitle>
         </CardHeader>
