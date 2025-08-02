@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,12 +9,13 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { MasterDataTable } from '@/components/MasterDataTable';
-import { MasterDataForm } from '@/components/MasterDataForm';
+import { MasterDataDialog } from '@/components/MasterDataDialog';
+import { RoleHierarchyManager } from '@/components/RoleHierarchyManager';
 import { format } from 'date-fns';
 
 const Admin = () => {
   const [editingItem, setEditingItem] = useState(null);
-  const [deletingItem, setDeletingItem] = useState(null);
+  const [deletingItem, setDeletingItem] = useState<{id: string; table: string} | null>(null);
   const { toast } = useToast();
 
   // Fetch profiles
@@ -100,41 +102,119 @@ const Admin = () => {
     },
   });
 
-  const handleDelete = async (table: string, id: string) => {
+  const handleDeleteProfiles = async (id: string) => {
     try {
       const { error } = await supabase
-        .from(table)
+        .from('profiles')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
+      fetchProfiles();
+    } catch (error: any) {
+      throw error;
+    }
+  };
+
+  const handleDeleteCustomRoles = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('custom_roles')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      fetchCustomRoles();
+    } catch (error: any) {
+      throw error;
+    }
+  };
+
+  const handleDeleteMandirs = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('mandirs')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      fetchMandirs();
+    } catch (error: any) {
+      throw error;
+    }
+  };
+
+  const handleDeleteKshetras = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('kshetras')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      fetchKshetras();
+    } catch (error: any) {
+      throw error;
+    }
+  };
+
+  const handleDeleteVillages = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('villages')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      fetchVillages();
+    } catch (error: any) {
+      throw error;
+    }
+  };
+
+  const handleDeleteMandals = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('mandals')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      fetchMandals();
+    } catch (error: any) {
+      throw error;
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deletingItem) return;
+
+    try {
+      switch (deletingItem.table) {
+        case 'profiles':
+          await handleDeleteProfiles(deletingItem.id);
+          break;
+        case 'custom_roles':
+          await handleDeleteCustomRoles(deletingItem.id);
+          break;
+        case 'mandirs':
+          await handleDeleteMandirs(deletingItem.id);
+          break;
+        case 'kshetras':
+          await handleDeleteKshetras(deletingItem.id);
+          break;
+        case 'villages':
+          await handleDeleteVillages(deletingItem.id);
+          break;
+        case 'mandals':
+          await handleDeleteMandals(deletingItem.id);
+          break;
+      }
 
       toast({
         title: "Success",
         description: "Item deleted successfully",
       });
-
-      // Refetch data based on table
-      switch (table) {
-        case 'profiles':
-          fetchProfiles();
-          break;
-        case 'custom_roles':
-          fetchCustomRoles();
-          break;
-        case 'mandirs':
-          fetchMandirs();
-          break;
-        case 'kshetras':
-          fetchKshetras();
-          break;
-        case 'villages':
-          fetchVillages();
-          break;
-        case 'mandals':
-          fetchMandals();
-          break;
-      }
 
       setDeletingItem(null);
     } catch (error: any) {
@@ -146,174 +226,132 @@ const Admin = () => {
     }
   };
 
-  const userRolesData = useMemo(() => {
-    if (!customRoles || !profiles) return [];
-    
-    return customRoles.map(role => ({
-      id: role.id,
-      role_name: role.role_name,
-      display_name: role.display_name,
-      description: role.description || '',
-      is_system_role: role.is_system_role ? 'Yes' : 'No',
-      is_active: role.is_active ? 'Yes' : 'No',
-      level: role.level?.toString() || '',
-      user_count: profiles.filter(profile => profile.role === role.role_name).length.toString(),
-      created_at: format(new Date(role.created_at), 'dd/MM/yyyy HH:mm'),
-    }));
-  }, [customRoles, profiles]);
-
-  const userRolesColumns = useMemo(() => [
-    { key: 'role_name', label: 'Role Name' },
-    { key: 'display_name', label: 'Display Name' },
-    { key: 'description', label: 'Description' },
-    { key: 'is_system_role', label: 'System Role' },
-    { key: 'is_active', label: 'Active' },
-    { key: 'level', label: 'Level' },
-    { key: 'user_count', label: 'User Count' },
-    { key: 'created_at', label: 'Created At' },
-  ], []);
-
   const usersData = useMemo(() => {
     if (!profiles) return [];
     
     return profiles.map(profile => ({
       id: profile.id,
-      full_name: profile.full_name,
-      email: profile.email || '',
-      mobile_number: profile.mobile_number,
-      role: profile.role,
-      is_active: profile.is_active ? 'Yes' : 'No',
-      created_at: format(new Date(profile.created_at), 'dd/MM/yyyy HH:mm'),
+      display_name: profile.full_name,
+      description: `${profile.email || ''} | ${profile.mobile_number} | Role: ${profile.role}`,
+      type: profile.is_active ? 'Active' : 'Inactive',
+      is_system_role: false
     }));
   }, [profiles]);
 
-  const usersColumns = useMemo(() => [
-    { key: 'full_name', label: 'Full Name' },
-    { key: 'email', label: 'Email' },
-    { key: 'mobile_number', label: 'Mobile Number' },
-    { key: 'role', label: 'Role' },
-    { key: 'is_active', label: 'Active' },
-    { key: 'created_at', label: 'Created At' },
-  ], []);
+  const userRolesData = useMemo(() => {
+    if (!customRoles || !profiles) return [];
+    
+    return customRoles.map(role => ({
+      id: role.id,
+      display_name: role.display_name,
+      description: role.description || '',
+      type: `Level: ${role.level || 'N/A'} | Users: ${profiles.filter(profile => profile.role === role.role_name).length}`,
+      is_system_role: role.is_system_role || false
+    }));
+  }, [customRoles, profiles]);
 
   const mandirsData = useMemo(() => {
     if (!mandirs) return [];
     
     return mandirs.map(mandir => ({
       id: mandir.id,
-      name: mandir.name,
-      address: mandir.address || '',
-      contact_person: mandir.contact_person || '',
-      contact_number: mandir.contact_number || '',
-      email: mandir.email || '',
-      is_active: mandir.is_active ? 'Yes' : 'No',
-      created_at: format(new Date(mandir.created_at), 'dd/MM/yyyy HH:mm'),
+      display_name: mandir.name,
+      description: `${mandir.address || ''} | Contact: ${mandir.contact_person || ''} | ${mandir.contact_number || ''}`,
+      type: mandir.is_active ? 'Active' : 'Inactive',
+      is_system_role: false
     }));
   }, [mandirs]);
-
-  const mandirsColumns = useMemo(() => [
-    { key: 'name', label: 'Name' },
-    { key: 'address', label: 'Address' },
-    { key: 'contact_person', label: 'Contact Person' },
-    { key: 'contact_number', label: 'Contact Number' },
-    { key: 'email', label: 'Email' },
-    { key: 'is_active', label: 'Active' },
-    { key: 'created_at', label: 'Created At' },
-  ], []);
 
   const kshetrasData = useMemo(() => {
     if (!kshetras) return [];
     
     return kshetras.map(kshetra => ({
       id: kshetra.id,
-      name: kshetra.name,
-      mandir_name: kshetra.mandirs?.name || '',
-      contact_person: kshetra.contact_person || '',
-      contact_number: kshetra.contact_number || '',
-      description: kshetra.description || '',
-      is_active: kshetra.is_active ? 'Yes' : 'No',
-      created_at: format(new Date(kshetra.created_at), 'dd/MM/yyyy HH:mm'),
+      display_name: kshetra.name,
+      description: `Mandir: ${kshetra.mandirs?.name || ''} | Contact: ${kshetra.contact_person || ''}`,
+      type: kshetra.is_active ? 'Active' : 'Inactive',
+      is_system_role: false
     }));
   }, [kshetras]);
-
-  const kshetrasColumns = useMemo(() => [
-    { key: 'name', label: 'Name' },
-    { key: 'mandir_name', label: 'Mandir' },
-    { key: 'contact_person', label: 'Contact Person' },
-    { key: 'contact_number', label: 'Contact Number' },
-    { key: 'description', label: 'Description' },
-    { key: 'is_active', label: 'Active' },
-    { key: 'created_at', label: 'Created At' },
-  ], []);
 
   const villagesData = useMemo(() => {
     if (!villages) return [];
     
     return villages.map(village => ({
       id: village.id,
-      name: village.name,
-      kshetra_name: village.kshetras?.name || '',
-      district: village.district || '',
-      state: village.state || '',
-      pincode: village.pincode || '',
-      population: village.population?.toString() || '',
-      contact_person: village.contact_person || '',
-      contact_number: village.contact_number || '',
-      is_active: village.is_active ? 'Yes' : 'No',
-      created_at: format(new Date(village.created_at), 'dd/MM/yyyy HH:mm'),
+      display_name: village.name,
+      description: `Kshetra: ${village.kshetras?.name || ''} | District: ${village.district || ''} | Population: ${village.population || 'N/A'}`,
+      type: village.is_active ? 'Active' : 'Inactive',
+      is_system_role: false
     }));
   }, [villages]);
-
-  const villagesColumns = useMemo(() => [
-    { key: 'name', label: 'Name' },
-    { key: 'kshetra_name', label: 'Kshetra' },
-    { key: 'district', label: 'District' },
-    { key: 'state', label: 'State' },
-    { key: 'pincode', label: 'Pincode' },
-    { key: 'population', label: 'Population' },
-    { key: 'contact_person', label: 'Contact Person' },
-    { key: 'contact_number', label: 'Contact Number' },
-    { key: 'is_active', label: 'Active' },
-    { key: 'created_at', label: 'Created At' },
-  ], []);
 
   const mandalsData = useMemo(() => {
     if (!mandals) return [];
     
     return mandals.map(mandal => ({
       id: mandal.id,
-      name: mandal.name,
-      village_name: mandal.villages?.name || '',
-      contact_person: mandal.contact_person || '',
-      contact_number: mandal.contact_number || '',
-      meeting_day: mandal.meeting_day || '',
-      meeting_time: mandal.meeting_time || '',
-      description: mandal.description || '',
-      is_active: mandal.is_active ? 'Yes' : 'No',
-      created_at: format(new Date(mandal.created_at), 'dd/MM/yyyy HH:mm'),
+      display_name: mandal.name,
+      description: `Village: ${mandal.villages?.name || ''} | Contact: ${mandal.contact_person || ''} | Meeting: ${mandal.meeting_day || ''} ${mandal.meeting_time || ''}`,
+      type: mandal.is_active ? 'Active' : 'Inactive',
+      is_system_role: false
     }));
   }, [mandals]);
 
-  const mandalsColumns = useMemo(() => [
-    { key: 'name', label: 'Name' },
-    { key: 'village_name', label: 'Village' },
-    { key: 'contact_person', label: 'Contact Person' },
-    { key: 'contact_number', label: 'Contact Number' },
-    { key: 'meeting_day', label: 'Meeting Day' },
-    { key: 'meeting_time', label: 'Meeting Time' },
-    { key: 'description', label: 'Description' },
-    { key: 'is_active', label: 'Active' },
-    { key: 'created_at', label: 'Created At' },
-  ], []);
+  // Field configurations for each table
+  const customRoleFields = [
+    { name: 'role_name', label: 'Role Name', type: 'text' as const, required: true },
+    { name: 'display_name', label: 'Display Name', type: 'text' as const, required: true },
+    { name: 'description', label: 'Description', type: 'textarea' as const },
+    { name: 'level', label: 'Hierarchy Level', type: 'number' as const },
+  ];
+
+  const mandirFields = [
+    { name: 'name', label: 'Name', type: 'text' as const, required: true },
+    { name: 'address', label: 'Address', type: 'textarea' as const },
+    { name: 'contact_person', label: 'Contact Person', type: 'text' as const },
+    { name: 'contact_number', label: 'Contact Number', type: 'text' as const },
+    { name: 'email', label: 'Email', type: 'text' as const },
+  ];
+
+  const kshetraFields = [
+    { name: 'name', label: 'Name', type: 'text' as const, required: true },
+    { name: 'mandir_id', label: 'Mandir', type: 'select' as const, foreignKey: 'mandirs' },
+    { name: 'contact_person', label: 'Contact Person', type: 'text' as const },
+    { name: 'contact_number', label: 'Contact Number', type: 'text' as const },
+    { name: 'description', label: 'Description', type: 'textarea' as const },
+  ];
+
+  const villageFields = [
+    { name: 'name', label: 'Name', type: 'text' as const, required: true },
+    { name: 'kshetra_id', label: 'Kshetra', type: 'select' as const, foreignKey: 'kshetras' },
+    { name: 'district', label: 'District', type: 'text' as const },
+    { name: 'state', label: 'State', type: 'text' as const },
+    { name: 'pincode', label: 'Pincode', type: 'text' as const },
+    { name: 'population', label: 'Population', type: 'number' as const },
+    { name: 'contact_person', label: 'Contact Person', type: 'text' as const },
+    { name: 'contact_number', label: 'Contact Number', type: 'text' as const },
+  ];
+
+  const mandalFields = [
+    { name: 'name', label: 'Name', type: 'text' as const, required: true },
+    { name: 'village_id', label: 'Village', type: 'select' as const, foreignKey: 'villages' },
+    { name: 'contact_person', label: 'Contact Person', type: 'text' as const },
+    { name: 'contact_number', label: 'Contact Number', type: 'text' as const },
+    { name: 'meeting_day', label: 'Meeting Day', type: 'text' as const },
+    { name: 'meeting_time', label: 'Meeting Time', type: 'time' as const },
+    { name: 'description', label: 'Description', type: 'textarea' as const },
+  ];
 
   return (
     <div className="container mx-auto p-6">
       <h1 className="text-3xl font-bold mb-6">Admin Panel</h1>
       
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="user-roles">User Roles</TabsTrigger>
+          <TabsTrigger value="role-hierarchy">Role Hierarchy</TabsTrigger>
           <TabsTrigger value="mandirs">Mandirs</TabsTrigger>
           <TabsTrigger value="kshetras">Kshetras</TabsTrigger>
           <TabsTrigger value="villages">Villages</TabsTrigger>
@@ -330,11 +368,10 @@ const Admin = () => {
             </CardHeader>
             <CardContent>
               <MasterDataTable 
+                title="User"
                 data={usersData}
-                columns={usersColumns}
                 onEdit={(item) => setEditingItem(item)}
-                onDelete={(item) => setDeletingItem(item)}
-                enableActions={true}
+                onDelete={(id) => setDeletingItem({id, table: 'profiles'})}
               />
             </CardContent>
           </Card>
@@ -352,8 +389,10 @@ const Admin = () => {
               <div className="space-y-6">
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Create New Role</h3>
-                  <MasterDataForm 
-                    type="custom_roles" 
+                  <MasterDataDialog
+                    title="Role"
+                    table="custom_roles"
+                    fields={customRoleFields}
                     onSuccess={() => {
                       fetchCustomRoles();
                       toast({
@@ -367,16 +406,28 @@ const Admin = () => {
                 <Separator />
                 
                 <div>
-                  <h3 className="text-lg font-semibold mb-4">Existing User Roles</h3>
                   <MasterDataTable 
+                    title="Role"
                     data={userRolesData}
-                    columns={userRolesColumns}
                     onEdit={(item) => setEditingItem(item)}
-                    onDelete={(item) => setDeletingItem(item)}
-                    enableActions={true}
+                    onDelete={(id) => setDeletingItem({id, table: 'custom_roles'})}
                   />
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="role-hierarchy">
+          <Card>
+            <CardHeader>
+              <CardTitle>Role Hierarchy Management</CardTitle>
+              <CardDescription>
+                Manage role hierarchy and set level ordering for custom roles
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RoleHierarchyManager />
             </CardContent>
           </Card>
         </TabsContent>
@@ -393,8 +444,10 @@ const Admin = () => {
               <div className="space-y-6">
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Create New Mandir</h3>
-                  <MasterDataForm 
-                    type="mandirs" 
+                  <MasterDataDialog
+                    title="Mandir"
+                    table="mandirs"
+                    fields={mandirFields}
                     onSuccess={() => {
                       fetchMandirs();
                       toast({
@@ -408,13 +461,11 @@ const Admin = () => {
                 <Separator />
                 
                 <div>
-                  <h3 className="text-lg font-semibold mb-4">Existing Mandirs</h3>
                   <MasterDataTable 
+                    title="Mandir"
                     data={mandirsData}
-                    columns={mandirsColumns}
                     onEdit={(item) => setEditingItem(item)}
-                    onDelete={(item) => setDeletingItem(item)}
-                    enableActions={true}
+                    onDelete={(id) => setDeletingItem({id, table: 'mandirs'})}
                   />
                 </div>
               </div>
@@ -434,8 +485,10 @@ const Admin = () => {
               <div className="space-y-6">
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Create New Kshetra</h3>
-                  <MasterDataForm 
-                    type="kshetras" 
+                  <MasterDataDialog
+                    title="Kshetra"
+                    table="kshetras"
+                    fields={kshetraFields}
                     onSuccess={() => {
                       fetchKshetras();
                       toast({
@@ -449,13 +502,11 @@ const Admin = () => {
                 <Separator />
                 
                 <div>
-                  <h3 className="text-lg font-semibold mb-4">Existing Kshetras</h3>
                   <MasterDataTable 
+                    title="Kshetra"
                     data={kshetrasData}
-                    columns={kshetrasColumns}
                     onEdit={(item) => setEditingItem(item)}
-                    onDelete={(item) => setDeletingItem(item)}
-                    enableActions={true}
+                    onDelete={(id) => setDeletingItem({id, table: 'kshetras'})}
                   />
                 </div>
               </div>
@@ -475,8 +526,10 @@ const Admin = () => {
               <div className="space-y-6">
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Create New Village</h3>
-                  <MasterDataForm 
-                    type="villages" 
+                  <MasterDataDialog
+                    title="Village"
+                    table="villages"
+                    fields={villageFields}
                     onSuccess={() => {
                       fetchVillages();
                       toast({
@@ -490,13 +543,11 @@ const Admin = () => {
                 <Separator />
                 
                 <div>
-                  <h3 className="text-lg font-semibold mb-4">Existing Villages</h3>
                   <MasterDataTable 
+                    title="Village"
                     data={villagesData}
-                    columns={villagesColumns}
                     onEdit={(item) => setEditingItem(item)}
-                    onDelete={(item) => setDeletingItem(item)}
-                    enableActions={true}
+                    onDelete={(id) => setDeletingItem({id, table: 'villages'})}
                   />
                 </div>
               </div>
@@ -516,8 +567,10 @@ const Admin = () => {
               <div className="space-y-6">
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Create New Mandal</h3>
-                  <MasterDataForm 
-                    type="mandals" 
+                  <MasterDataDialog
+                    title="Mandal"
+                    table="mandals"
+                    fields={mandalFields}
                     onSuccess={() => {
                       fetchMandals();
                       toast({
@@ -531,13 +584,11 @@ const Admin = () => {
                 <Separator />
                 
                 <div>
-                  <h3 className="text-lg font-semibold mb-4">Existing Mandals</h3>
                   <MasterDataTable 
+                    title="Mandal"
                     data={mandalsData}
-                    columns={mandalsColumns}
                     onEdit={(item) => setEditingItem(item)}
-                    onDelete={(item) => setDeletingItem(item)}
-                    enableActions={true}
+                    onDelete={(id) => setDeletingItem({id, table: 'mandals'})}
                   />
                 </div>
               </div>
@@ -560,11 +611,7 @@ const Admin = () => {
             </Button>
             <Button 
               variant="destructive" 
-              onClick={() => {
-                if (deletingItem) {
-                  handleDelete(deletingItem.table, deletingItem.id);
-                }
-              }}
+              onClick={handleDelete}
             >
               Delete
             </Button>
