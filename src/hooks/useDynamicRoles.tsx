@@ -27,7 +27,7 @@ export const useDynamicRoles = () => {
         .from('custom_roles')
         .select('*')
         .eq('is_active', true)
-        .order('level', { nullsLast: true });
+        .order('level', { nullsFirst: false });
 
       if (error) throw error;
       setRoles(data || []);

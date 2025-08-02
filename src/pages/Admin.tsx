@@ -1,3 +1,4 @@
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { PermissionsManager } from "@/components/PermissionsManager";
@@ -128,8 +129,8 @@ const Admin = () => {
                       label: 'Is System Role', 
                       type: 'select', 
                       options: [
-                        { value: true, label: 'Yes' },
-                        { value: false, label: 'No' }
+                        { value: 'true', label: 'Yes' },
+                        { value: 'false', label: 'No' }
                       ]
                     },
                     { 
@@ -137,8 +138,8 @@ const Admin = () => {
                       label: 'Status', 
                       type: 'select', 
                       options: [
-                        { value: true, label: 'Active' },
-                        { value: false, label: 'Inactive' }
+                        { value: 'true', label: 'Active' },
+                        { value: 'false', label: 'Inactive' }
                       ]
                     },
                   ]}
