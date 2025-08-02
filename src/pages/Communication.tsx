@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -346,7 +345,7 @@ const Communication = () => {
         title: 'Success',
         description: 'Chat room deleted successfully',
       });
-setRooms((prev) => prev.filter((room) => room.id !== roomId));
+      setRooms((prev) => prev.filter((room) => room.id !== roomId));
       if (selectedRoom?.id === roomId) {
         setSelectedRoom(null);
         setMessages([]);
@@ -406,12 +405,9 @@ setRooms((prev) => prev.filter((room) => room.id !== roomId));
     return currentUserLevel < roomCreatorLevel;
   };
 
-  const canDeleteRoom = (room) => {
-  return room.creator_id === currentUser.id || currentUser.role === 'admin';
-};
-  /*const canDeleteRoom = (room: ChatRoom) => {
+  const canDeleteRoom = (room: ChatRoom) => {
     return canEditRoom(room); // Same logic for delete as edit
-  };*/
+  };
 
   const openEditDialog = (room: ChatRoom) => {
     setEditingRoom(room);
