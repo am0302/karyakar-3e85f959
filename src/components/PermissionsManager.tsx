@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -400,271 +399,270 @@ export const PermissionsManager = () => {
   }
 
   return (
-    <div>
-      <hr className="my-6 border-gray-300" />
-      
-      <div className="space-y-4 lg:space-y-6 p-4 lg:p-0">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-xl lg:text-2xl font-bold text-gray-900">Permissions Management</h2>
-            <p className="text-sm lg:text-base text-gray-600">Manage user and role-based permissions for different modules</p>
-          </div>
-          <Button onClick={fetchData} variant="outline" size="sm" className="self-start lg:self-auto">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
+    <div className="mt-8">
+  <hr className="my-6 border-gray-300" />
+    </div>
+    <div className="space-y-4 lg:space-y-6 p-4 lg:p-0">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl lg:text-2xl font-bold text-gray-900">Permissions Management</h2>
+          <p className="text-sm lg:text-base text-gray-600">Manage user and role-based permissions for different modules</p>
         </div>
-
-        <Tabs defaultValue="user-permissions" className="space-y-4 lg:space-y-6">
-          <TabsList className="grid w-full grid-cols-2 h-auto">
-            <TabsTrigger value="user-permissions" className="flex items-center gap-2 text-xs lg:text-sm p-2 lg:p-3">
-              <Users className="h-3 w-3 lg:h-4 lg:w-4" />
-              <span className="hidden sm:inline">User Permissions</span>
-              <span className="sm:hidden">Users</span>
-            </TabsTrigger>
-            <TabsTrigger value="role-permissions" className="flex items-center gap-2 text-xs lg:text-sm p-2 lg:p-3">
-              <Shield className="h-3 w-3 lg:h-4 lg:w-4" />
-              <span className="hidden sm:inline">Role Permissions</span>
-              <span className="sm:hidden">Roles</span>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="user-permissions" className="space-y-4 lg:space-y-6">
-            {/* User Permission Form */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg lg:text-xl">Assign User Permissions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm lg:text-base">Select User</Label>
-                    <SearchableSelect
-                      options={profiles.map(p => ({ 
-                        value: p.id, 
-                        label: `${p.full_name} (${p.role.replace('_', ' ')})` 
-                      }))}
-                      value={selectedUser}
-                      onValueChange={setSelectedUser}
-                      placeholder="Select User"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm lg:text-base">Select Module</Label>
-                    <SearchableSelect
-                      options={modules}
-                      value={selectedModule}
-                      onValueChange={setSelectedModule}
-                      placeholder="Select Module"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <Label className="text-sm lg:text-base">Permissions</Label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-4">
-                    {permissionTypes.map((permission) => (
-                      <div key={permission.key} className="flex items-center space-x-2">
-                        <Switch
-                          checked={userPermissionSet[permission.key as keyof PermissionSet]}
-                          onCheckedChange={(checked) => 
-                            setUserPermissionSet({ 
-                              ...userPermissionSet, 
-                              [permission.key]: checked 
-                            })
-                          }
-                        />
-                        <Label className="text-xs lg:text-sm">{permission.label}</Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <Button onClick={saveUserPermission} className="w-full" disabled={saving}>
-                  {saving ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4 mr-2" />
-                      Save User Permission
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* User Permissions List */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg lg:text-xl">Current User Permissions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {userPermissions.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p className="text-sm lg:text-base">No user-specific permissions configured</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {userPermissions.map((permission) => (
-                      <div key={permission.id} className="border rounded-lg p-3 lg:p-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                          <div>
-                            <h4 className="font-medium text-sm lg:text-base">
-                              {permission.profiles?.full_name || 'Unknown User'}
-                            </h4>
-                            <p className="text-xs lg:text-sm text-gray-600 capitalize">
-                              Module: {permission.module}
-                            </p>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => deleteUserPermission(permission.id)}
-                            className="text-red-600 hover:text-red-800 self-start sm:self-auto"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <div className="flex gap-2 flex-wrap">
-                          {permissionTypes.map((perm) => (
-                            <Badge
-                              key={perm.key}
-                              variant={permission[perm.key as keyof PermissionSet] ? "default" : "secondary"}
-                              className="text-xs"
-                            >
-                              {perm.label}: {permission[perm.key as keyof PermissionSet] ? '✓' : '✗'}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="role-permissions" className="space-y-4 lg:space-y-6">
-            {/* Role Permission Form */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg lg:text-xl">Configure Role Permissions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm lg:text-base">Select Role</Label>
-                    <SearchableSelect
-                      options={getRoleOptions()}
-                      value={selectedRole}
-                      onValueChange={(value) => setSelectedRole(value as UserRole)}
-                      placeholder="Select Role"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm lg:text-base">Select Module</Label>
-                    <SearchableSelect
-                      options={modules}
-                      value={selectedModule}
-                      onValueChange={setSelectedModule}
-                      placeholder="Select Module"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <Label className="text-sm lg:text-base">Permissions</Label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-4">
-                    {permissionTypes.map((permission) => (
-                      <div key={permission.key} className="flex items-center space-x-2">
-                        <Switch
-                          checked={rolePermissionSet[permission.key as keyof PermissionSet]}
-                          onCheckedChange={(checked) => 
-                            setRolePermissionSet({ 
-                              ...rolePermissionSet, 
-                              [permission.key]: checked 
-                            })
-                          }
-                        />
-                        <Label className="text-xs lg:text-sm">{permission.label}</Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <Button onClick={saveRolePermission} className="w-full" disabled={saving}>
-                  {saving ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4 mr-2" />
-                      Save Role Permission
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Role Permissions List */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg lg:text-xl">Current Role Permissions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {rolePermissions.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p className="text-sm lg:text-base">No role-based permissions configured</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {rolePermissions.map((permission) => (
-                      <div key={permission.id} className="border rounded-lg p-3 lg:p-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                          <div>
-                            <h4 className="font-medium text-sm lg:text-base capitalize">
-                              {permission.role.replace('_', ' ')}
-                            </h4>
-                            <p className="text-xs lg:text-sm text-gray-600 capitalize">
-                              Module: {permission.module_name}
-                            </p>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => deleteRolePermission(permission.id)}
-                            className="text-red-600 hover:text-red-800 self-start sm:self-auto"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <div className="flex gap-2 flex-wrap">
-                          {permissionTypes.map((perm) => (
-                            <Badge
-                              key={perm.key}
-                              variant={permission[perm.key as keyof PermissionSet] ? "default" : "secondary"}
-                              className="text-xs"
-                            >
-                              {perm.label}: {permission[perm.key as keyof PermissionSet] ? '✓' : '✗'}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        <Button onClick={fetchData} variant="outline" size="sm" className="self-start lg:self-auto">
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Refresh
+        </Button>
       </div>
+
+      <Tabs defaultValue="user-permissions" className="space-y-4 lg:space-y-6">
+        <TabsList className="grid w-full grid-cols-2 h-auto">
+          <TabsTrigger value="user-permissions" className="flex items-center gap-2 text-xs lg:text-sm p-2 lg:p-3">
+            <Users className="h-3 w-3 lg:h-4 lg:w-4" />
+            <span className="hidden sm:inline">User Permissions</span>
+            <span className="sm:hidden">Users</span>
+          </TabsTrigger>
+          <TabsTrigger value="role-permissions" className="flex items-center gap-2 text-xs lg:text-sm p-2 lg:p-3">
+            <Shield className="h-3 w-3 lg:h-4 lg:w-4" />
+            <span className="hidden sm:inline">Role Permissions</span>
+            <span className="sm:hidden">Roles</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="user-permissions" className="space-y-4 lg:space-y-6">
+          {/* User Permission Form */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg lg:text-xl">Assign User Permissions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm lg:text-base">Select User</Label>
+                  <SearchableSelect
+                    options={profiles.map(p => ({ 
+                      value: p.id, 
+                      label: `${p.full_name} (${p.role.replace('_', ' ')})` 
+                    }))}
+                    value={selectedUser}
+                    onValueChange={setSelectedUser}
+                    placeholder="Select User"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm lg:text-base">Select Module</Label>
+                  <SearchableSelect
+                    options={modules}
+                    value={selectedModule}
+                    onValueChange={setSelectedModule}
+                    placeholder="Select Module"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <Label className="text-sm lg:text-base">Permissions</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-4">
+                  {permissionTypes.map((permission) => (
+                    <div key={permission.key} className="flex items-center space-x-2">
+                      <Switch
+                        checked={userPermissionSet[permission.key as keyof PermissionSet]}
+                        onCheckedChange={(checked) => 
+                          setUserPermissionSet({ 
+                            ...userPermissionSet, 
+                            [permission.key]: checked 
+                          })
+                        }
+                      />
+                      <Label className="text-xs lg:text-sm">{permission.label}</Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <Button onClick={saveUserPermission} className="w-full" disabled={saving}>
+                {saving ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Save User Permission
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* User Permissions List */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg lg:text-xl">Current User Permissions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {userPermissions.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-sm lg:text-base">No user-specific permissions configured</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {userPermissions.map((permission) => (
+                    <div key={permission.id} className="border rounded-lg p-3 lg:p-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                        <div>
+                          <h4 className="font-medium text-sm lg:text-base">
+                            {permission.profiles?.full_name || 'Unknown User'}
+                          </h4>
+                          <p className="text-xs lg:text-sm text-gray-600 capitalize">
+                            Module: {permission.module}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteUserPermission(permission.id)}
+                          className="text-red-600 hover:text-red-800 self-start sm:self-auto"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="flex gap-2 flex-wrap">
+                        {permissionTypes.map((perm) => (
+                          <Badge
+                            key={perm.key}
+                            variant={permission[perm.key as keyof PermissionSet] ? "default" : "secondary"}
+                            className="text-xs"
+                          >
+                            {perm.label}: {permission[perm.key as keyof PermissionSet] ? '✓' : '✗'}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="role-permissions" className="space-y-4 lg:space-y-6">
+          {/* Role Permission Form */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg lg:text-xl">Configure Role Permissions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm lg:text-base">Select Role</Label>
+                  <SearchableSelect
+                    options={getRoleOptions()}
+                    value={selectedRole}
+                    onValueChange={(value) => setSelectedRole(value as UserRole)}
+                    placeholder="Select Role"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm lg:text-base">Select Module</Label>
+                  <SearchableSelect
+                    options={modules}
+                    value={selectedModule}
+                    onValueChange={setSelectedModule}
+                    placeholder="Select Module"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <Label className="text-sm lg:text-base">Permissions</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-4">
+                  {permissionTypes.map((permission) => (
+                    <div key={permission.key} className="flex items-center space-x-2">
+                      <Switch
+                        checked={rolePermissionSet[permission.key as keyof PermissionSet]}
+                        onCheckedChange={(checked) => 
+                          setRolePermissionSet({ 
+                            ...rolePermissionSet, 
+                            [permission.key]: checked 
+                          })
+                        }
+                      />
+                      <Label className="text-xs lg:text-sm">{permission.label}</Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <Button onClick={saveRolePermission} className="w-full" disabled={saving}>
+                {saving ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Save Role Permission
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Role Permissions List */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg lg:text-xl">Current Role Permissions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {rolePermissions.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-sm lg:text-base">No role-based permissions configured</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {rolePermissions.map((permission) => (
+                    <div key={permission.id} className="border rounded-lg p-3 lg:p-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                        <div>
+                          <h4 className="font-medium text-sm lg:text-base capitalize">
+                            {permission.role.replace('_', ' ')}
+                          </h4>
+                          <p className="text-xs lg:text-sm text-gray-600 capitalize">
+                            Module: {permission.module_name}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteRolePermission(permission.id)}
+                          className="text-red-600 hover:text-red-800 self-start sm:self-auto"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="flex gap-2 flex-wrap">
+                        {permissionTypes.map((perm) => (
+                          <Badge
+                            key={perm.key}
+                            variant={permission[perm.key as keyof PermissionSet] ? "default" : "secondary"}
+                            className="text-xs"
+                          >
+                            {perm.label}: {permission[perm.key as keyof PermissionSet] ? '✓' : '✗'}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
