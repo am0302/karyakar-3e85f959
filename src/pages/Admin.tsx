@@ -35,54 +35,62 @@ const Admin = () => {
           />
         </div>
 
-        <Tabs defaultValue="permissions" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 sm:grid-cols-9 gap-1">
-            <TabsTrigger value="permissions" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-              <Shield className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Permissions</span>
-              <span className="sm:hidden">Perm</span>
-            </TabsTrigger>
-            <TabsTrigger value="hierarchy" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-              <Network className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Role Hierarchy</span>
-              <span className="sm:hidden">Roles</span>
-            </TabsTrigger>
-            <TabsTrigger value="locations" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-              <MapPin className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Location Assignments</span>
-              <span className="sm:hidden">Locations</span>
-            </TabsTrigger>
-            <TabsTrigger value="roles" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-              <Users className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">User Roles</span>
-              <span className="sm:hidden">Users</span>
-            </TabsTrigger>
-            <TabsTrigger value="professions" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-              <Briefcase className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Professions</span>
-              <span className="sm:hidden">Prof</span>
-            </TabsTrigger>
-            <TabsTrigger value="seva-types" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-              <Star className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Seva Types</span>
-              <span className="sm:hidden">Seva</span>
-            </TabsTrigger>
-            <TabsTrigger value="mandirs" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-              <Building className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Mandirs</span>
-              <span className="sm:hidden">Mandirs</span>
-            </TabsTrigger>
-            <TabsTrigger value="kshetras" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-              <TreePine className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Kshetras</span>
-              <span className="sm:hidden">Kshetras</span>
-            </TabsTrigger>
-            <TabsTrigger value="villages-mandals" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-              <Home className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Villages & Mandals</span>
-              <span className="sm:hidden">V&M</span>
-            </TabsTrigger>
-          </TabsList>
+       <Tabs defaultValue="permissions" className="space-y-6">
+  <TabsList className="flex flex-wrap gap-1 justify-center sm:justify-start">
+    <TabsTrigger value="permissions" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+      <Shield className="h-3 w-3 sm:h-4 sm:w-4" />
+      <span className="hidden sm:inline">Permissions</span>
+      <span className="sm:hidden">Perm</span>
+    </TabsTrigger>
+
+    <TabsTrigger value="hierarchy" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+      <Network className="h-3 w-3 sm:h-4 sm:w-4" />
+      <span className="hidden sm:inline">Role Hierarchy</span>
+      <span className="sm:hidden">Roles</span>
+    </TabsTrigger>
+
+    <TabsTrigger value="locations" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+      <MapPin className="h-3 w-3 sm:h-4 sm:w-4" />
+      <span className="hidden sm:inline">Location Assignments</span>
+      <span className="sm:hidden">Locations</span>
+    </TabsTrigger>
+
+    <TabsTrigger value="roles" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+      <Users className="h-3 w-3 sm:h-4 sm:w-4" />
+      <span className="hidden sm:inline">User Roles</span>
+      <span className="sm:hidden">Users</span>
+    </TabsTrigger>
+
+    <TabsTrigger value="professions" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+      <Briefcase className="h-3 w-3 sm:h-4 sm:w-4" />
+      <span className="hidden sm:inline">Professions</span>
+      <span className="sm:hidden">Prof</span>
+    </TabsTrigger>
+
+    <TabsTrigger value="seva-types" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+      <Star className="h-3 w-3 sm:h-4 sm:w-4" />
+      <span className="hidden sm:inline">Seva Types</span>
+      <span className="sm:hidden">Seva</span>
+    </TabsTrigger>
+
+    <TabsTrigger value="mandirs" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+      <Building className="h-3 w-3 sm:h-4 sm:w-4" />
+      <span className="hidden sm:inline">Mandirs</span>
+      <span className="sm:hidden">Mandirs</span>
+    </TabsTrigger>
+
+    <TabsTrigger value="kshetras" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+      <TreePine className="h-3 w-3 sm:h-4 sm:w-4" />
+      <span className="hidden sm:inline">Kshetras</span>
+      <span className="sm:hidden">Kshetras</span>
+    </TabsTrigger>
+
+    <TabsTrigger value="villages-mandals" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+      <Home className="h-3 w-3 sm:h-4 sm:w-4" />
+      <span className="hidden sm:inline">Villages & Mandals</span>
+      <span className="sm:hidden">V&M</span>
+    </TabsTrigger>
+  </TabsList>
 
           <TabsContent value="permissions" className="space-y-6">
             <PermissionsManager />
