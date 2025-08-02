@@ -399,6 +399,8 @@ export const PermissionsManager = () => {
   }
 
   return (
+    <hr className="my-6 border-gray-300" />
+    
     <div className="space-y-4 lg:space-y-6 p-4 lg:p-0">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
