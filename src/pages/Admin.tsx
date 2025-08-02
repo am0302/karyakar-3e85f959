@@ -1,319 +1,577 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { PermissionsManager } from "@/components/PermissionsManager";
-import { RoleHierarchyManager } from "@/components/RoleHierarchyManager";
-import { UserLocationAssignment } from "@/components/UserLocationAssignment";
-import { MasterDataDialog } from "@/components/MasterDataDialog";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { Shield, Network, MapPin, Users, Briefcase, Star, Search, Building, TreePine, Home, Globe } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
+import { MasterDataTable } from '@/components/MasterDataTable';
+import { MasterDataForm } from '@/components/MasterDataForm';
+import { format } from 'date-fns';
 
 const Admin = () => {
-  const [globalSearch, setGlobalSearch] = useState('');
+  const [editingItem, setEditingItem] = useState(null);
+  const [deletingItem, setDeletingItem] = useState(null);
+  const { toast } = useToast();
 
-  const handleSuccess = () => {
-    // Just show success message, don't reload the page
-    console.log("Operation successful");
+  // Fetch profiles
+  const { data: profiles, refetch: fetchProfiles } = useQuery({
+    queryKey: ['profiles'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch custom roles
+  const { data: customRoles, refetch: fetchCustomRoles } = useQuery({
+    queryKey: ['custom_roles'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('custom_roles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch mandirs
+  const { data: mandirs, refetch: fetchMandirs } = useQuery({
+    queryKey: ['mandirs'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('mandirs')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch kshetras
+  const { data: kshetras, refetch: fetchKshetras } = useQuery({
+    queryKey: ['kshetras'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('kshetras')
+        .select('*, mandirs(name)')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch villages
+  const { data: villages, refetch: fetchVillages } = useQuery({
+    queryKey: ['villages'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('villages')
+        .select('*, kshetras(name)')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch mandals
+  const { data: mandals, refetch: fetchMandals } = useQuery({
+    queryKey: ['mandals'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('mandals')
+        .select('*, villages(name)')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const handleDelete = async (table: string, id: string) => {
+    try {
+      const { error } = await supabase
+        .from(table)
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Item deleted successfully",
+      });
+
+      // Refetch data based on table
+      switch (table) {
+        case 'profiles':
+          fetchProfiles();
+          break;
+        case 'custom_roles':
+          fetchCustomRoles();
+          break;
+        case 'mandirs':
+          fetchMandirs();
+          break;
+        case 'kshetras':
+          fetchKshetras();
+          break;
+        case 'villages':
+          fetchVillages();
+          break;
+        case 'mandals':
+          fetchMandals();
+          break;
+      }
+
+      setDeletingItem(null);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
+  const userRolesData = useMemo(() => {
+    if (!customRoles || !profiles) return [];
+    
+    return customRoles.map(role => ({
+      id: role.id,
+      role_name: role.role_name,
+      display_name: role.display_name,
+      description: role.description || '',
+      is_system_role: role.is_system_role ? 'Yes' : 'No',
+      is_active: role.is_active ? 'Yes' : 'No',
+      level: role.level?.toString() || '',
+      user_count: profiles.filter(profile => profile.role === role.role_name).length.toString(),
+      created_at: format(new Date(role.created_at), 'dd/MM/yyyy HH:mm'),
+    }));
+  }, [customRoles, profiles]);
+
+  const userRolesColumns = useMemo(() => [
+    { key: 'role_name', label: 'Role Name' },
+    { key: 'display_name', label: 'Display Name' },
+    { key: 'description', label: 'Description' },
+    { key: 'is_system_role', label: 'System Role' },
+    { key: 'is_active', label: 'Active' },
+    { key: 'level', label: 'Level' },
+    { key: 'user_count', label: 'User Count' },
+    { key: 'created_at', label: 'Created At' },
+  ], []);
+
+  const usersData = useMemo(() => {
+    if (!profiles) return [];
+    
+    return profiles.map(profile => ({
+      id: profile.id,
+      full_name: profile.full_name,
+      email: profile.email || '',
+      mobile_number: profile.mobile_number,
+      role: profile.role,
+      is_active: profile.is_active ? 'Yes' : 'No',
+      created_at: format(new Date(profile.created_at), 'dd/MM/yyyy HH:mm'),
+    }));
+  }, [profiles]);
+
+  const usersColumns = useMemo(() => [
+    { key: 'full_name', label: 'Full Name' },
+    { key: 'email', label: 'Email' },
+    { key: 'mobile_number', label: 'Mobile Number' },
+    { key: 'role', label: 'Role' },
+    { key: 'is_active', label: 'Active' },
+    { key: 'created_at', label: 'Created At' },
+  ], []);
+
+  const mandirsData = useMemo(() => {
+    if (!mandirs) return [];
+    
+    return mandirs.map(mandir => ({
+      id: mandir.id,
+      name: mandir.name,
+      address: mandir.address || '',
+      contact_person: mandir.contact_person || '',
+      contact_number: mandir.contact_number || '',
+      email: mandir.email || '',
+      is_active: mandir.is_active ? 'Yes' : 'No',
+      created_at: format(new Date(mandir.created_at), 'dd/MM/yyyy HH:mm'),
+    }));
+  }, [mandirs]);
+
+  const mandirsColumns = useMemo(() => [
+    { key: 'name', label: 'Name' },
+    { key: 'address', label: 'Address' },
+    { key: 'contact_person', label: 'Contact Person' },
+    { key: 'contact_number', label: 'Contact Number' },
+    { key: 'email', label: 'Email' },
+    { key: 'is_active', label: 'Active' },
+    { key: 'created_at', label: 'Created At' },
+  ], []);
+
+  const kshetrasData = useMemo(() => {
+    if (!kshetras) return [];
+    
+    return kshetras.map(kshetra => ({
+      id: kshetra.id,
+      name: kshetra.name,
+      mandir_name: kshetra.mandirs?.name || '',
+      contact_person: kshetra.contact_person || '',
+      contact_number: kshetra.contact_number || '',
+      description: kshetra.description || '',
+      is_active: kshetra.is_active ? 'Yes' : 'No',
+      created_at: format(new Date(kshetra.created_at), 'dd/MM/yyyy HH:mm'),
+    }));
+  }, [kshetras]);
+
+  const kshetrasColumns = useMemo(() => [
+    { key: 'name', label: 'Name' },
+    { key: 'mandir_name', label: 'Mandir' },
+    { key: 'contact_person', label: 'Contact Person' },
+    { key: 'contact_number', label: 'Contact Number' },
+    { key: 'description', label: 'Description' },
+    { key: 'is_active', label: 'Active' },
+    { key: 'created_at', label: 'Created At' },
+  ], []);
+
+  const villagesData = useMemo(() => {
+    if (!villages) return [];
+    
+    return villages.map(village => ({
+      id: village.id,
+      name: village.name,
+      kshetra_name: village.kshetras?.name || '',
+      district: village.district || '',
+      state: village.state || '',
+      pincode: village.pincode || '',
+      population: village.population?.toString() || '',
+      contact_person: village.contact_person || '',
+      contact_number: village.contact_number || '',
+      is_active: village.is_active ? 'Yes' : 'No',
+      created_at: format(new Date(village.created_at), 'dd/MM/yyyy HH:mm'),
+    }));
+  }, [villages]);
+
+  const villagesColumns = useMemo(() => [
+    { key: 'name', label: 'Name' },
+    { key: 'kshetra_name', label: 'Kshetra' },
+    { key: 'district', label: 'District' },
+    { key: 'state', label: 'State' },
+    { key: 'pincode', label: 'Pincode' },
+    { key: 'population', label: 'Population' },
+    { key: 'contact_person', label: 'Contact Person' },
+    { key: 'contact_number', label: 'Contact Number' },
+    { key: 'is_active', label: 'Active' },
+    { key: 'created_at', label: 'Created At' },
+  ], []);
+
+  const mandalsData = useMemo(() => {
+    if (!mandals) return [];
+    
+    return mandals.map(mandal => ({
+      id: mandal.id,
+      name: mandal.name,
+      village_name: mandal.villages?.name || '',
+      contact_person: mandal.contact_person || '',
+      contact_number: mandal.contact_number || '',
+      meeting_day: mandal.meeting_day || '',
+      meeting_time: mandal.meeting_time || '',
+      description: mandal.description || '',
+      is_active: mandal.is_active ? 'Yes' : 'No',
+      created_at: format(new Date(mandal.created_at), 'dd/MM/yyyy HH:mm'),
+    }));
+  }, [mandals]);
+
+  const mandalsColumns = useMemo(() => [
+    { key: 'name', label: 'Name' },
+    { key: 'village_name', label: 'Village' },
+    { key: 'contact_person', label: 'Contact Person' },
+    { key: 'contact_number', label: 'Contact Number' },
+    { key: 'meeting_day', label: 'Meeting Day' },
+    { key: 'meeting_time', label: 'Meeting Time' },
+    { key: 'description', label: 'Description' },
+    { key: 'is_active', label: 'Active' },
+    { key: 'created_at', label: 'Created At' },
+  ], []);
+
   return (
-    <ProtectedRoute module="admin" action="view">
-      <div className="space-y-6 p-4 sm:p-6">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Admin Panel</h1>
-          <p className="text-gray-600 mt-1">Manage system settings, permissions, and user roles</p>
-        </div>
+    <div className="container mx-auto p-6">
+      <h1 className="text-3xl font-bold mb-6">Admin Panel</h1>
+      
+      <Tabs defaultValue="users" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="user-roles">User Roles</TabsTrigger>
+          <TabsTrigger value="mandirs">Mandirs</TabsTrigger>
+          <TabsTrigger value="kshetras">Kshetras</TabsTrigger>
+          <TabsTrigger value="villages">Villages</TabsTrigger>
+          <TabsTrigger value="mandals">Mandals</TabsTrigger>
+        </TabsList>
 
-        {/* Global Search */}
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <Input
-            placeholder="Global search..."
-            value={globalSearch}
-            onChange={(e) => setGlobalSearch(e.target.value)}
-            className="pl-10"
-          />
-        </div>
+        <TabsContent value="users">
+          <Card>
+            <CardHeader>
+              <CardTitle>Users Management</CardTitle>
+              <CardDescription>
+                Manage user accounts and their information
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <MasterDataTable 
+                data={usersData}
+                columns={usersColumns}
+                onEdit={(item) => setEditingItem(item)}
+                onDelete={(item) => setDeletingItem(item)}
+                enableActions={true}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        <Tabs defaultValue="permissions" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 sm:grid-cols-9 gap-1">
-            <TabsTrigger value="permissions" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-              <Shield className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Permissions</span>
-              <span className="sm:hidden">Perm</span>
-            </TabsTrigger>
-            <TabsTrigger value="hierarchy" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-              <Network className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Role Hierarchy</span>
-              <span className="sm:hidden">Roles</span>
-            </TabsTrigger>
-            <TabsTrigger value="locations" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-              <MapPin className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Location Assignments</span>
-              <span className="sm:hidden">Locations</span>
-            </TabsTrigger>
-            <TabsTrigger value="roles" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-              <Users className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">User Roles</span>
-              <span className="sm:hidden">Users</span>
-            </TabsTrigger>
-            <TabsTrigger value="professions" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-              <Briefcase className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Professions</span>
-              <span className="sm:hidden">Prof</span>
-            </TabsTrigger>
-            <TabsTrigger value="seva-types" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-              <Star className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Seva Types</span>
-              <span className="sm:hidden">Seva</span>
-            </TabsTrigger>
-            <TabsTrigger value="mandirs" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-              <Building className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Mandirs</span>
-              <span className="sm:hidden">Mandirs</span>
-            </TabsTrigger>
-            <TabsTrigger value="kshetras" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-              <TreePine className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Kshetras</span>
-              <span className="sm:hidden">Kshetras</span>
-            </TabsTrigger>
-            <TabsTrigger value="villages-mandals" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-              <Home className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Villages & Mandals</span>
-              <span className="sm:hidden">V&M</span>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="permissions" className="space-y-6">
-            <PermissionsManager />
-          </TabsContent>
-
-          <TabsContent value="hierarchy" className="space-y-6">
-            <RoleHierarchyManager />
-          </TabsContent>
-
-          <TabsContent value="locations" className="space-y-6">
-            <UserLocationAssignment />
-          </TabsContent>
-
-          <TabsContent value="roles" className="space-y-6">
-            <div className="bg-white rounded-lg shadow">
-              <div className="p-4 sm:p-6 border-b">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-lg sm:text-xl font-semibold">User Roles Management</h2>
-                    <p className="text-gray-600 text-sm sm:text-base">Manage custom user roles and permissions</p>
-                  </div>
+        <TabsContent value="user-roles">
+          <Card>
+            <CardHeader>
+              <CardTitle>User Roles Management</CardTitle>
+              <CardDescription>
+                Manage custom user roles and their permissions
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Create New Role</h3>
+                  <MasterDataForm 
+                    type="custom_roles" 
+                    onSuccess={() => {
+                      fetchCustomRoles();
+                      toast({
+                        title: "Success",
+                        description: "Role created successfully",
+                      });
+                    }}
+                  />
                 </div>
-              </div>
-              <div className="p-4 sm:p-6">
-                <MasterDataDialog
-                  title="User Role"
-                  table="custom_roles"
-                  fields={[
-                    { name: 'role_name', label: 'Role Name', type: 'text', required: true },
-                    { name: 'display_name', label: 'Display Name', type: 'text', required: true },
-                    { name: 'description', label: 'Description', type: 'textarea' },
-                    { name: 'level', label: 'Hierarchy Level', type: 'number', required: true },
-                    { 
-                      name: 'is_system_role', 
-                      label: 'Is System Role', 
-                      type: 'select', 
-                      options: [
-                        { value: true, label: 'Yes' },
-                        { value: false, label: 'No' }
-                      ]
-                    },
-                    { 
-                      name: 'is_active', 
-                      label: 'Status', 
-                      type: 'select', 
-                      options: [
-                        { value: true, label: 'Active' },
-                        { value: false, label: 'Inactive' }
-                      ]
-                    },
-                  ]}
-                  onSuccess={handleSuccess}
-                  autoLoad={true}
-                />
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="professions" className="space-y-6">
-            <div className="bg-white rounded-lg shadow">
-              <div className="p-4 sm:p-6 border-b">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-lg sm:text-xl font-semibold">Professions Management</h2>
-                    <p className="text-gray-600 text-sm sm:text-base">Manage available professions for karyakars</p>
-                  </div>
-                </div>
-              </div>
-              <div className="p-4 sm:p-6">
-                <MasterDataDialog
-                  title="Profession"
-                  table="professions"
-                  fields={[
-                    { name: 'name', label: 'Profession Name', type: 'text', required: true },
-                    { name: 'description', label: 'Description', type: 'textarea' },
-                  ]}
-                  onSuccess={handleSuccess}
-                  autoLoad={true}
-                />
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="seva-types" className="space-y-6">
-            <div className="bg-white rounded-lg shadow">
-              <div className="p-4 sm:p-6 border-b">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-lg sm:text-xl font-semibold">Seva Types Management</h2>
-                    <p className="text-gray-600 text-sm sm:text-base">Manage available seva types for karyakars</p>
-                  </div>
-                </div>
-              </div>
-              <div className="p-4 sm:p-6">
-                <MasterDataDialog
-                  title="Seva Type"
-                  table="seva_types"
-                  fields={[
-                    { name: 'name', label: 'Seva Type Name', type: 'text', required: true },
-                    { name: 'description', label: 'Description', type: 'textarea' },
-                  ]}
-                  onSuccess={handleSuccess}
-                  autoLoad={true}
-                />
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="mandirs" className="space-y-6">
-            <div className="bg-white rounded-lg shadow">
-              <div className="p-4 sm:p-6 border-b">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-lg sm:text-xl font-semibold">Mandirs Management</h2>
-                    <p className="text-gray-600 text-sm sm:text-base">Manage temple locations and details</p>
-                  </div>
-                </div>
-              </div>
-              <div className="p-4 sm:p-6">
-                <MasterDataDialog
-                  title="Mandir"
-                  table="mandirs"
-                  fields={[
-                    { name: 'name', label: 'Mandir Name', type: 'text', required: true },
-                    { name: 'description', label: 'Description', type: 'textarea' },
-                    { name: 'address', label: 'Address', type: 'textarea' },
-                    { name: 'contact_person', label: 'Contact Person', type: 'text' },
-                    { name: 'contact_number', label: 'Contact Number', type: 'text' },
-                    { name: 'email', label: 'Email', type: 'text' },
-                    { name: 'established_date', label: 'Established Date', type: 'date' },
-                  ]}
-                  onSuccess={handleSuccess}
-                  autoLoad={true}
-                />
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="kshetras" className="space-y-6">
-            <div className="bg-white rounded-lg shadow">
-              <div className="p-4 sm:p-6 border-b">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-lg sm:text-xl font-semibold">Kshetras Management</h2>
-                    <p className="text-gray-600 text-sm sm:text-base">Manage regional areas under mandirs</p>
-                  </div>
-                </div>
-              </div>
-              <div className="p-4 sm:p-6">
-                <MasterDataDialog
-                  title="Kshetra"
-                  table="kshetras"
-                  fields={[
-                    { name: 'name', label: 'Kshetra Name', type: 'text', required: true },
-                    { name: 'description', label: 'Description', type: 'textarea' },
-                    { name: 'mandir_id', label: 'Mandir', type: 'select', foreignKey: 'mandirs', required: true },
-                    { name: 'contact_person', label: 'Contact Person', type: 'text' },
-                    { name: 'contact_number', label: 'Contact Number', type: 'text' },
-                  ]}
-                  onSuccess={handleSuccess}
-                  autoLoad={true}
-                />
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="villages-mandals" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Villages */}
-              <div className="bg-white rounded-lg shadow">
-                <div className="p-4 sm:p-6 border-b">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                      <h2 className="text-lg sm:text-xl font-semibold">Villages Management</h2>
-                      <p className="text-gray-600 text-sm sm:text-base">Manage villages under kshetras</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="p-4 sm:p-6">
-                  <MasterDataDialog
-                    title="Village"
-                    table="villages"
-                    fields={[
-                      { name: 'name', label: 'Village Name', type: 'text', required: true },
-                      { name: 'kshetra_id', label: 'Kshetra', type: 'select', foreignKey: 'kshetras', required: true },
-                      { name: 'district', label: 'District', type: 'text' },
-                      { name: 'state', label: 'State', type: 'text' },
-                      { name: 'pincode', label: 'Pincode', type: 'text' },
-                      { name: 'population', label: 'Population', type: 'number' },
-                      { name: 'contact_person', label: 'Contact Person', type: 'text' },
-                      { name: 'contact_number', label: 'Contact Number', type: 'text' },
-                    ]}
-                    onSuccess={handleSuccess}
-                    autoLoad={true}
+                
+                <Separator />
+                
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Existing User Roles</h3>
+                  <MasterDataTable 
+                    data={userRolesData}
+                    columns={userRolesColumns}
+                    onEdit={(item) => setEditingItem(item)}
+                    onDelete={(item) => setDeletingItem(item)}
+                    enableActions={true}
                   />
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-              {/* Mandals */}
-              <div className="bg-white rounded-lg shadow">
-                <div className="p-4 sm:p-6 border-b">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                      <h2 className="text-lg sm:text-xl font-semibold">Mandals Management</h2>
-                      <p className="text-gray-600 text-sm sm:text-base">Manage local groups within villages</p>
-                    </div>
-                  </div>
+        <TabsContent value="mandirs">
+          <Card>
+            <CardHeader>
+              <CardTitle>Mandirs Management</CardTitle>
+              <CardDescription>
+                Manage temple locations and their information
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Create New Mandir</h3>
+                  <MasterDataForm 
+                    type="mandirs" 
+                    onSuccess={() => {
+                      fetchMandirs();
+                      toast({
+                        title: "Success",
+                        description: "Mandir created successfully",
+                      });
+                    }}
+                  />
                 </div>
-                <div className="p-4 sm:p-6">
-                  <MasterDataDialog
-                    title="Mandal"
-                    table="mandals"
-                    fields={[
-                      { name: 'name', label: 'Mandal Name', type: 'text', required: true },
-                      { name: 'description', label: 'Description', type: 'textarea' },
-                      { name: 'village_id', label: 'Village', type: 'select', foreignKey: 'villages', required: true },
-                      { name: 'meeting_day', label: 'Meeting Day', type: 'text' },
-                      { name: 'meeting_time', label: 'Meeting Time', type: 'time' },
-                      { name: 'contact_person', label: 'Contact Person', type: 'text' },
-                      { name: 'contact_number', label: 'Contact Number', type: 'text' },
-                    ]}
-                    onSuccess={handleSuccess}
-                    autoLoad={true}
+                
+                <Separator />
+                
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Existing Mandirs</h3>
+                  <MasterDataTable 
+                    data={mandirsData}
+                    columns={mandirsColumns}
+                    onEdit={(item) => setEditingItem(item)}
+                    onDelete={(item) => setDeletingItem(item)}
+                    enableActions={true}
                   />
                 </div>
               </div>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </div>
-    </ProtectedRoute>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="kshetras">
+          <Card>
+            <CardHeader>
+              <CardTitle>Kshetras Management</CardTitle>
+              <CardDescription>
+                Manage regional areas and their information
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Create New Kshetra</h3>
+                  <MasterDataForm 
+                    type="kshetras" 
+                    onSuccess={() => {
+                      fetchKshetras();
+                      toast({
+                        title: "Success",
+                        description: "Kshetra created successfully",
+                      });
+                    }}
+                  />
+                </div>
+                
+                <Separator />
+                
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Existing Kshetras</h3>
+                  <MasterDataTable 
+                    data={kshetrasData}
+                    columns={kshetrasColumns}
+                    onEdit={(item) => setEditingItem(item)}
+                    onDelete={(item) => setDeletingItem(item)}
+                    enableActions={true}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="villages">
+          <Card>
+            <CardHeader>
+              <CardTitle>Villages Management</CardTitle>
+              <CardDescription>
+                Manage village locations and their information
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Create New Village</h3>
+                  <MasterDataForm 
+                    type="villages" 
+                    onSuccess={() => {
+                      fetchVillages();
+                      toast({
+                        title: "Success",
+                        description: "Village created successfully",
+                      });
+                    }}
+                  />
+                </div>
+                
+                <Separator />
+                
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Existing Villages</h3>
+                  <MasterDataTable 
+                    data={villagesData}
+                    columns={villagesColumns}
+                    onEdit={(item) => setEditingItem(item)}
+                    onDelete={(item) => setDeletingItem(item)}
+                    enableActions={true}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="mandals">
+          <Card>
+            <CardHeader>
+              <CardTitle>Mandals Management</CardTitle>
+              <CardDescription>
+                Manage local groups and their information
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Create New Mandal</h3>
+                  <MasterDataForm 
+                    type="mandals" 
+                    onSuccess={() => {
+                      fetchMandals();
+                      toast({
+                        title: "Success",
+                        description: "Mandal created successfully",
+                      });
+                    }}
+                  />
+                </div>
+                
+                <Separator />
+                
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Existing Mandals</h3>
+                  <MasterDataTable 
+                    data={mandalsData}
+                    columns={mandalsColumns}
+                    onEdit={(item) => setEditingItem(item)}
+                    onDelete={(item) => setDeletingItem(item)}
+                    enableActions={true}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      <Dialog open={!!deletingItem} onOpenChange={() => setDeletingItem(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this item? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={() => setDeletingItem(null)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => {
+                if (deletingItem) {
+                  handleDelete(deletingItem.table, deletingItem.id);
+                }
+              }}
+            >
+              Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 };
 

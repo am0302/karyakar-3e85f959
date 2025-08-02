@@ -30,8 +30,14 @@ export const useNotifications = () => {
 
       if (error) throw error;
       
-      setNotifications(data || []);
-      setUnreadCount((data || []).filter(n => !n.is_read).length);
+      // Type cast the data to ensure proper typing
+      const typedData = (data || []).map(notification => ({
+        ...notification,
+        type: notification.type as 'info' | 'success' | 'warning' | 'error'
+      }));
+      
+      setNotifications(typedData);
+      setUnreadCount(typedData.filter(n => !n.is_read).length);
     } catch (error: any) {
       console.error('Error fetching notifications:', error);
       toast({
