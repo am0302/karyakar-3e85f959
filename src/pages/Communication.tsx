@@ -346,7 +346,7 @@ const Communication = () => {
         title: 'Success',
         description: 'Chat room deleted successfully',
       });
-
+setRooms((prev) => prev.filter((room) => room.id !== roomId));
       if (selectedRoom?.id === roomId) {
         setSelectedRoom(null);
         setMessages([]);
