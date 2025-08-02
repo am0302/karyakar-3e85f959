@@ -64,6 +64,8 @@ function App() {
                       <Admin />
                     </ProtectedRoute>
                   } />
+                  <Route path="profile" element={<Profile />} />
+                  <Route path="settings" element={<Settings />} />
                 </Route>
                 <Route path="*" element={<NotFound />} />
               </Routes>

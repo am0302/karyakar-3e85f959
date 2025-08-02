@@ -4,6 +4,7 @@ import { Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, CheckSquare, MessageSquare, Shield, Building2, Heart } from "lucide-react";
+import { BrowserRouter } from "react-router-dom";
 
 const Index = () => {
   const { user, loading } = useAuth();
