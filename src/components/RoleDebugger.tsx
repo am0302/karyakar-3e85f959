@@ -16,6 +16,7 @@ const RoleDebugger = () => {
   const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [roleTestResults, setRoleTestResults] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
 
   const fetchRoleData = async () => {
@@ -74,30 +75,25 @@ const RoleDebugger = () => {
 
   const testRoleAssignment = async (roleName: string) => {
     try {
-      // Test if we can query profiles with this role - use a more generic approach
+      // Try to query profiles with this specific role directly
+      // If the role doesn't exist in the enum, this will throw an error
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, role')
-        .limit(1);
-
-      if (error) {
-        console.error(`Role query test failed:`, error);
-        return false;
-      }
-      
-      // Then try to filter by the specific role in a separate query
-      const { data: roleData, error: roleError } = await supabase
-        .from('profiles')
         .select('id')
-        .filter('role', 'eq', roleName)
+        .eq('role', roleName)
         .limit(1);
         
-      if (roleError) {
-        console.error(`Role ${roleName} filter test failed:`, roleError);
+      if (error) {
+        // Check if it's specifically an enum error
+        if (error.code === '22P02' && error.message?.includes('invalid input value for enum user_role')) {
+          console.error(`Role ${roleName} is not in the user_role enum:`, error.message);
+          return false;
+        }
+        console.error(`Role ${roleName} query failed:`, error);
         return false;
       }
       
-      console.log(`Role ${roleName} test passed`);
+      console.log(`Role ${roleName} test passed - can query profiles`);
       return true;
     } catch (error) {
       console.error(`Role ${roleName} test error:`, error);
@@ -107,26 +103,31 @@ const RoleDebugger = () => {
 
   const testAllRoles = async () => {
     setLoading(true);
-    const results = await Promise.all(
-      customRoles.map(async (role) => ({
-        role_name: role.role_name,
-        valid: await testRoleAssignment(role.role_name)
-      }))
-    );
+    const results: Record<string, boolean> = {};
+    
+    for (const role of customRoles) {
+      const isValid = await testRoleAssignment(role.role_name);
+      results[role.role_name] = isValid;
+    }
+    
+    setRoleTestResults(results);
     
     console.log('Role validation results:', results);
     
-    const invalidRoles = results.filter(r => !r.valid);
+    const invalidRoles = Object.entries(results)
+      .filter(([_, valid]) => !valid)
+      .map(([roleName]) => roleName);
+    
     if (invalidRoles.length > 0) {
       toast({
         title: 'Role Issues Found',
-        description: `Invalid roles: ${invalidRoles.map(r => r.role_name).join(', ')}`,
+        description: `Invalid roles: ${invalidRoles.join(', ')}. These roles exist in custom_roles but not in the user_role enum.`,
         variant: 'destructive',
       });
     } else {
       toast({
         title: 'All Roles Valid',
-        description: 'All custom roles are properly synchronized',
+        description: 'All custom roles are properly synchronized with the user_role enum',
       });
     }
     setLoading(false);
@@ -135,6 +136,15 @@ const RoleDebugger = () => {
   useEffect(() => {
     fetchRoleData();
   }, []);
+
+  const getRoleStatusIcon = (roleName: string) => {
+    if (roleTestResults[roleName] === true) {
+      return <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" />;
+    } else if (roleTestResults[roleName] === false) {
+      return <XCircle className="h-3 w-3 text-red-500 flex-shrink-0" />;
+    }
+    return <CheckCircle className="h-3 w-3 text-gray-400 flex-shrink-0" />;
+  };
 
   return (
     <div className="space-y-4">
@@ -184,7 +194,7 @@ const RoleDebugger = () => {
                     key={role.role_name} 
                     className="text-sm flex items-center gap-2 p-2 bg-muted rounded-md"
                   >
-                    <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" />
+                    {getRoleStatusIcon(role.role_name)}
                     <div className="flex-1 min-w-0">
                       <div className="font-medium truncate">{role.display_name}</div>
                       <div className="text-xs text-muted-foreground truncate">
@@ -209,6 +219,8 @@ const RoleDebugger = () => {
                 <li>Click "Refresh Data" to reload custom roles from database</li>
                 <li>Click "Sync Roles" to synchronize custom_roles with user_role enum</li>
                 <li>Click "Test All Roles" to validate if roles can be assigned to users</li>
+                <li>Green checkmark: Role exists in both custom_roles and user_role enum</li>
+                <li>Red X: Role exists in custom_roles but NOT in user_role enum (needs sync)</li>
                 <li>Check browser console for detailed error messages</li>
               </ul>
             </div>
