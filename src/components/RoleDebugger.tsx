@@ -74,15 +74,26 @@ const RoleDebugger = () => {
 
   const testRoleAssignment = async (roleName: string) => {
     try {
-      // Test if we can query profiles with this role
+      // Test if we can query profiles with this role - use a more generic approach
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, role')
-        .eq('role', roleName)
         .limit(1);
 
       if (error) {
-        console.error(`Role ${roleName} test failed:`, error);
+        console.error(`Role query test failed:`, error);
+        return false;
+      }
+      
+      // Then try to filter by the specific role in a separate query
+      const { data: roleData, error: roleError } = await supabase
+        .from('profiles')
+        .select('id')
+        .filter('role', 'eq', roleName)
+        .limit(1);
+        
+      if (roleError) {
+        console.error(`Role ${roleName} filter test failed:`, roleError);
         return false;
       }
       
