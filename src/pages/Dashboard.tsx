@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/AuthProvider";  
 import { supabase } from "@/integrations/supabase/client";
-import { Users, CheckSquare, Calendar, TrendingUp } from "lucide-react";
+import { Users, CheckSquare, Calendar, TrendingUp, Building, MapPin, TreePine, Home, UserCheck, Briefcase } from "lucide-react";
 import { TaskStatusChart } from "@/components/TaskStatusChart";
 
 interface DashboardStats {
@@ -13,6 +13,10 @@ interface DashboardStats {
   totalTasks: number;
   completedTasks: number;
   pendingTasks: number;
+  totalMandirs: number;
+  totalKshetras: number;
+  totalVillages: number;
+  totalMandals: number;
 }
 
 interface RecentTask {
@@ -24,6 +28,22 @@ interface RecentTask {
   assigned_by_name?: string;
 }
 
+interface RoleStats {
+  role: string;
+  display_name: string;
+  count: number;
+}
+
+interface SevaTypeStats {
+  seva_type: string;
+  count: number;
+}
+
+interface ProfessionStats {
+  profession: string;
+  count: number;
+}
+
 const Dashboard = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
@@ -31,8 +51,15 @@ const Dashboard = () => {
     totalTasks: 0,
     completedTasks: 0,
     pendingTasks: 0,
+    totalMandirs: 0,
+    totalKshetras: 0,
+    totalVillages: 0,
+    totalMandals: 0,
   });
   const [recentTasks, setRecentTasks] = useState<RecentTask[]>([]);
+  const [roleStats, setRoleStats] = useState<RoleStats[]>([]);
+  const [sevaTypeStats, setSevaTypeStats] = useState<SevaTypeStats[]>([]);
+  const [professionStats, setProfessionStats] = useState<ProfessionStats[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -50,6 +77,27 @@ const Dashboard = () => {
       // Fetch total karyakars count
       const { count: karyakarsCount } = await supabase
         .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_active', true);
+
+      // Fetch location counts
+      const { count: mandirsCount } = await supabase
+        .from('mandirs')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_active', true);
+
+      const { count: kshetrasCount } = await supabase
+        .from('kshetras')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_active', true);
+
+      const { count: villagesCount } = await supabase
+        .from('villages')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_active', true);
+
+      const { count: mandalsCount } = await supabase
+        .from('mandals')
         .select('*', { count: 'exact', head: true })
         .eq('is_active', true);
 
@@ -75,6 +123,52 @@ const Dashboard = () => {
         console.error('Error fetching tasks:', tasksError);
       }
 
+      // Fetch role-wise user stats
+      const { data: roleData, error: roleError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('is_active', true);
+
+      if (roleError) {
+        console.error('Error fetching role stats:', roleError);
+      }
+
+      // Fetch custom roles for display names
+      const { data: customRoles, error: customRolesError } = await supabase
+        .from('custom_roles')
+        .select('role_name, display_name')
+        .eq('is_active', true);
+
+      if (customRolesError) {
+        console.error('Error fetching custom roles:', customRolesError);
+      }
+
+      // Fetch seva type stats
+      const { data: sevaData, error: sevaError } = await supabase
+        .from('profiles')
+        .select(`
+          seva_types(name)
+        `)
+        .eq('is_active', true)
+        .not('seva_type_id', 'is', null);
+
+      if (sevaError) {
+        console.error('Error fetching seva type stats:', sevaError);
+      }
+
+      // Fetch profession stats
+      const { data: professionData, error: professionError } = await supabase
+        .from('profiles')
+        .select(`
+          professions(name)
+        `)
+        .eq('is_active', true)
+        .not('profession_id', 'is', null);
+
+      if (professionError) {
+        console.error('Error fetching profession stats:', professionError);
+      }
+
       // Calculate task stats
       const totalTasks = tasks?.length || 0;
       const completedTasks = tasks?.filter(task => task.status === 'completed').length || 0;
@@ -85,7 +179,64 @@ const Dashboard = () => {
         totalTasks,
         completedTasks,
         pendingTasks,
+        totalMandirs: mandirsCount || 0,
+        totalKshetras: kshetrasCount || 0,
+        totalVillages: villagesCount || 0,
+        totalMandals: mandalsCount || 0,
       });
+
+      // Process role stats
+      if (roleData && customRoles) {
+        const roleCounts = roleData.reduce((acc: Record<string, number>, profile) => {
+          acc[profile.role] = (acc[profile.role] || 0) + 1;
+          return acc;
+        }, {});
+
+        const roleStatsData = Object.entries(roleCounts).map(([role, count]) => {
+          const customRole = customRoles.find(cr => cr.role_name === role);
+          return {
+            role,
+            display_name: customRole?.display_name || role,
+            count: count as number,
+          };
+        });
+
+        setRoleStats(roleStatsData);
+      }
+
+      // Process seva type stats
+      if (sevaData) {
+        const sevaCounts = sevaData.reduce((acc: Record<string, number>, profile) => {
+          if (profile.seva_types?.name) {
+            acc[profile.seva_types.name] = (acc[profile.seva_types.name] || 0) + 1;
+          }
+          return acc;
+        }, {});
+
+        const sevaStatsData = Object.entries(sevaCounts).map(([seva_type, count]) => ({
+          seva_type,
+          count: count as number,
+        }));
+
+        setSevaTypeStats(sevaStatsData);
+      }
+
+      // Process profession stats
+      if (professionData) {
+        const professionCounts = professionData.reduce((acc: Record<string, number>, profile) => {
+          if (profile.professions?.name) {
+            acc[profile.professions.name] = (acc[profile.professions.name] || 0) + 1;
+          }
+          return acc;
+        }, {});
+
+        const professionStatsData = Object.entries(professionCounts).map(([profession, count]) => ({
+          profession,
+          count: count as number,
+        }));
+
+        setProfessionStats(professionStatsData);
+      }
 
       // Format recent tasks
       const formattedTasks: RecentTask[] = tasks?.map(task => ({
@@ -159,6 +310,50 @@ const Dashboard = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Mandirs</CardTitle>
+            <Building className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalMandirs}</div>
+            <p className="text-xs text-muted-foreground">Active mandirs</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Kshetras</CardTitle>
+            <TreePine className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalKshetras}</div>
+            <p className="text-xs text-muted-foreground">Active kshetras</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Villages</CardTitle>
+            <MapPin className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalVillages}</div>
+            <p className="text-xs text-muted-foreground">Active villages</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Mandals</CardTitle>
+            <Home className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalMandals}</div>
+            <p className="text-xs text-muted-foreground">Active mandals</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Tasks</CardTitle>
             <CheckSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -187,6 +382,81 @@ const Dashboard = () => {
           <CardContent>
             <div className="text-2xl font-bold">{stats.pendingTasks}</div>
             <p className="text-xs text-muted-foreground">Awaiting completion</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* User Statistics */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Role-wise Users */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserCheck className="h-5 w-5" />
+              Role-wise Users
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {roleStats.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">No data available</p>
+              ) : (
+                roleStats.map((role) => (
+                  <div key={role.role} className="flex items-center justify-between p-2 border rounded">
+                    <span className="font-medium">{role.display_name}</span>
+                    <Badge variant="outline">{role.count}</Badge>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Seva Type-wise Users */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CheckSquare className="h-5 w-5" />
+              Seva Type-wise Users
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {sevaTypeStats.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">No data available</p>
+              ) : (
+                sevaTypeStats.map((seva) => (
+                  <div key={seva.seva_type} className="flex items-center justify-between p-2 border rounded">
+                    <span className="font-medium">{seva.seva_type}</span>
+                    <Badge variant="outline">{seva.count}</Badge>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Profession-wise Users */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Briefcase className="h-5 w-5" />
+              Profession-wise Users
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {professionStats.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">No data available</p>
+              ) : (
+                professionStats.map((profession) => (
+                  <div key={profession.profession} className="flex items-center justify-between p-2 border rounded">
+                    <span className="font-medium">{profession.profession}</span>
+                    <Badge variant="outline">{profession.count}</Badge>
+                  </div>
+                ))
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>

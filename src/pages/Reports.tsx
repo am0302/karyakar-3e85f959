@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Switch } from '@/components/ui/switch';
 import { 
   Download, 
   Filter, 
@@ -24,9 +24,13 @@ import {
   LayoutGrid,
   List,
   TreePine,
-  Home
+  Home,
+  FileText,
+  BarChart3
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import type { Database } from '@/integrations/supabase/types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'] & {
@@ -40,6 +44,8 @@ type Profile = Database['public']['Tables']['profiles']['Row'] & {
 
 type CustomRole = Database['public']['Tables']['custom_roles']['Row'];
 
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
+
 const Reports = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -47,6 +53,7 @@ const Reports = () => {
   const [filteredKaryakars, setFilteredKaryakars] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'list' | 'card'>('list');
+  const [isGraphicalView, setIsGraphicalView] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [mandirFilter, setMandirFilter] = useState<string>('all');
@@ -227,7 +234,7 @@ const Reports = () => {
     setFilteredKaryakars(filtered);
   };
 
-  const exportData = () => {
+  const exportCSV = () => {
     const csvContent = [
       'Name,Email,Mobile,Role,Profession,Mandir,Kshetra,Village,Mandal',
       ...filteredKaryakars.map(k => 
@@ -242,6 +249,86 @@ const Reports = () => {
     a.download = `karyakars-report-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const exportPDF = async () => {
+    try {
+      // Create a simple HTML table for PDF conversion
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Karyakars Report</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; }
+            h1 { color: #333; }
+            .summary { margin-bottom: 20px; }
+          </style>
+        </head>
+        <body>
+          <h1>Karyakars Report</h1>
+          <div class="summary">
+            <p><strong>Total Records:</strong> ${filteredKaryakars.length}</p>
+            <p><strong>Generated on:</strong> ${new Date().toLocaleDateString()}</p>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Mobile</th>
+                <th>Role</th>
+                <th>Profession</th>
+                <th>Mandir</th>
+                <th>Kshetra</th>
+                <th>Village</th>
+                <th>Mandal</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredKaryakars.map(k => `
+                <tr>
+                  <td>${k.full_name}</td>
+                  <td>${k.email || 'N/A'}</td>
+                  <td>${k.mobile_number}</td>
+                  <td>${getRoleDisplayName(k.role)}</td>
+                  <td>${k.professions?.name || 'N/A'}</td>
+                  <td>${k.mandirs?.name || 'N/A'}</td>
+                  <td>${k.kshetras?.name || 'N/A'}</td>
+                  <td>${k.villages?.name || 'N/A'}</td>
+                  <td>${k.mandals?.name || 'N/A'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </body>
+        </html>
+      `;
+
+      // Create a blob and open in new window for printing
+      const blob = new Blob([htmlContent], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const printWindow = window.open(url, '_blank');
+      
+      if (printWindow) {
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+            URL.revokeObjectURL(url);
+          }, 500);
+        };
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to export PDF',
+        variant: 'destructive',
+      });
+    }
   };
 
   const getRoleColor = (role: string) => {
@@ -259,6 +346,26 @@ const Reports = () => {
   const getRoleDisplayName = (roleName: string) => {
     const role = customRoles.find(r => r.role_name === roleName);
     return role?.display_name || roleName;
+  };
+
+  const getRoleDistributionData = () => {
+    const roleCounts = filteredKaryakars.reduce((acc: Record<string, number>, k) => {
+      const displayName = getRoleDisplayName(k.role);
+      acc[displayName] = (acc[displayName] || 0) + 1;
+      return acc;
+    }, {});
+
+    return Object.entries(roleCounts).map(([name, value]) => ({ name, value }));
+  };
+
+  const getLocationDistributionData = () => {
+    const locationCounts = filteredKaryakars.reduce((acc: Record<string, number>, k) => {
+      const location = k.mandirs?.name || 'Unknown';
+      acc[location] = (acc[location] || 0) + 1;
+      return acc;
+    }, {});
+
+    return Object.entries(locationCounts).map(([name, value]) => ({ name, value }));
   };
 
   const KaryakarCard = ({ karyakar }: { karyakar: Profile }) => (
@@ -338,6 +445,76 @@ const Reports = () => {
     </Table>
   );
 
+  const GraphicalView = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Role Distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer
+              config={{
+                value: {
+                  label: "Count",
+                  color: "hsl(var(--chart-1))",
+                },
+              }}
+              className="h-[300px]"
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={getRoleDistributionData()}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {getRoleDistributionData().map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                </PieChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Location Distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer
+              config={{
+                value: {
+                  label: "Count",
+                  color: "hsl(var(--chart-2))",
+                },
+              }}
+              className="h-[300px]"
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={getLocationDistributionData()}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="value" fill="hsl(var(--chart-2))" />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading reports...</div>;
   }
@@ -351,9 +528,13 @@ const Reports = () => {
           <p className="text-gray-600">View and analyze karyakar data</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={exportData}>
+          <Button variant="outline" onClick={exportCSV}>
             <Download className="w-4 h-4 mr-2" />
             Export CSV
+          </Button>
+          <Button variant="outline" onClick={exportPDF}>
+            <FileText className="w-4 h-4 mr-2" />
+            Export PDF
           </Button>
         </div>
       </div>
@@ -363,7 +544,7 @@ const Reports = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Filter className="w-5 h-5" />
-            Filters
+            Filters & View Options
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -458,24 +639,38 @@ const Reports = () => {
               </Select>
             </div>
           </div>
-          <div className="flex items-center space-x-2 mt-4">
-            <Label htmlFor="view">View Mode</Label>
-            <div className="flex space-x-2">
-              <Button
-                variant={viewMode === 'list' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('list')}
-              >
-                <List className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={viewMode === 'card' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('card')}
-              >
-                <LayoutGrid className="w-4 h-4" />
-              </Button>
+          
+          <div className="flex items-center space-x-6 mt-4">
+            <div className="flex items-center space-x-2">
+              <Label htmlFor="graphical-view">Graphical View</Label>
+              <Switch
+                id="graphical-view"
+                checked={isGraphicalView}
+                onCheckedChange={setIsGraphicalView}
+              />
             </div>
+            
+            {!isGraphicalView && (
+              <div className="flex items-center space-x-2">
+                <Label htmlFor="view">View Mode</Label>
+                <div className="flex space-x-2">
+                  <Button
+                    variant={viewMode === 'list' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('list')}
+                  >
+                    <List className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === 'card' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('card')}
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -538,135 +733,139 @@ const Reports = () => {
       </div>
 
       {/* Data Display */}
-      <Tabs defaultValue="karyakars" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="karyakars">Karyakars</TabsTrigger>
-          <TabsTrigger value="roles">Role Distribution</TabsTrigger>
-          <TabsTrigger value="locations">Location Analysis</TabsTrigger>
-        </TabsList>
+      {isGraphicalView ? (
+        <GraphicalView />
+      ) : (
+        <Tabs defaultValue="karyakars" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="karyakars">Karyakars</TabsTrigger>
+            <TabsTrigger value="roles">Role Distribution</TabsTrigger>
+            <TabsTrigger value="locations">Location Analysis</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="karyakars">
-          <Card>
-            <CardHeader>
-              <CardTitle>Karyakar Directory</CardTitle>
-              <CardDescription>Complete list of registered karyakars</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {viewMode === 'list' ? (
-                <KaryakarTable />
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredKaryakars.map((karyakar) => (
-                    <KaryakarCard key={karyakar.id} karyakar={karyakar} />
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="roles">
-          <Card>
-            <CardHeader>
-              <CardTitle>Role Distribution</CardTitle>
-              <CardDescription>Breakdown of karyakars by their roles</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {customRoles.map(role => {
-                  const count = filteredKaryakars.filter(k => k.role === role.role_name).length;
-                  const percentage = filteredKaryakars.length > 0 ? (count / filteredKaryakars.length) * 100 : 0;
-                  return (
-                    <div key={role.id} className="flex items-center justify-between p-3 border rounded">
-                      <div className="flex items-center space-x-3">
-                        <Badge className={getRoleColor(role.role_name)}>
-                          {role.display_name}
-                        </Badge>
-                        <span className="font-medium">{count} karyakars</span>
-                      </div>
-                      <span className="text-sm text-gray-600">{percentage.toFixed(1)}%</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="locations">
-          <div className="space-y-6">
+          <TabsContent value="karyakars">
             <Card>
               <CardHeader>
-                <CardTitle>Location Analysis</CardTitle>
-                <CardDescription>Distribution across mandirs, kshetras, mandals, and villages</CardDescription>
+                <CardTitle>Karyakar Directory</CardTitle>
+                <CardDescription>Complete list of registered karyakars</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="font-medium mb-3">By Mandir</h3>
-                    <div className="space-y-2">
-                      {mandirs.map(mandir => {
-                        const count = filteredKaryakars.filter(k => k.mandir_id === mandir.id).length;
-                        return (
-                          <div key={mandir.id} className="flex items-center justify-between p-2 border rounded">
-                            <span>{mandir.name}</span>
-                            <Badge variant="outline">{count}</Badge>
-                          </div>
-                        );
-                      })}
-                    </div>
+                {viewMode === 'list' ? (
+                  <KaryakarTable />
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredKaryakars.map((karyakar) => (
+                      <KaryakarCard key={karyakar.id} karyakar={karyakar} />
+                    ))}
                   </div>
-                  
-                  <div>
-                    <h3 className="font-medium mb-3">By Kshetra</h3>
-                    <div className="space-y-2">
-                      {kshetras.map(kshetra => {
-                        const count = filteredKaryakars.filter(k => k.kshetra_id === kshetra.id).length;
-                        return (
-                          <div key={kshetra.id} className="flex items-center justify-between p-2 border rounded">
-                            <span>{kshetra.name}</span>
-                            <Badge variant="outline">{count}</Badge>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-                  <div>
-                    <h3 className="font-medium mb-3">By Mandal</h3>
-                    <div className="space-y-2">
-                      {mandals.map(mandal => {
-                        const count = filteredKaryakars.filter(k => k.mandal_id === mandal.id).length;
-                        return (
-                          <div key={mandal.id} className="flex items-center justify-between p-2 border rounded">
-                            <span>{mandal.name}</span>
-                            <Badge variant="outline">{count}</Badge>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="font-medium mb-3">By Village</h3>
-                    <div className="space-y-2">
-                      {villages.map(village => {
-                        const count = filteredKaryakars.filter(k => k.village_id === village.id).length;
-                        return (
-                          <div key={village.id} className="flex items-center justify-between p-2 border rounded">
-                            <span>{village.name}</span>
-                            <Badge variant="outline">{count}</Badge>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+          <TabsContent value="roles">
+            <Card>
+              <CardHeader>
+                <CardTitle>Role Distribution</CardTitle>
+                <CardDescription>Breakdown of karyakars by their roles</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {customRoles.map(role => {
+                    const count = filteredKaryakars.filter(k => k.role === role.role_name).length;
+                    const percentage = filteredKaryakars.length > 0 ? (count / filteredKaryakars.length) * 100 : 0;
+                    return (
+                      <div key={role.id} className="flex items-center justify-between p-3 border rounded">
+                        <div className="flex items-center space-x-3">
+                          <Badge className={getRoleColor(role.role_name)}>
+                            {role.display_name}
+                          </Badge>
+                          <span className="font-medium">{count} karyakars</span>
+                        </div>
+                        <span className="text-sm text-gray-600">{percentage.toFixed(1)}%</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
+          </TabsContent>
+
+          <TabsContent value="locations">
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Location Analysis</CardTitle>
+                  <CardDescription>Distribution across mandirs, kshetras, mandals, and villages</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="font-medium mb-3">By Mandir</h3>
+                      <div className="space-y-2">
+                        {mandirs.map(mandir => {
+                          const count = filteredKaryakars.filter(k => k.mandir_id === mandir.id).length;
+                          return (
+                            <div key={mandir.id} className="flex items-center justify-between p-2 border rounded">
+                              <span>{mandir.name}</span>
+                              <Badge variant="outline">{count}</Badge>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h3 className="font-medium mb-3">By Kshetra</h3>
+                      <div className="space-y-2">
+                        {kshetras.map(kshetra => {
+                          const count = filteredKaryakars.filter(k => k.kshetra_id === kshetra.id).length;
+                          return (
+                            <div key={kshetra.id} className="flex items-center justify-between p-2 border rounded">
+                              <span>{kshetra.name}</span>
+                              <Badge variant="outline">{count}</Badge>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="font-medium mb-3">By Mandal</h3>
+                      <div className="space-y-2">
+                        {mandals.map(mandal => {
+                          const count = filteredKaryakars.filter(k => k.mandal_id === mandal.id).length;
+                          return (
+                            <div key={mandal.id} className="flex items-center justify-between p-2 border rounded">
+                              <span>{mandal.name}</span>
+                              <Badge variant="outline">{count}</Badge>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="font-medium mb-3">By Village</h3>
+                      <div className="space-y-2">
+                        {villages.map(village => {
+                          const count = filteredKaryakars.filter(k => k.village_id === village.id).length;
+                          return (
+                            <div key={village.id} className="flex items-center justify-between p-2 border rounded">
+                              <span>{village.name}</span>
+                              <Badge variant="outline">{count}</Badge>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
   );
 };
