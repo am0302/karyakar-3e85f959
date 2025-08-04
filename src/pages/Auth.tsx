@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { Mail, Lock, Chrome } from "lucide-react";
 
 const Auth = () => {
@@ -15,10 +16,54 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleSigninEnabled, setGoogleSigninEnabled] = useState(false);
+  const [settingsLoading, setSettingsLoading] = useState(true);
   const { toast } = useToast();
+
+  useEffect(() => {
+    fetchGoogleSigninSetting();
+  }, []);
+
+  const fetchGoogleSigninSetting = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'google_signin_enabled')
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+
+      if (data) {
+        setGoogleSigninEnabled(data.value === true);
+      } else {
+        // Default to true if setting doesn't exist
+        setGoogleSigninEnabled(true);
+      }
+    } catch (error: any) {
+      console.error('Error fetching Google signin setting:', error);
+      // Default to true on error
+      setGoogleSigninEnabled(true);
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
 
   if (user) {
     return <Navigate to="/dashboard" replace />;
+  }
+
+  if (settingsLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-amber-50">
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+          Loading...
+        </div>
+      </div>
+    );
   }
 
   const handleEmailSignIn = async () => {
@@ -73,26 +118,30 @@ const Auth = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Button
-            onClick={signInWithGoogle}
-            variant="outline"
-            className="w-full"
-            disabled={loading}
-          >
-            <Chrome className="w-4 h-4 mr-2" />
-            Continue with Google
-          </Button>
-          
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Or continue with
-              </span>
-            </div>
-          </div>
+          {googleSigninEnabled && (
+            <>
+              <Button
+                onClick={signInWithGoogle}
+                variant="outline"
+                className="w-full"
+                disabled={loading}
+              >
+                <Chrome className="w-4 h-4 mr-2" />
+                Continue with Google
+              </Button>
+              
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">
+                    Or continue with
+                  </span>
+                </div>
+              </div>
+            </>
+          )}
 
           <Tabs defaultValue="signin" className="w-full">
             <TabsList className="grid w-full grid-cols-2">

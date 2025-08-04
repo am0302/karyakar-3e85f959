@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          key: string
+          updated_at: string | null
+          value: Json
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          key: string
+          updated_at?: string | null
+          value: Json
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          key?: string
+          updated_at?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
       chat_participants: {
         Row: {
           id: string
@@ -557,6 +584,8 @@ export type Database = {
           mandal_id: string | null
           mandir_id: string | null
           mobile_number: string
+          password_reset_expires_at: string | null
+          password_reset_token: string | null
           profession_id: string | null
           profile_photo_url: string | null
           role: Database["public"]["Enums"]["user_role"]
@@ -578,6 +607,8 @@ export type Database = {
           mandal_id?: string | null
           mandir_id?: string | null
           mobile_number: string
+          password_reset_expires_at?: string | null
+          password_reset_token?: string | null
           profession_id?: string | null
           profile_photo_url?: string | null
           role?: Database["public"]["Enums"]["user_role"]
@@ -599,6 +630,8 @@ export type Database = {
           mandal_id?: string | null
           mandir_id?: string | null
           mobile_number?: string
+          password_reset_expires_at?: string | null
+          password_reset_token?: string | null
           profession_id?: string | null
           profile_photo_url?: string | null
           role?: Database["public"]["Enums"]["user_role"]

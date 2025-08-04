@@ -6,7 +6,9 @@ import { RoleHierarchyManager } from "@/components/RoleHierarchyManager";
 import { UserLocationAssignment } from "@/components/UserLocationAssignment";
 import { MasterDataDialog } from "@/components/MasterDataDialog";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { Shield, Network, MapPin, Users, Briefcase, Star, Search, Building, TreePine, Home, Globe } from "lucide-react";
+import UserManagement from "@/components/UserManagement";
+import AppSettings from "@/components/AppSettings";
+import { Shield, Network, MapPin, Users, Briefcase, Star, Search, Building, TreePine, Home, Settings } from "lucide-react";
 import { useState } from "react";
 
 const Admin = () => {
@@ -56,10 +58,16 @@ const Admin = () => {
       <span className="sm:hidden">Locations</span>
     </TabsTrigger>
 
-    <TabsTrigger value="roles" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+    <TabsTrigger value="users" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
       <Users className="h-3 w-3 sm:h-4 sm:w-4" />
-      <span className="hidden sm:inline">User Roles</span>
+      <span className="hidden sm:inline">User Management</span>
       <span className="sm:hidden">Users</span>
+    </TabsTrigger>
+
+    <TabsTrigger value="settings" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+      <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
+      <span className="hidden sm:inline">App Settings</span>
+      <span className="sm:hidden">Settings</span>
     </TabsTrigger>
 
     <TabsTrigger value="professions" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
@@ -105,49 +113,12 @@ const Admin = () => {
             <UserLocationAssignment />
           </TabsContent>
 
-          <TabsContent value="roles" className="space-y-6">
-            <div className="bg-white rounded-lg shadow">
-              <div className="p-4 sm:p-6 border-b">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-lg sm:text-xl font-semibold">User Roles Management</h2>
-                    <p className="text-gray-600 text-sm sm:text-base">Manage custom user roles and permissions</p>
-                  </div>
-                </div>
-              </div>
-              <div className="p-4 sm:p-6">
-                <MasterDataDialog
-                  title="User Role"
-                  table="custom_roles"
-                  fields={[
-                    { name: 'role_name', label: 'Role Name', type: 'text', required: true },
-                    { name: 'display_name', label: 'Display Name', type: 'text', required: true },
-                    { name: 'description', label: 'Description', type: 'textarea' },
-                    { name: 'level', label: 'Hierarchy Level', type: 'number', required: true },
-                    { 
-                      name: 'is_system_role', 
-                      label: 'Is System Role', 
-                      type: 'select', 
-                      options: [
-                        { value: 'true', label: 'Yes' },
-                        { value: 'false', label: 'No' }
-                      ]
-                    },
-                    { 
-                      name: 'is_active', 
-                      label: 'Status', 
-                      type: 'select', 
-                      options: [
-                        { value: 'true', label: 'Active' },
-                        { value: 'false', label: 'Inactive' }
-                      ]
-                    },
-                  ]}
-                  onSuccess={handleSuccess}
-                  autoLoad={true}
-                />
-              </div>
-            </div>
+          <TabsContent value="users" className="space-y-6">
+            <UserManagement />
+          </TabsContent>
+
+          <TabsContent value="settings" className="space-y-6">
+            <AppSettings />
           </TabsContent>
 
           <TabsContent value="professions" className="space-y-6">
