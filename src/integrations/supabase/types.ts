@@ -1151,6 +1151,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      test_role_exists: {
+        Args: { _role_name: string }
+        Returns: boolean
+      }
     }
     Enums: {
       task_priority: "low" | "medium" | "high" | "urgent"

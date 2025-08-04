@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -74,39 +75,18 @@ const RoleDebugger = () => {
 
   const testRoleAssignment = async (roleName: string) => {
     try {
-      // Test if the role exists in the enum by trying to query profiles with this specific role
-      // We'll query all profiles first and then filter, to avoid the enum type error
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, role')
-        .limit(1);
+      // Use the new test_role_exists function to check if the role exists in the enum
+      const { data: roleExists, error } = await supabase
+        .rpc('test_role_exists', { _role_name: roleName });
         
       if (error) {
-        // If there's a basic query error, log it but don't assume the role is invalid
-        console.log(`Role ${roleName} query failed (likely due to permissions):`, error.message);
-        return true; // Assume role exists if we can't query due to permissions
-      }
-      
-      // If the basic query works, try a more specific test
-      // Use a raw SQL approach to test the role enum
-      const { data: enumTest, error: enumError } = await supabase
-        .rpc('sql', { 
-          query: `SELECT '${roleName}'::user_role as test_role LIMIT 1` 
-        });
-        
-      if (enumError) {
-        // Check if it's specifically an enum error
-        if (enumError.message?.includes('invalid input value for enum user_role')) {
-          console.error(`Role ${roleName} is not in the user_role enum:`, enumError.message);
-          return false;
-        }
-        // Other errors might be permission-related but don't indicate the role doesn't exist
-        console.log(`Role ${roleName} test had an error but role likely exists:`, enumError.message);
+        console.error(`Error testing role ${roleName}:`, error.message);
+        // For errors, assume the role exists to avoid false negatives
         return true;
       }
       
-      console.log(`Role ${roleName} test passed - exists in user_role enum`);
-      return true;
+      console.log(`Role ${roleName} test result:`, roleExists ? 'exists in user_role enum' : 'NOT in user_role enum');
+      return roleExists || false;
     } catch (error) {
       console.error(`Role ${roleName} test error:`, error);
       // For any unexpected errors, we'll assume the role exists to avoid false negatives
