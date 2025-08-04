@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -388,6 +387,15 @@ export const PermissionsManager = () => {
     }
   };
 
+  // Filter permissions based on selected user/role
+  const filteredUserPermissions = selectedUser 
+    ? userPermissions.filter(permission => permission.user_id === selectedUser)
+    : userPermissions;
+
+  const filteredRolePermissions = selectedRole 
+    ? rolePermissions.filter(permission => permission.role === selectedRole)
+    : rolePermissions;
+
   if (loading || rolesLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -500,17 +508,26 @@ export const PermissionsManager = () => {
             {/* User Permissions List */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg lg:text-xl">Current User Permissions</CardTitle>
+                <CardTitle className="text-lg lg:text-xl">
+                  Current User Permissions
+                  {selectedUser && (
+                    <span className="text-sm font-normal text-gray-600 ml-2">
+                      - {profiles.find(p => p.id === selectedUser)?.full_name || 'Selected User'}
+                    </span>
+                  )}
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                {userPermissions.length === 0 ? (
+                {filteredUserPermissions.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p className="text-sm lg:text-base">No user-specific permissions configured</p>
+                    <p className="text-sm lg:text-base">
+                      {selectedUser ? 'No permissions configured for selected user' : 'No user-specific permissions configured'}
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {userPermissions.map((permission) => (
+                    {filteredUserPermissions.map((permission) => (
                       <div key={permission.id} className="border rounded-lg p-3 lg:p-4">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
                           <div>
@@ -616,17 +633,26 @@ export const PermissionsManager = () => {
             {/* Role Permissions List */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg lg:text-xl">Current Role Permissions</CardTitle>
+                <CardTitle className="text-lg lg:text-xl">
+                  Current Role Permissions
+                  {selectedRole && (
+                    <span className="text-sm font-normal text-gray-600 ml-2 capitalize">
+                      - {selectedRole.replace('_', ' ')}
+                    </span>
+                  )}
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                {rolePermissions.length === 0 ? (
+                {filteredRolePermissions.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p className="text-sm lg:text-base">No role-based permissions configured</p>
+                    <p className="text-sm lg:text-base">
+                      {selectedRole ? 'No permissions configured for selected role' : 'No role-based permissions configured'}
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {rolePermissions.map((permission) => (
+                    {filteredRolePermissions.map((permission) => (
                       <div key={permission.id} className="border rounded-lg p-3 lg:p-4">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
                           <div>
