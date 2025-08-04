@@ -1166,6 +1166,12 @@ export type Database = {
         | "admin"
         | "moderator"
         | "user"
+        | "nirikshak"
+        | "Bal_Sanyojak"
+        | "bal_sanyojak"
+        | "coordinator"
+        | "volunteer"
+        | "manager"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1306,6 +1312,12 @@ export const Constants = {
         "admin",
         "moderator",
         "user",
+        "nirikshak",
+        "Bal_Sanyojak",
+        "bal_sanyojak",
+        "coordinator",
+        "volunteer",
+        "manager",
       ],
     },
   },
