@@ -1176,6 +1176,8 @@ export type Database = {
         | "coordinator"
         | "volunteer"
         | "manager"
+        | "nirdeshak"
+        | "sah_nirikshak"
     }
     CompositeTypes: {
       [_ in never]: never
