@@ -1324,6 +1324,8 @@ export const Constants = {
         "coordinator",
         "volunteer",
         "manager",
+        "nirdeshak",
+        "sah_nirikshak",
       ],
     },
   },
