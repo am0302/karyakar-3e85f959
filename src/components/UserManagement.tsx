@@ -85,17 +85,56 @@ const UserManagement = () => {
     if (!selectedUser) return;
 
     try {
+      console.log('Attempting to update user with role:', editFormData.role);
+      
+      // First, verify that the role exists in the custom_roles table
+      const { data: roleCheck, error: roleError } = await supabase
+        .from('custom_roles')
+        .select('role_name')
+        .eq('role_name', editFormData.role)
+        .eq('is_active', true)
+        .single();
+
+      if (roleError || !roleCheck) {
+        console.error('Role validation error:', roleError);
+        toast({
+          title: 'Error',
+          description: `Role "${editFormData.role}" is not valid or inactive`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Attempt the update with better error handling
       const { error } = await supabase
         .from('profiles')
         .update({
           full_name: editFormData.full_name,
           email: editFormData.email,
           mobile_number: editFormData.mobile_number,
-          role: editFormData.role as any // Type assertion to handle the role enum
+          role: editFormData.role as any
         })
         .eq('id', selectedUser.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database update error:', error);
+        
+        // Check if it's a role enum error
+        if (error.message?.includes('invalid input value for enum user_role')) {
+          toast({
+            title: 'Role Error',
+            description: `The role "${editFormData.role}" is not supported in the database. Please contact an administrator to add this role.`,
+            variant: 'destructive',
+          });
+        } else {
+          toast({
+            title: 'Update Error',
+            description: `Failed to update user: ${error.message}`,
+            variant: 'destructive',
+          });
+        }
+        return;
+      }
 
       toast({
         title: 'Success',
@@ -108,7 +147,7 @@ const UserManagement = () => {
       console.error('Error updating user:', error);
       toast({
         title: 'Error',
-        description: 'Failed to update user',
+        description: `Failed to update user: ${error.message}`,
         variant: 'destructive',
       });
     }
@@ -302,7 +341,10 @@ const UserManagement = () => {
               </Label>
               <Select
                 value={editFormData.role}
-                onValueChange={(value) => setEditFormData({ ...editFormData, role: value })}
+                onValueChange={(value) => {
+                  console.log('Selected role:', value);
+                  setEditFormData({ ...editFormData, role: value });
+                }}
               >
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select a role" />

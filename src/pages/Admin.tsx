@@ -1,4 +1,3 @@
-
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { PermissionsManager } from "@/components/PermissionsManager";
@@ -8,7 +7,8 @@ import { MasterDataDialog } from "@/components/MasterDataDialog";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import UserManagement from "@/components/UserManagement";
 import AppSettings from "@/components/AppSettings";
-import { Shield, Network, MapPin, Users, Briefcase, Star, Search, Building, TreePine, Home, Settings } from "lucide-react";
+import RoleDebugger from "@/components/RoleDebugger";
+import { Shield, Network, MapPin, Users, Briefcase, Star, Search, Building, TreePine, Home, Settings, Bug } from "lucide-react";
 import { useState } from "react";
 
 const Admin = () => {
@@ -64,6 +64,12 @@ const Admin = () => {
       <span className="sm:hidden">Users</span>
     </TabsTrigger>
 
+    <TabsTrigger value="role-debug" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+      <Bug className="h-3 w-3 sm:h-4 sm:w-4" />
+      <span className="hidden sm:inline">Role Debug</span>
+      <span className="sm:hidden">Debug</span>
+    </TabsTrigger>
+
     <TabsTrigger value="settings" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
       <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
       <span className="hidden sm:inline">App Settings</span>
@@ -115,6 +121,10 @@ const Admin = () => {
 
           <TabsContent value="users" className="space-y-6">
             <UserManagement />
+          </TabsContent>
+
+          <TabsContent value="role-debug" className="space-y-6">
+            <RoleDebugger />
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-6">
