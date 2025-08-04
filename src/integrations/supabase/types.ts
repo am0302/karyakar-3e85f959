@@ -1176,7 +1176,7 @@ export type Database = {
         | "coordinator"
         | "volunteer"
         | "manager"
-        | "nirdeshak"
+        | "Nirdeshak"
         | "sah_nirikshak"
     }
     CompositeTypes: {
@@ -1324,7 +1324,7 @@ export const Constants = {
         "coordinator",
         "volunteer",
         "manager",
-        "nirdeshak",
+        "Nirdeshak",
         "sah_nirikshak",
       ],
     },
