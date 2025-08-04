@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 
 interface CustomRole {
   role_name: string;
@@ -12,14 +12,10 @@ interface CustomRole {
   is_active: boolean;
 }
 
-interface EnumValue {
-  enumlabel: string;
-}
-
 const RoleDebugger = () => {
   const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
-  const [enumValues, setEnumValues] = useState<EnumValue[]>([]);
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const { toast } = useToast();
 
   const fetchRoleData = async () => {
@@ -30,28 +26,11 @@ const RoleDebugger = () => {
       const { data: roles, error: rolesError } = await supabase
         .from('custom_roles')
         .select('role_name, display_name, is_active')
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .order('level', { nullsFirst: false });
 
       if (rolesError) throw rolesError;
       setCustomRoles(roles || []);
-
-      // Fetch enum values
-      const { data: enumData, error: enumError } = await supabase
-        .rpc('get_enum_values', { enum_name: 'user_role' });
-
-      if (enumError) {
-        console.error('Could not fetch enum values:', enumError);
-        // Fallback: try direct query
-        const { data: fallbackEnum } = await supabase
-          .from('information_schema.columns')
-          .select('*')
-          .eq('table_name', 'profiles')
-          .eq('column_name', 'role');
-        
-        console.log('Fallback enum query result:', fallbackEnum);
-      } else {
-        setEnumValues(enumData || []);
-      }
 
     } catch (error: any) {
       console.error('Error fetching role data:', error);
@@ -67,7 +46,10 @@ const RoleDebugger = () => {
 
   const syncRoles = async () => {
     try {
-      const { error } = await supabase.rpc('sync_user_role_enum');
+      setSyncing(true);
+      
+      // Call the existing sync function
+      const { error } = await supabase.rpc('sync_custom_roles_with_enum');
       
       if (error) throw error;
 
@@ -76,24 +58,72 @@ const RoleDebugger = () => {
         description: 'Roles synchronized successfully',
       });
 
-      fetchRoleData();
+      // Refresh the data
+      await fetchRoleData();
     } catch (error: any) {
       console.error('Error syncing roles:', error);
       toast({
         title: 'Error',
-        description: 'Failed to sync roles',
+        description: `Failed to sync roles: ${error.message}`,
         variant: 'destructive',
       });
+    } finally {
+      setSyncing(false);
     }
+  };
+
+  const testRoleAssignment = async (roleName: string) => {
+    try {
+      // Test if we can query profiles with this role
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, role')
+        .eq('role', roleName)
+        .limit(1);
+
+      if (error) {
+        console.error(`Role ${roleName} test failed:`, error);
+        return false;
+      }
+      
+      console.log(`Role ${roleName} test passed`);
+      return true;
+    } catch (error) {
+      console.error(`Role ${roleName} test error:`, error);
+      return false;
+    }
+  };
+
+  const testAllRoles = async () => {
+    setLoading(true);
+    const results = await Promise.all(
+      customRoles.map(async (role) => ({
+        role_name: role.role_name,
+        valid: await testRoleAssignment(role.role_name)
+      }))
+    );
+    
+    console.log('Role validation results:', results);
+    
+    const invalidRoles = results.filter(r => !r.valid);
+    if (invalidRoles.length > 0) {
+      toast({
+        title: 'Role Issues Found',
+        description: `Invalid roles: ${invalidRoles.map(r => r.role_name).join(', ')}`,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'All Roles Valid',
+        description: 'All custom roles are properly synchronized',
+      });
+    }
+    setLoading(false);
   };
 
   useEffect(() => {
     fetchRoleData();
   }, []);
-
-  const enumLabels = enumValues.map(e => e.enumlabel);
-  const missingInEnum = customRoles.filter(role => !enumLabels.includes(role.role_name));
-  const extraInEnum = enumLabels.filter(label => !customRoles.find(role => role.role_name === label));
 
   return (
     <div className="space-y-4">
@@ -101,66 +131,75 @@ const RoleDebugger = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5" />
-            Role Synchronization Status
+            Role Synchronization Debug Tool
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Button onClick={fetchRoleData} disabled={loading}>
+          <div className="flex gap-2 flex-wrap">
+            <Button 
+              onClick={fetchRoleData} 
+              disabled={loading}
+              variant="outline"
+              size="sm"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
               Refresh Data
             </Button>
-            <Button onClick={syncRoles} disabled={loading}>
-              Sync Roles
+            <Button 
+              onClick={syncRoles} 
+              disabled={syncing}
+              size="sm"
+            >
+              {syncing ? 'Syncing...' : 'Sync Roles'}
+            </Button>
+            <Button 
+              onClick={testAllRoles} 
+              disabled={loading}
+              variant="secondary"
+              size="sm"
+            >
+              Test All Roles
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-4">
             <div>
-              <h4 className="font-semibold text-sm mb-2">Custom Roles ({customRoles.length})</h4>
-              <div className="space-y-1">
+              <h4 className="font-semibold text-sm mb-3">
+                Active Custom Roles ({customRoles.length})
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                 {customRoles.map(role => (
-                  <div key={role.role_name} className="text-sm flex items-center gap-2">
-                    <CheckCircle className="h-3 w-3 text-green-500" />
-                    {role.role_name} ({role.display_name})
+                  <div 
+                    key={role.role_name} 
+                    className="text-sm flex items-center gap-2 p-2 bg-muted rounded-md"
+                  >
+                    <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{role.display_name}</div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {role.role_name}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
+              
+              {customRoles.length === 0 && (
+                <div className="text-sm text-muted-foreground flex items-center gap-2 p-4 border border-dashed rounded-md">
+                  <XCircle className="h-4 w-4 text-red-500" />
+                  No active custom roles found
+                </div>
+              )}
             </div>
 
-            <div>
-              <h4 className="font-semibold text-sm mb-2">Enum Values ({enumValues.length})</h4>
-              <div className="space-y-1">
-                {enumValues.map(enumVal => (
-                  <div key={enumVal.enumlabel} className="text-sm flex items-center gap-2">
-                    <CheckCircle className="h-3 w-3 text-blue-500" />
-                    {enumVal.enumlabel}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <h4 className="font-semibold text-sm mb-2">Issues</h4>
-              <div className="space-y-1">
-                {missingInEnum.map(role => (
-                  <div key={role.role_name} className="text-sm flex items-center gap-2">
-                    <XCircle className="h-3 w-3 text-red-500" />
-                    Missing in enum: {role.role_name}
-                  </div>
-                ))}
-                {extraInEnum.map(label => (
-                  <div key={label} className="text-sm flex items-center gap-2">
-                    <AlertTriangle className="h-3 w-3 text-yellow-500" />
-                    Extra in enum: {label}
-                  </div>
-                ))}
-                {missingInEnum.length === 0 && extraInEnum.length === 0 && (
-                  <div className="text-sm flex items-center gap-2">
-                    <CheckCircle className="h-3 w-3 text-green-500" />
-                    All roles synchronized
-                  </div>
-                )}
-              </div>
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p><strong>Debug Instructions:</strong></p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>Click "Refresh Data" to reload custom roles from database</li>
+                <li>Click "Sync Roles" to synchronize custom_roles with user_role enum</li>
+                <li>Click "Test All Roles" to validate if roles can be assigned to users</li>
+                <li>Check browser console for detailed error messages</li>
+              </ul>
             </div>
           </div>
         </CardContent>
