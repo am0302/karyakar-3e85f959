@@ -1,196 +1,103 @@
+
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/components/AuthProvider';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  Plus, 
-  MessageCircle, 
-  Users, 
-  Calendar, 
-  Edit, 
-  Trash2,
-  Send,
-  Paperclip,
-  Phone,
-  Video
-} from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { MessageCircle, Send, Users, Filter, Search } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/components/AuthProvider';
+import { useDynamicRoles } from '@/hooks/useDynamicRoles';
+import { RoleDisplay } from '@/components/RoleDisplay';
+import type { Database } from '@/integrations/supabase/types';
 
-type ChatRoom = {
-  id: string;
-  name: string;
-  is_group: boolean;
-  created_by: string;
-  created_at: string;
-  updated_at: string;
-  mandir_id?: string;
-  kshetra_id?: string;
-  village_id?: string;
-  mandal_id?: string;
-  creator_profile?: { full_name: string; role: string };
-  participants?: any[];
-};
-
-type Message = {
-  id: string;
-  content: string;
-  sender_id: string;
-  created_at: string;
-  message_type: string;
-  file_url?: string;
-  file_name?: string;
-  sender_profile?: { full_name: string };
-};
-
-type UserRole = 'user' | 'super_admin' | 'sant_nirdeshak' | 'sah_nirdeshak' | 'mandal_sanchalak' | 'sevak' | 'karyakar' | 'admin' | 'moderator';
-
-type Profile = {
-  id: string;
-  full_name: string;
-  role: UserRole;
-  profile_photo_url?: string;
+type Profile = Database['public']['Tables']['profiles']['Row'];
+type ChatRoom = Database['public']['Tables']['chat_rooms']['Row'];
+type Message = Database['public']['Tables']['messages']['Row'] & {
+  sender: Profile;
 };
 
 const Communication = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [rooms, setRooms] = useState<ChatRoom[]>([]);
-  const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const { getRoleOptions, loading: rolesLoading } = useDynamicRoles();
+  const [activeTab, setActiveTab] = useState('messages');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedRole, setSelectedRole] = useState('all');
   const [newMessage, setNewMessage] = useState('');
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [showEditDialog, setShowEditDialog] = useState(false);
-  const [editingRoom, setEditingRoom] = useState<ChatRoom | null>(null);
+  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
+  const [users, setUsers] = useState<Profile[]>([]);
+  const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Form state for creating/editing rooms
-  const [roomForm, setRoomForm] = useState({
-    name: '',
-    is_group: true,
-    selectedParticipants: [] as string[]
-  });
-
-  const isSuperAdmin = user?.role === 'super_admin';
-
-  // Role hierarchy levels for permission checking
-  const roleHierarchy: Record<string, number> = {
-    'super_admin': 0,
-    'sant_nirdeshak': 1,
-    'sah_nirdeshak': 2,
-    'mandal_sanchalak': 3,
-    'sevak': 4,
-    'karyakar': 5
-  };
 
   useEffect(() => {
     if (user) {
-      fetchRooms();
-      fetchProfiles();
+      fetchUsers();
+      fetchChatRooms();
+      fetchMessages();
     }
   }, [user]);
 
-  useEffect(() => {
-    if (selectedRoom) {
-      fetchMessages(selectedRoom.id);
-    }
-  }, [selectedRoom]);
-
-  const fetchProfiles = async () => {
+  const fetchUsers = async () => {
     try {
-      console.log('Fetching profiles for user:', user?.id);
-      
-      // Get all active profiles first
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, role, profile_photo_url')
-        .eq('is_active', true)
-        .order('full_name');
+        .select('*')
+        .neq('id', user?.id || '');
 
-      if (error) {
-        console.error('Error fetching profiles:', error);
-        throw error;
-      }
-
-      // Filter profiles based on role hierarchy
-      if (user?.role === 'super_admin') {
-        // Super admin can see all profiles
-        const validProfiles = (data || []).map(profile => ({
-          ...profile,
-          role: profile.role as UserRole
-        }));
-        setProfiles(validProfiles);
-      } else {
-        const currentUserRole = user?.role as UserRole || 'sevak';
-        const currentUserLevel = roleHierarchy[currentUserRole] || 999;
-        
-        // Filter to show users with same or lower hierarchy level (higher number)
-        const filteredProfiles = (data || []).filter(profile => {
-          const profileLevel = roleHierarchy[profile.role] || 999;
-          // Can see profiles at same level or lower (higher number), plus always include self
-          return profile.id === user?.id || profileLevel >= currentUserLevel;
-        }).map(profile => ({
-          ...profile,
-          role: profile.role as UserRole
-        }));
-        
-        // Always include current user if not in the list
-        const hasCurrentUser = filteredProfiles.some(p => p.id === user?.id);
-        if (!hasCurrentUser && user) {
-          filteredProfiles.unshift({
-            id: user.id,
-            full_name: user.full_name || 'You',
-            role: (user.role as UserRole) || 'sevak',
-            profile_photo_url: user.profile_photo_url
-          });
-        }
-        
-        setProfiles(filteredProfiles);
-      }
+      if (error) throw error;
+      setUsers(data || []);
     } catch (error: any) {
-      console.error('Error fetching profiles:', error);
-      // Fallback to at least show current user
-      if (user) {
-        setProfiles([{
-          id: user.id,
-          full_name: user.full_name || 'You',
-          role: (user.role as UserRole) || 'sevak',
-          profile_photo_url: user.profile_photo_url
-        }]);
-      }
+      console.error('Error fetching users:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch users',
+        variant: 'destructive',
+      });
     }
   };
 
-  const fetchRooms = async () => {
-    if (!user) return;
-
+  const fetchChatRooms = async () => {
     try {
-      setLoading(true);
       const { data, error } = await supabase
         .from('chat_rooms')
-        .select(`
-          *,
-          creator_profile:profiles!chat_rooms_created_by_fkey(full_name, role)
-        `)
+        .select('*')
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
-      setRooms(data || []);
+      setChatRooms(data || []);
     } catch (error: any) {
-      console.error('Error fetching rooms:', error);
+      console.error('Error fetching chat rooms:', error);
       toast({
         title: 'Error',
         description: 'Failed to fetch chat rooms',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const fetchMessages = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select(`
+          *,
+          sender:profiles!messages_sender_id_fkey(*)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+      setMessages(data || []);
+    } catch (error: any) {
+      console.error('Error fetching messages:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch messages',
         variant: 'destructive',
       });
     } finally {
@@ -198,189 +105,69 @@ const Communication = () => {
     }
   };
 
-  const fetchMessages = async (roomId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('messages')
-        .select(`
-          *,
-          sender_profile:profiles!messages_sender_id_fkey(full_name)
-        `)
-        .eq('room_id', roomId)
-        .eq('is_deleted', false)
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-      setMessages(data || []);
-    } catch (error: any) {
-      console.error('Error fetching messages:', error);
+  const sendMessage = async () => {
+    if (!newMessage.trim() || selectedRecipients.length === 0) {
+      toast({
+        title: 'Error',
+        description: 'Please enter a message and select recipients',
+        variant: 'destructive',
+      });
+      return;
     }
-  };
-
-  const createRoom = async () => {
-    if (!user || !roomForm.name.trim()) return;
 
     try {
+      // Create a new chat room if needed
       const { data: roomData, error: roomError } = await supabase
         .from('chat_rooms')
         .insert({
-          name: roomForm.name,
-          is_group: roomForm.is_group,
-          created_by: user.id
+          name: `Group Chat - ${new Date().toLocaleDateString()}`,
+          is_group: selectedRecipients.length > 1,
+          created_by: user?.id || ''
         })
         .select()
         .single();
 
       if (roomError) throw roomError;
 
-      // Add participants
-      const participantData = [
-        { room_id: roomData.id, user_id: user.id },
-        ...roomForm.selectedParticipants.map(participantId => ({
-          room_id: roomData.id,
-          user_id: participantId
-        }))
-      ];
+      // Add participants to the room
+      const participants = selectedRecipients.map(userId => ({
+        room_id: roomData.id,
+        user_id: userId
+      }));
 
-      const { error: participantError } = await supabase
-        .from('chat_participants')
-        .insert(participantData);
-
-      if (participantError) throw participantError;
-
-      toast({
-        title: 'Success',
-        description: 'Chat room created successfully',
+      // Add the current user as a participant
+      participants.push({
+        room_id: roomData.id,
+        user_id: user?.id || ''
       });
 
-      setShowCreateDialog(false);
-      setRoomForm({ name: '', is_group: true, selectedParticipants: [] });
-      fetchRooms();
-    } catch (error: any) {
-      console.error('Error creating room:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to create chat room',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const updateRoom = async () => {
-    if (!editingRoom || !roomForm.name.trim()) return;
-
-    try {
-      const { error } = await supabase
-        .from('chat_rooms')
-        .update({
-          name: roomForm.name,
-          is_group: roomForm.is_group
-        })
-        .eq('id', editingRoom.id);
-
-      if (error) throw error;
-
-      toast({
-        title: 'Success',
-        description: 'Chat room updated successfully',
-      });
-
-      setShowEditDialog(false);
-      setEditingRoom(null);
-      fetchRooms();
-    } catch (error: any) {
-      console.error('Error updating room:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update chat room',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const deleteRoom = async (roomId: string) => {
-    if (!confirm('Are you sure you want to delete this chat room? This action cannot be undone.')) return;
-
-    try {
-      console.log('Attempting to delete room:', roomId);
-
-      // Step 1: Delete messages first
-      console.log('Deleting messages for room:', roomId);
-      const { error: messagesError } = await supabase
-        .from('messages')
-        .delete()
-        .eq('room_id', roomId);
-
-      if (messagesError) {
-        console.error('Failed to delete messages:', messagesError);
-        throw new Error(`Failed to delete messages: ${messagesError.message}`);
-      }
-
-      // Step 2: Delete participants
-      console.log('Deleting participants for room:', roomId);
       const { error: participantsError } = await supabase
         .from('chat_participants')
-        .delete()
-        .eq('room_id', roomId);
+        .insert(participants);
 
-      if (participantsError) {
-        console.error('Failed to delete participants:', participantsError);
-        throw new Error(`Failed to delete participants: ${participantsError.message}`);
-      }
+      if (participantsError) throw participantsError;
 
-      // Step 3: Finally, delete the room
-      console.log('Deleting room:', roomId);
-      const { error: roomError } = await supabase
-        .from('chat_rooms')
-        .delete()
-        .eq('id', roomId);
-
-      if (roomError) {
-        console.error('Failed to delete room:', roomError);
-        throw new Error(`Failed to delete room: ${roomError.message}`);
-      }
-
-      // Update UI
-      toast({
-        title: 'Success',
-        description: 'Chat room deleted successfully',
-      });
-      setRooms((prev) => prev.filter((room) => room.id !== roomId));
-      if (selectedRoom?.id === roomId) {
-        setSelectedRoom(null);
-        setMessages([]);
-      }
-
-      // Refresh the rooms list
-      await fetchRooms();
-      
-    } catch (error: any) {
-      console.error('Error deleting room:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to delete chat room. Please try again.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const sendMessage = async () => {
-    if (!user || !selectedRoom || !newMessage.trim()) return;
-
-    try {
-      const { error } = await supabase
+      // Send the message
+      const { error: messageError } = await supabase
         .from('messages')
         .insert({
-          room_id: selectedRoom.id,
-          sender_id: user.id,
-          content: newMessage.trim(),
+          content: newMessage,
+          sender_id: user?.id || '',
+          room_id: roomData.id,
           message_type: 'text'
         });
 
-      if (error) throw error;
+      if (messageError) throw messageError;
+
+      toast({
+        title: 'Success',
+        description: 'Message sent successfully',
+      });
 
       setNewMessage('');
-      fetchMessages(selectedRoom.id);
+      setSelectedRecipients([]);
+      fetchMessages();
+      fetchChatRooms();
     } catch (error: any) {
       console.error('Error sending message:', error);
       toast({
@@ -391,334 +178,208 @@ const Communication = () => {
     }
   };
 
-  const canEditRoom = (room: ChatRoom) => {
-    if (isSuperAdmin) return true;
-    if (room.created_by === user?.id) return true;
-    
-    // Check if current user has higher hierarchy than room creator
-    const currentUserRole = user?.role || 'sevak';
-    const roomCreatorRole = room.creator_profile?.role || 'sevak';
-    
-    const currentUserLevel = roleHierarchy[currentUserRole] || 999;
-    const roomCreatorLevel = roleHierarchy[roomCreatorRole] || 999;
-    
-    return currentUserLevel < roomCreatorLevel;
-  };
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole = selectedRole === 'all' || user.role === selectedRole;
+    return matchesSearch && matchesRole;
+  });
 
-  const canDeleteRoom = (room: ChatRoom) => {
-    return canEditRoom(room); // Same logic for delete as edit
-  };
+  const roleOptions = getRoleOptions();
 
-  const openEditDialog = (room: ChatRoom) => {
-    setEditingRoom(room);
-    setRoomForm({
-      name: room.name || '',
-      is_group: room.is_group,
-      selectedParticipants: []
-    });
-    setShowEditDialog(true);
-  };
-
-  const handleParticipantToggle = (participantId: string) => {
-    setRoomForm(prev => ({
-      ...prev,
-      selectedParticipants: prev.selectedParticipants.includes(participantId)
-        ? prev.selectedParticipants.filter(id => id !== participantId)
-        : [...prev.selectedParticipants, participantId]
-    }));
-  };
-
-  if (loading) {
-    return <div className="flex items-center justify-center h-64">Loading communications...</div>;
+  if (loading || rolesLoading) {
+    return <div className="flex items-center justify-center h-64">Loading communication...</div>;
   }
 
   return (
-    <div className="flex h-[calc(100vh-12rem)] gap-4">
-      {/* Chat Rooms List */}
-      <div className="w-1/3 border-r">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-semibold">Chat Rooms</h2>
-          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Create
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Create Chat Room</DialogTitle>
-                <DialogDescription>
-                  Create a new chat room and add participants
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium">Room Name</label>
-                  <Input
-                    value={roomForm.name}
-                    onChange={(e) => setRoomForm({ ...roomForm, name: e.target.value })}
-                    placeholder="Enter room name"
-                  />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    checked={roomForm.is_group}
-                    onCheckedChange={(checked) => setRoomForm({ ...roomForm, is_group: !!checked })}
-                  />
-                  <label className="text-sm">Group Chat</label>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Participants ({profiles.length} available)</label>
-                  <ScrollArea className="h-32 border rounded-lg p-2">
-                    {profiles.length === 0 ? (
-                      <div className="text-sm text-gray-500 p-2">No participants available</div>
-                    ) : (
-                      profiles.map((profile) => (
-                        <div key={profile.id} className="flex items-center space-x-2 py-1">
-                          <Checkbox
-                            checked={roomForm.selectedParticipants.includes(profile.id)}
-                            onCheckedChange={() => handleParticipantToggle(profile.id)}
-                          />
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage src={profile.profile_photo_url || ''} />
-                            <AvatarFallback className="text-xs">
-                              {profile.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-sm">{profile.full_name}</span>
-                          <Badge variant="outline" className="text-xs">{profile.role}</Badge>
-                        </div>
-                      ))
-                    )}
-                  </ScrollArea>
-                </div>
-                <Button onClick={createRoom} className="w-full" disabled={!roomForm.name.trim()}>
-                  Create Room
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Communication</h2>
+          <p className="text-gray-600">Send messages and manage communications</p>
         </div>
-
-        <ScrollArea className="h-full">
-          {rooms.map((room) => (
-            <div
-              key={room.id}
-              className={`p-3 border-b cursor-pointer hover:bg-gray-50 ${
-                selectedRoom?.id === room.id ? 'bg-blue-50' : ''
-              }`}
-              onClick={() => setSelectedRoom(room)}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="flex-shrink-0">
-                    {room.is_group ? (
-                      <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <Users className="h-5 w-5 text-blue-600" />
-                      </div>
-                    ) : (
-                      <div className="h-10 w-10 bg-green-100 rounded-full flex items-center justify-center">
-                        <MessageCircle className="h-5 w-5 text-green-600" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {room.name}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      by {room.creator_profile?.full_name || 'Unknown'}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {format(new Date(room.updated_at), 'MMM dd, HH:mm')}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex space-x-1">
-                  {canEditRoom(room) && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openEditDialog(room);
-                      }}
-                      className="h-6 w-6 p-0"
-                    >
-                      <Edit className="h-3 w-3" />
-                    </Button>
-                  )}
-                  {canDeleteRoom(room) && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteRoom(room.id);
-                      }}
-                      className="h-6 w-6 p-0 text-red-600 hover:text-red-800"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-              <div className="mt-2">
-                <Badge variant="outline" className="text-xs">
-                  {room.is_group ? 'Group' : 'Direct'}
-                </Badge>
-              </div>
-            </div>
-          ))}
-        </ScrollArea>
       </div>
 
-      {/* Chat Area */}
-      <div className="flex-1 flex flex-col">
-        {selectedRoom ? (
-          <>
-            {/* Chat Header */}
-            <div className="p-4 border-b bg-white">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="flex-shrink-0">
-                    {selectedRoom.is_group ? (
-                      <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <Users className="h-6 w-6 text-blue-600" />
-                      </div>
-                    ) : (
-                      <div className="h-10 w-10 bg-green-100 rounded-full flex items-center justify-center">
-                        <MessageCircle className="h-6 w-6 text-green-600" />
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-medium">{selectedRoom.name}</h3>
-                    <p className="text-sm text-gray-500">
-                      {selectedRoom.is_group ? 'Group Chat' : 'Direct Message'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex space-x-2">
-                  <Button variant="outline" size="sm">
-                    <Phone className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Video className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
+      {/* Tabs */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setActiveTab('messages')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'messages'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <MessageCircle className="inline-block w-5 h-5 mr-2" />
+            Send Message
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'history'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <Users className="inline-block w-5 h-5 mr-2" />
+            Message History
+          </button>
+        </nav>
+      </div>
 
-            {/* Messages */}
-            <ScrollArea className="flex-1 p-4">
-              <div className="space-y-4">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex ${
-                      message.sender_id === user?.id ? 'justify-end' : 'justify-start'
-                    }`}
-                  >
+      {activeTab === 'messages' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Message Compose */}
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Compose Message</CardTitle>
+                <CardDescription>Send a message to selected users</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Message
+                  </label>
+                  <Textarea
+                    placeholder="Type your message here..."
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    rows={6}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Selected Recipients ({selectedRecipients.length})
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedRecipients.map(userId => {
+                      const user = users.find(u => u.id === userId);
+                      return user ? (
+                        <Badge key={userId} variant="secondary" className="cursor-pointer">
+                          {user.full_name}
+                          <button
+                            onClick={() => setSelectedRecipients(prev => prev.filter(id => id !== userId))}
+                            className="ml-2 text-red-500 hover:text-red-700"
+                          >
+                            ×
+                          </button>
+                        </Badge>
+                      ) : null;
+                    })}
+                  </div>
+                </div>
+                <Button onClick={sendMessage} disabled={!newMessage.trim() || selectedRecipients.length === 0}>
+                  <Send className="w-4 h-4 mr-2" />
+                  Send Message
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Users List */}
+          <div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Select Recipients</CardTitle>
+                <CardDescription>Choose users to send message to</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Search and Filter */}
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Input
+                      placeholder="Search users..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  <Select value={selectedRole} onValueChange={setSelectedRole}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Roles</SelectItem>
+                      {roleOptions.map((role) => (
+                        <SelectItem key={role.value} value={role.value}>
+                          {role.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Users List */}
+                <div className="max-h-96 overflow-y-auto space-y-2">
+                  {filteredUsers.map((user) => (
                     <div
-                      className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                        message.sender_id === user?.id
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-gray-100 text-gray-900'
+                      key={user.id}
+                      className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                        selectedRecipients.includes(user.id)
+                          ? 'bg-blue-50 border-blue-200'
+                          : 'hover:bg-gray-50'
                       }`}
+                      onClick={() => {
+                        setSelectedRecipients(prev =>
+                          prev.includes(user.id)
+                            ? prev.filter(id => id !== user.id)
+                            : [...prev, user.id]
+                        );
+                      }}
                     >
-                      {message.sender_id !== user?.id && (
-                        <p className="text-xs font-medium mb-1">
-                          {message.sender_profile?.full_name}
-                        </p>
-                      )}
-                      <p className="text-sm">{message.content}</p>
-                      <p
-                        className={`text-xs mt-1 ${
-                          message.sender_id === user?.id
-                            ? 'text-blue-100'
-                            : 'text-gray-500'
-                        }`}
-                      >
-                        {format(new Date(message.created_at), 'HH:mm')}
-                      </p>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-sm">{user.full_name}</p>
+                          <RoleDisplay role={user.role} className="text-xs" />
+                        </div>
+                        {selectedRecipients.includes(user.id) && (
+                          <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                            <span className="text-white text-xs">✓</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'history' && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Message History</CardTitle>
+            <CardDescription>Recent messages and conversations</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {messages.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">No messages yet</p>
+              ) : (
+                messages.map((message) => (
+                  <div key={message.id} className="border-l-4 border-blue-200 pl-4 py-2">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium text-sm">{message.sender?.full_name}</span>
+                        <RoleDisplay role={message.sender?.role || 'sevak'} className="text-xs" />
+                      </div>
+                      <span className="text-xs text-gray-500">
+                        {new Date(message.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-gray-700 text-sm">{message.content}</p>
                   </div>
-                ))}
-              </div>
-            </ScrollArea>
-
-            {/* Message Input */}
-            <div className="p-4 border-t bg-white">
-              <div className="flex space-x-2">
-                <Button variant="outline" size="sm">
-                  <Paperclip className="h-4 w-4" />
-                </Button>
-                <Input
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type a message..."
-                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                  className="flex-1"
-                />
-                <Button onClick={sendMessage} size="sm">
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
+                ))
+              )}
             </div>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <MessageCircle className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Select a chat room
-              </h3>
-              <p className="text-gray-500">
-                Choose a chat room from the list to start messaging
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Edit Room Dialog */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Chat Room</DialogTitle>
-            <DialogDescription>
-              Update chat room details
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">Room Name</label>
-              <Input
-                value={roomForm.name}
-                onChange={(e) => setRoomForm({ ...roomForm, name: e.target.value })}
-                placeholder="Enter room name"
-              />
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                checked={roomForm.is_group}
-                onCheckedChange={(checked) => setRoomForm({ ...roomForm, is_group: !!checked })}
-              />
-              <label className="text-sm">Group Chat</label>
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={updateRoom} className="flex-1">
-                Update Room
-              </Button>
-              <Button variant="outline" onClick={() => setShowEditDialog(false)} className="flex-1">
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
