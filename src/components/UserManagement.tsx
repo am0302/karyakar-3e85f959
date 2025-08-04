@@ -12,6 +12,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Users, Edit, Mail, Key, Search, UserCheck } from 'lucide-react';
+import { RoleDisplay } from '@/components/RoleDisplay';
+import { useDynamicRoles } from '@/hooks/useDynamicRoles';
 
 interface UserProfile {
   id: string;
@@ -26,6 +28,7 @@ interface UserProfile {
 const UserManagement = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { getRoleOptions } = useDynamicRoles();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -38,12 +41,10 @@ const UserManagement = () => {
     mobile_number: '',
     role: ''
   });
-  const [roles, setRoles] = useState<any[]>([]);
 
   useEffect(() => {
     if (user) {
       fetchUsers();
-      fetchRoles();
     }
   }, [user]);
 
@@ -66,21 +67,6 @@ const UserManagement = () => {
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchRoles = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('custom_roles')
-        .select('role_name, display_name')
-        .eq('is_active', true)
-        .order('level', { ascending: true });
-
-      if (error) throw error;
-      setRoles(data || []);
-    } catch (error: any) {
-      console.error('Error fetching roles:', error);
     }
   };
 
@@ -172,10 +158,7 @@ const UserManagement = () => {
     user.mobile_number?.includes(searchTerm)
   );
 
-  const getRoleDisplayName = (roleName: string) => {
-    const role = roles.find(r => r.role_name === roleName);
-    return role ? role.display_name : roleName;
-  };
+  const roleOptions = getRoleOptions();
 
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading users...</div>;
@@ -233,9 +216,7 @@ const UserManagement = () => {
                     <TableCell>{user.email || 'N/A'}</TableCell>
                     <TableCell>{user.mobile_number || 'N/A'}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">
-                        {getRoleDisplayName(user.role)}
-                      </Badge>
+                      <RoleDisplay role={user.role} />
                     </TableCell>
                     <TableCell>
                       <Badge variant={user.is_active ? "default" : "secondary"}>
@@ -327,9 +308,9 @@ const UserManagement = () => {
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
                 <SelectContent>
-                  {roles.map((role) => (
-                    <SelectItem key={role.role_name} value={role.role_name}>
-                      {role.display_name}
+                  {roleOptions.map((role) => (
+                    <SelectItem key={role.value} value={role.value}>
+                      {role.label}
                     </SelectItem>
                   ))}
                 </SelectContent>

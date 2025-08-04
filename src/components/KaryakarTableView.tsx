@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Edit, Trash2 } from 'lucide-react';
+import { RoleDisplay } from '@/components/RoleDisplay';
 import type { Database } from '@/integrations/supabase/types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'] & {
@@ -24,18 +25,6 @@ interface KaryakarTableViewProps {
 }
 
 export const KaryakarTableView = ({ karyakars, onEdit, onDelete }: KaryakarTableViewProps) => {
-  const getRoleColor = (role: UserRole) => {
-    switch (role) {
-      case 'super_admin': return 'bg-red-100 text-red-800';
-      case 'sant_nirdeshak': return 'bg-purple-100 text-purple-800';
-      case 'sah_nirdeshak': return 'bg-blue-100 text-blue-800';
-      case 'mandal_sanchalak': return 'bg-green-100 text-green-800';
-      case 'karyakar': return 'bg-yellow-100 text-yellow-800';
-      case 'sevak': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   return (
     <Table>
       <TableHeader>
@@ -73,9 +62,7 @@ export const KaryakarTableView = ({ karyakars, onEdit, onDelete }: KaryakarTable
             <TableCell className="font-medium">{karyakar.full_name}</TableCell>
             <TableCell>{karyakar.mobile_number}</TableCell>
             <TableCell>
-              <Badge className={getRoleColor(karyakar.role)}>
-                {karyakar.role.replace('_', ' ').toUpperCase()}
-              </Badge>
+              <RoleDisplay role={karyakar.role} />
             </TableCell>
             <TableCell>{karyakar.professions?.name || 'N/A'}</TableCell>
             <TableCell>{karyakar.mandirs?.name || 'N/A'}</TableCell>
@@ -109,4 +96,3 @@ export const KaryakarTableView = ({ karyakars, onEdit, onDelete }: KaryakarTable
       </TableBody>
     </Table>
   );
-};

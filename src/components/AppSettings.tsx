@@ -22,14 +22,17 @@ const AppSettings = () => {
         .from('app_settings')
         .select('key, value')
         .eq('key', 'google_signin_enabled')
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
-        throw error;
-      }
-
-      if (data) {
+      if (error) {
+        console.error('Error fetching settings:', error);
+        // Set default value if no setting exists
+        setGoogleSigninEnabled(true);
+      } else if (data) {
         setGoogleSigninEnabled(data.value === true);
+      } else {
+        // No setting found, use default
+        setGoogleSigninEnabled(true);
       }
     } catch (error: any) {
       console.error('Error fetching settings:', error);
@@ -51,9 +54,14 @@ const AppSettings = () => {
           key: 'google_signin_enabled',
           value: enabled,
           description: 'Enable/disable Google sign-in option'
+        }, {
+          onConflict: 'key'
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Upsert error:', error);
+        throw error;
+      }
 
       setGoogleSigninEnabled(enabled);
       toast({
@@ -64,7 +72,7 @@ const AppSettings = () => {
       console.error('Error updating setting:', error);
       toast({
         title: 'Error',
-        description: 'Failed to update setting',
+        description: `Failed to update setting: ${error.message}`,
         variant: 'destructive',
       });
     }

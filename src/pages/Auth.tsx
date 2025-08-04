@@ -30,22 +30,22 @@ const Auth = () => {
         .from('app_settings')
         .select('value')
         .eq('key', 'google_signin_enabled')
-        .single();
+        .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
-        throw error;
-      }
-
-      if (data) {
+        console.error('Error fetching Google signin setting:', error);
+        // Default to false on error to be safe
+        setGoogleSigninEnabled(false);
+      } else if (data) {
         setGoogleSigninEnabled(data.value === true);
       } else {
-        // Default to true if setting doesn't exist
-        setGoogleSigninEnabled(true);
+        // Default to false if setting doesn't exist
+        setGoogleSigninEnabled(false);
       }
     } catch (error: any) {
       console.error('Error fetching Google signin setting:', error);
-      // Default to true on error
-      setGoogleSigninEnabled(true);
+      // Default to false on error
+      setGoogleSigninEnabled(false);
     } finally {
       setSettingsLoading(false);
     }
