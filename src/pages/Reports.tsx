@@ -71,7 +71,8 @@ export default function Reports() {
         `);
 
       if (selectedRole !== 'all') {
-        query = query.eq('role', selectedRole);
+        // Cast selectedRole to the proper enum type
+        query = query.eq('role', selectedRole as Database['public']['Enums']['user_role']);
       }
 
       const { data, error } = await query;

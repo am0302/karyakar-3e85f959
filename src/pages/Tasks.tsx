@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Clock, User, CheckCircle, AlertCircle, Circle } from 'lucide-react';
-import { TaskCalendar } from '@/components/TaskCalendar';
+import TaskCalendar from '@/components/TaskCalendar';
 import { TaskStatusChart } from '@/components/TaskStatusChart';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
