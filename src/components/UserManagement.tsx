@@ -105,7 +105,7 @@ const UserManagement = () => {
           full_name: editFormData.full_name,
           email: editFormData.email,
           mobile_number: editFormData.mobile_number,
-          role: editFormData.role
+          role: editFormData.role as any // Type assertion to handle the role enum
         })
         .eq('id', selectedUser.id);
 
