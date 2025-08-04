@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Edit, Trash2 } from 'lucide-react';
-import { RoleDisplay } from '@/components/RoleDisplay';
+import { useDynamicRoles } from '@/hooks/useDynamicRoles';
 import type { Database } from '@/integrations/supabase/types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'] & {
@@ -25,6 +25,8 @@ interface KaryakarTableViewProps {
 }
 
 export const KaryakarTableView = ({ karyakars, onEdit, onDelete }: KaryakarTableViewProps) => {
+  const { getRoleDisplayName } = useDynamicRoles();
+
   return (
     <Table>
       <TableHeader>
@@ -62,7 +64,9 @@ export const KaryakarTableView = ({ karyakars, onEdit, onDelete }: KaryakarTable
             <TableCell className="font-medium">{karyakar.full_name}</TableCell>
             <TableCell>{karyakar.mobile_number}</TableCell>
             <TableCell>
-              <RoleDisplay role={karyakar.role} />
+              <Badge variant="outline">
+                {getRoleDisplayName(karyakar.role)}
+              </Badge>
             </TableCell>
             <TableCell>{karyakar.professions?.name || 'N/A'}</TableCell>
             <TableCell>{karyakar.mandirs?.name || 'N/A'}</TableCell>
@@ -96,3 +100,4 @@ export const KaryakarTableView = ({ karyakars, onEdit, onDelete }: KaryakarTable
       </TableBody>
     </Table>
   );
+};
