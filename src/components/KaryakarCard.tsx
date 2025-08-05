@@ -37,13 +37,14 @@ export const KaryakarCard = ({ karyakar, onEdit, onDelete }: KaryakarCardProps) 
     />
   ) : (
     <div className="flex items-center justify-center w-full h-full">
-      <span className="text-xl font-semibold text-gray-600">
+      {/*  <span className="text-xl font-semibold text-gray-600">
         {karyakar.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
-      </span>
-    </div>
+      </span> */}
       <p className="mt-2 text-center text-lg font-medium text-gray-800">
     {karyakar.full_name}
   </p>
+    </div>
+      
   )}
             
 </div>
