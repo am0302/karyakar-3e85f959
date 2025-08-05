@@ -42,7 +42,7 @@ export const KaryakarCard = ({ karyakar, onEdit, onDelete }: KaryakarCardProps) 
       </span>
     </div>
   )}
-              <p className="mt-2 text-center text-lg font-medium text-gray-800">
+            <p className="mt-2 text-center text-lg font-medium text-gray-800">
     {karyakar.full_name}
   </p>
 </div>
