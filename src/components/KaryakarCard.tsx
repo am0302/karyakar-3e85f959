@@ -27,24 +27,29 @@ export const KaryakarCard = ({ karyakar, onEdit, onDelete }: KaryakarCardProps) 
     <Card className="h-full">
       <CardContent className="p-6">
         <div className="flex items-center space-x-4 mb-4">
-         
-          <div className="w-full h-48 rounded-lg bg-gray-200 overflow-hidden">
-  {karyakar.profile_photo_url ? (
-    <img 
-      src={karyakar.profile_photo_url} 
-      alt={karyakar.full_name}
-      className="w-full h-full object-cover"
-    />
-  ) : (
-    <div className="flex items-center justify-center w-full h-full">
-      {/*  <span className="text-xl font-semibold text-gray-600">
+
+<div className="w-full max-w-xs">
+  {/* Big Rectangular Photo */}
+  <div className="w-full h-48 rounded-lg bg-gray-200 overflow-hidden">
+    {karyakar.profile_photo_url ? (
+      <img 
+        src={karyakar.profile_photo_url} 
+        alt={karyakar.full_name}
+        className="w-full h-full object-cover"
+      />
+    ) : (
+      <div className="w-full h-full flex items-center justify-center text-4xl font-semibold text-gray-600">
         {karyakar.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
-      </span> */}
-      <p className="mt-2 text-center text-lg font-medium text-gray-800">
+      </div>
+    )}
+  </div>
+
+  {/* Name Below */}
+  <p className="mt-2 text-center text-lg font-medium text-gray-800">
     {karyakar.full_name}
   </p>
-    </div>
-      
+</div>
+            
   )}
             
 </div>
