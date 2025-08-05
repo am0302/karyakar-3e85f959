@@ -43,8 +43,8 @@ export const KaryakarCard = ({ karyakar, onEdit, onDelete }: KaryakarCardProps) 
   {/* Name Below */}
   <p className="mt-2 text-center text-lg font-medium text-gray-800">
     {karyakar.full_name}
-     <RoleDisplay role={karyakar.role} className="mt-1" />
   </p>
+  <RoleDisplay role={karyakar.role} className="mt-1" />
 </div>
             
   )}
