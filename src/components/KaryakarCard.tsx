@@ -32,7 +32,7 @@ export const KaryakarCard = ({ karyakar, onEdit, onDelete }: KaryakarCardProps) 
   {karyakar.profile_photo_url ? (
     <img 
       src={karyakar.profile_photo_url} 
-      alt={karyakar.full_name}
+  //    alt={karyakar.full_name}
       className="w-full h-full object-cover"
     />
   ) : (
