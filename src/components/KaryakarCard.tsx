@@ -38,9 +38,7 @@ export const KaryakarCard = ({ karyakar, onEdit, onDelete }: KaryakarCardProps) 
         className="w-full h-full object-cover"
       />
     ) : (
-      <div className="w-full h-full flex items-center justify-center text-4xl font-semibold text-gray-600">
-        {karyakar.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
-      </div>
+     
     )}
   </div>
 
