@@ -37,8 +37,6 @@ export const KaryakarCard = ({ karyakar, onEdit, onDelete }: KaryakarCardProps) 
         alt={karyakar.full_name}
         className="w-full h-full object-cover"
       />
-    ) : (
-     
     )}
   </div>
 
