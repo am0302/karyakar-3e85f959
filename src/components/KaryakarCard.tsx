@@ -32,7 +32,7 @@ export const KaryakarCard = ({ karyakar, onEdit, onDelete }: KaryakarCardProps) 
   {karyakar.profile_photo_url ? (
     <img 
       src={karyakar.profile_photo_url} 
-  //    alt={karyakar.full_name}
+      alt={karyakar.full_name}
       className="w-full h-full object-cover"
     />
   ) : (
@@ -41,10 +41,11 @@ export const KaryakarCard = ({ karyakar, onEdit, onDelete }: KaryakarCardProps) 
         {karyakar.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
       </span>
     </div>
-  )}
-            <p className="mt-2 text-center text-lg font-medium text-gray-800">
+      <p className="mt-2 text-center text-lg font-medium text-gray-800">
     {karyakar.full_name}
   </p>
+  )}
+            
 </div>
  
           
