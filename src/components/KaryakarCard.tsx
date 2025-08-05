@@ -52,7 +52,7 @@ export const KaryakarCard = ({ karyakar, onEdit, onDelete }: KaryakarCardProps) 
             
   )}
             
-</div>
+
  
           
           {/*        <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
