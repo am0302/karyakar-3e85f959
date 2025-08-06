@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2, Mail, Phone } from 'lucide-react';
+import { Edit, Trash2, Mail, Phone, FileText, Plus } from 'lucide-react';
 import { RoleDisplay } from '@/components/RoleDisplay';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -20,36 +20,36 @@ interface KaryakarCardProps {
   karyakar: Profile;
   onEdit: (karyakar: Profile) => void;
   onDelete: (id: string) => void;
+  onViewAdditionalDetails?: (karyakar: Profile) => void;
 }
 
-export const KaryakarCard = ({ karyakar, onEdit, onDelete }: KaryakarCardProps) => {
+export const KaryakarCard = ({ karyakar, onEdit, onDelete, onViewAdditionalDetails }: KaryakarCardProps) => {
   return (
     <Card className="h-full">
       <CardContent className="p-6">
         <div className="flex flex-col items-center space-y-4 mb-4">
           {/* Big Rectangular Photo */}
-       <div className="w-full max-w-xs">
-  {/* Aspect ratio container */}
-  <div className="relative w-full aspect-[3/4] rounded-lg bg-gray-200 overflow-hidden">
-    {karyakar.profile_photo_url ? (
-      <img
-        src={karyakar.profile_photo_url}
-        alt={karyakar.full_name}
-        className="absolute inset-0 w-full h-full object-cover"
-      />
-    ) : (
-      <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-        <span className="text-4xl font-medium">
-          {karyakar.full_name
-            .split(" ")
-            .map((n) => n[0])
-            .join("")
-            .toUpperCase()}
-        </span>
-      </div>
-    )}
-  </div>
-
+          <div className="w-full max-w-xs">
+            {/* Aspect ratio container */}
+            <div className="relative w-full aspect-[3/4] rounded-lg bg-gray-200 overflow-hidden">
+              {karyakar.profile_photo_url ? (
+                <img
+                  src={karyakar.profile_photo_url}
+                  alt={karyakar.full_name}
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+                  <span className="text-4xl font-medium">
+                    {karyakar.full_name
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase()}
+                  </span>
+                </div>
+              )}
+            </div>
 
             {/* Name Below */}
             <div className="mt-2 text-center">
@@ -68,6 +68,12 @@ export const KaryakarCard = ({ karyakar, onEdit, onDelete }: KaryakarCardProps) 
             <div className="flex items-center text-sm text-gray-600">
               <Mail className="w-4 h-4 mr-2" />
               {karyakar.email}
+            </div>
+          )}
+          {karyakar.notes && (
+            <div className="flex items-start text-sm text-gray-600">
+              <FileText className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
+              <p className="line-clamp-2">{karyakar.notes}</p>
             </div>
           )}
         </div>
@@ -99,26 +105,44 @@ export const KaryakarCard = ({ karyakar, onEdit, onDelete }: KaryakarCardProps) 
           </div>
         </div>
 
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-4">
           <Badge variant={karyakar.is_active ? "default" : "secondary"}>
             {karyakar.is_active ? "Active" : "Inactive"}
           </Badge>
-          <div className="flex space-x-2">
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onEdit(karyakar)}
+            className="flex-1"
+          >
+            <Edit className="h-4 w-4 mr-1" />
+            Edit
+          </Button>
+          
+          {onViewAdditionalDetails && (
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => onEdit(karyakar)}
+              onClick={() => onViewAdditionalDetails(karyakar)}
+              className="flex-1"
             >
-              <Edit className="h-4 w-4" />
+              <Plus className="h-4 w-4 mr-1" />
+              Details
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onDelete(karyakar.id)}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
+          )}
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onDelete(karyakar.id)}
+            className="text-red-600 hover:text-red-700"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
         </div>
       </CardContent>
     </Card>

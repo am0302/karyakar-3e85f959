@@ -16,9 +16,10 @@ interface KaryakarGridViewProps {
   karyakars: Profile[];
   onEdit: (karyakar: Profile) => void;
   onDelete: (id: string) => void;
+  onViewAdditionalDetails?: (karyakar: Profile) => void;
 }
 
-export const KaryakarGridView = ({ karyakars, onEdit, onDelete }: KaryakarGridViewProps) => {
+export const KaryakarGridView = ({ karyakars, onEdit, onDelete, onViewAdditionalDetails }: KaryakarGridViewProps) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {karyakars.map((karyakar) => (
@@ -27,6 +28,7 @@ export const KaryakarGridView = ({ karyakars, onEdit, onDelete }: KaryakarGridVi
           karyakar={karyakar}
           onEdit={onEdit}
           onDelete={onDelete}
+          onViewAdditionalDetails={onViewAdditionalDetails}
         />
       ))}
     </div>

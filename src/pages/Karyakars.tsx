@@ -19,6 +19,7 @@ import { KaryakarFilters } from '@/components/KaryakarFilters';
 import { KaryakarStats } from '@/components/KaryakarStats';
 import { KaryakarTableView } from '@/components/KaryakarTableView';
 import { KaryakarGridView } from '@/components/KaryakarGridView';
+import { KaryakarAdditionalDetails } from '@/components/KaryakarAdditionalDetails';
 import { useAuth } from '@/components/AuthProvider';
 import { usePermissions } from '@/hooks/usePermissions';
 import type { Database } from '@/integrations/supabase/types';
@@ -45,6 +46,8 @@ const Karyakars = () => {
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
+  const [showAdditionalDetails, setShowAdditionalDetails] = useState(false);
+  const [selectedKaryakar, setSelectedKaryakar] = useState<Profile | null>(null);
   const [editingKaryakar, setEditingKaryakar] = useState<Profile | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<UserRole | null>(null);
   
@@ -71,7 +74,8 @@ const Karyakars = () => {
     mandal_id: '',
     seva_type_id: '',
     role: 'sevak' as UserRole,
-    profile_photo_url: ''
+    profile_photo_url: '',
+    notes: ''
   });
 
   const canAdd = hasPermission('karyakars', 'add');
@@ -200,6 +204,7 @@ const Karyakars = () => {
         village_id: formData.village_id || null,
         mandal_id: formData.mandal_id || null,
         profile_photo_url: formData.profile_photo_url || null,
+        notes: formData.notes || null,
         is_active: true,
         updated_at: new Date().toISOString(),
       };
@@ -270,7 +275,8 @@ const Karyakars = () => {
       mandal_id: '',
       seva_type_id: '',
       role: 'sevak',
-      profile_photo_url: ''
+      profile_photo_url: '',
+      notes: ''
     });
   };
 
@@ -287,6 +293,11 @@ const Karyakars = () => {
     console.log('Editing karyakar:', karyakar);
     setEditingKaryakar(karyakar);
     setShowRegistrationForm(true);
+  };
+
+  const handleViewAdditionalDetails = (karyakar: Profile) => {
+    setSelectedKaryakar(karyakar);
+    setShowAdditionalDetails(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -328,7 +339,7 @@ const Karyakars = () => {
   const exportData = async () => {
     try {
       const csvContent = [
-        ['Name', 'Mobile', 'Email', 'Role', 'Profession', 'Mandir', 'Status'].join(','),
+        ['Name', 'Mobile', 'Email', 'Role', 'Profession', 'Mandir', 'Notes', 'Status'].join(','),
         ...filteredKaryakars.map(k => [
           k.full_name,
           k.mobile_number,
@@ -336,6 +347,7 @@ const Karyakars = () => {
           k.role,
           k.professions?.name || '',
           k.mandirs?.name || '',
+          k.notes || '',
           k.is_active ? 'Active' : 'Inactive'
         ].join(','))
       ].join('\n');
@@ -363,7 +375,8 @@ const Karyakars = () => {
 
   const filteredKaryakars = karyakars.filter(karyakar => {
     const matchesSearch = karyakar.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         karyakar.mobile_number.includes(searchTerm);
+                         karyakar.mobile_number.includes(searchTerm) ||
+                         (karyakar.notes && karyakar.notes.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesRole = !selectedRole || karyakar.role === selectedRole;
     const matchesStatus = !selectedStatus || 
                          (selectedStatus === 'active' && karyakar.is_active) ||
@@ -439,6 +452,27 @@ const Karyakars = () => {
           )}
         </div>
       </div>
+
+      {/* Additional Details Dialog */}
+      <Dialog open={showAdditionalDetails} onOpenChange={setShowAdditionalDetails}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Additional Details - {selectedKaryakar?.full_name}
+            </DialogTitle>
+            <DialogDescription>
+              View and manage additional information for this karyakar
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedKaryakar && (
+            <KaryakarAdditionalDetails
+              karyakarId={selectedKaryakar.id}
+              karyakarName={selectedKaryakar.full_name}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <KaryakarStats totalCount={filteredKaryakars.length} />

@@ -1,11 +1,13 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Upload, Link, User } from 'lucide-react';
+import { Upload, Link } from 'lucide-react';
 import { useDynamicRoles } from '@/hooks/useDynamicRoles';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,6 +33,7 @@ interface KaryakarFormProps {
     seva_type_id: string;
     role: UserRole;
     profile_photo_url: string;
+    notes: string;
   };
   setFormData: (data: any) => void;
   onSubmit: (e: React.FormEvent) => void;
@@ -103,7 +106,8 @@ export const KaryakarForm = ({
         mandal_id: editingKaryakar.mandal_id || '',
         seva_type_id: editingKaryakar.seva_type_id || '',
         role: editingKaryakar.role,
-        profile_photo_url: editingKaryakar.profile_photo_url || ''
+        profile_photo_url: editingKaryakar.profile_photo_url || '',
+        notes: editingKaryakar.notes || ''
       });
     }
   }, [editingKaryakar, setFormData]);
@@ -273,6 +277,26 @@ export const KaryakarForm = ({
               </div>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Notes Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Notes</CardTitle>
+          <CardDescription>Additional notes or comments about the karyakar</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div>
+            <Label htmlFor="notes">Notes</Label>
+            <Textarea
+              id="notes"
+              value={formData.notes || ''}
+              onChange={(e) => handleInputChange('notes', e.target.value)}
+              placeholder="Add any additional notes or comments..."
+              rows={4}
+            />
+          </div>
         </CardContent>
       </Card>
 

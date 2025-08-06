@@ -233,6 +233,62 @@ export type Database = {
         }
         Relationships: []
       }
+      karyakar_additional_details: {
+        Row: {
+          additional_info: Json | null
+          blood_group: string | null
+          created_at: string
+          education_field: string | null
+          education_institution: string | null
+          education_level: string | null
+          id: string
+          karyakar_id: string
+          marital_status: string | null
+          satsangi_category: string | null
+          skills: string[] | null
+          updated_at: string
+          vehicle_types: string[] | null
+        }
+        Insert: {
+          additional_info?: Json | null
+          blood_group?: string | null
+          created_at?: string
+          education_field?: string | null
+          education_institution?: string | null
+          education_level?: string | null
+          id?: string
+          karyakar_id: string
+          marital_status?: string | null
+          satsangi_category?: string | null
+          skills?: string[] | null
+          updated_at?: string
+          vehicle_types?: string[] | null
+        }
+        Update: {
+          additional_info?: Json | null
+          blood_group?: string | null
+          created_at?: string
+          education_field?: string | null
+          education_institution?: string | null
+          education_level?: string | null
+          id?: string
+          karyakar_id?: string
+          marital_status?: string | null
+          satsangi_category?: string | null
+          skills?: string[] | null
+          updated_at?: string
+          vehicle_types?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "karyakar_additional_details_karyakar_id_fkey"
+            columns: ["karyakar_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kshetras: {
         Row: {
           contact_number: string | null
@@ -584,6 +640,7 @@ export type Database = {
           mandal_id: string | null
           mandir_id: string | null
           mobile_number: string
+          notes: string | null
           password_reset_expires_at: string | null
           password_reset_token: string | null
           profession_id: string | null
@@ -607,6 +664,7 @@ export type Database = {
           mandal_id?: string | null
           mandir_id?: string | null
           mobile_number: string
+          notes?: string | null
           password_reset_expires_at?: string | null
           password_reset_token?: string | null
           profession_id?: string | null
@@ -630,6 +688,7 @@ export type Database = {
           mandal_id?: string | null
           mandir_id?: string | null
           mobile_number?: string
+          notes?: string | null
           password_reset_expires_at?: string | null
           password_reset_token?: string | null
           profession_id?: string | null
