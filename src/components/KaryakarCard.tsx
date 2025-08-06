@@ -31,11 +31,13 @@ export const KaryakarCard = ({ karyakar, onEdit, onDelete }: KaryakarCardProps) 
           <div className="w-full max-w-xs">
             <div className="w-full h-48 rounded-lg bg-gray-200 overflow-hidden">
               {karyakar.profile_photo_url ? (
-                <img 
-                  src={karyakar.profile_photo_url} 
-                  alt={karyakar.full_name}
-                  className="w-full h-full object-cover"
-                />
+                <div className="w-[200px] h-[150px] overflow-hidden rounded-lg bg-gray-200">
+                  <img 
+                    src={karyakar.profile_photo_url} 
+                    alt={karyakar.full_name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-gray-400">
                   <span className="text-4xl font-medium">
