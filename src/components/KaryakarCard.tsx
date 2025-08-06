@@ -44,7 +44,8 @@ export const KaryakarCard = ({ karyakar, onEdit, onDelete }: KaryakarCardProps) 
       </div>
     )}
   </div>
-</div>
+
+
             {/* Name Below */}
             <div className="mt-2 text-center">
               <h3 className="text-lg font-semibold text-gray-900">{karyakar.full_name}</h3>
