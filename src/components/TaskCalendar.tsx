@@ -170,7 +170,7 @@ const TaskCalendar = () => {
       Day
     </Button>
   </div>
-
+      </div>
       <Card>
         <CardContent className="p-4">
           <div style={{ height: '600px' }}>
