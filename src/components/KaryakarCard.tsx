@@ -28,9 +28,9 @@ export const KaryakarCard = ({ karyakar, onEdit, onDelete }: KaryakarCardProps) 
       <CardContent className="p-6">
         <div className="flex flex-col items-center space-y-4 mb-4">
           {/* Big Rectangular Photo */}
-        <div className="w-full max-w-xs">
+       <div className="w-full max-w-xs">
   {/* Aspect ratio container */}
-  <div className="relative w-full aspect-[4/3] rounded-lg bg-gray-200 overflow-hidden">
+  <div className="relative w-full aspect-[3/4] rounded-lg bg-gray-200 overflow-hidden">
     {karyakar.profile_photo_url ? (
       <img
         src={karyakar.profile_photo_url}
