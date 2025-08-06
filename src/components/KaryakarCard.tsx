@@ -28,23 +28,23 @@ export const KaryakarCard = ({ karyakar, onEdit, onDelete }: KaryakarCardProps) 
       <CardContent className="p-6">
         <div className="flex flex-col items-center space-y-4 mb-4">
           {/* Big Rectangular Photo */}
-          <div className="w-full max-w-xs">
-            <div className="w-full aspect-[4/3] rounded-lg bg-gray-200 overflow-hidden">
-              {karyakar.profile_photo_url ? (
-                <img 
-                  src={karyakar.profile_photo_url} 
-                  alt={karyakar.full_name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-gray-400">
-                  <span className="text-4xl font-medium">
-                    {karyakar.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                  </span>
-                </div>
-              )}
-            </div>
-
+         <div className="w-full max-w-xs">
+  <div className="w-full aspect-[4/3] rounded-lg bg-gray-200 overflow-hidden relative">
+    {karyakar.profile_photo_url ? (
+      <img 
+        src={karyakar.profile_photo_url} 
+        alt={karyakar.full_name}
+        className="absolute inset-0 w-full h-full object-cover"
+      />
+    ) : (
+      <div className="w-full h-full flex items-center justify-center text-gray-400">
+        <span className="text-4xl font-medium">
+          {karyakar.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
+        </span>
+      </div>
+    )}
+  </div>
+</div>
             {/* Name Below */}
             <div className="mt-2 text-center">
               <h3 className="text-lg font-semibold text-gray-900">{karyakar.full_name}</h3>
