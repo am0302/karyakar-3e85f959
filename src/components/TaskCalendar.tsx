@@ -139,35 +139,37 @@ const TaskCalendar = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <CalendarIcon className="h-5 w-5" />
-          <h2 className="text-2xl font-bold">Task Calendar</h2>
-        </div>
-        <div className="flex gap-2">
-          <Button 
-            variant={currentView === Views.MONTH ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setCurrentView(Views.MONTH)}
-          >
-            Month
-          </Button>
-          <Button 
-            variant={currentView === Views.WEEK ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setCurrentView(Views.WEEK)}
-          >
-            Week
-          </Button>
-          <Button 
-            variant={currentView === Views.DAY ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setCurrentView(Views.DAY)}
-          >
-            Day
-          </Button>
-        </div>
-      </div>
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+  {/* Title Section */}
+  <div className="flex items-center gap-2">
+    <CalendarIcon className="h-5 w-5" />
+    <h2 className="text-2xl font-bold">Task Calendar</h2>
+  </div>
+
+  {/* Buttons Section */}
+  <div className="flex gap-2">
+    <Button 
+      variant={currentView === Views.MONTH ? 'default' : 'outline'}
+      size="sm"
+      onClick={() => setCurrentView(Views.MONTH)}
+    >
+      Month
+    </Button>
+    <Button 
+      variant={currentView === Views.WEEK ? 'default' : 'outline'}
+      size="sm"
+      onClick={() => setCurrentView(Views.WEEK)}
+    >
+      Week
+    </Button>
+    <Button 
+      variant={currentView === Views.DAY ? 'default' : 'outline'}
+      size="sm"
+      onClick={() => setCurrentView(Views.DAY)}
+    >
+      Day
+    </Button>
+  </div>
 
       <Card>
         <CardContent className="p-4">
