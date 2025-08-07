@@ -40,6 +40,15 @@ const KaryakarAdditionalDetailsManagement = lazy(() => import("./components/Kary
         <p className="text-sm text-gray-500">
           Navigate to the Karyakars section and click "Details" on any karyakar card to manage their additional information.
         </p>
+        <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleViewAdditionalDetails}
+              className="flex-1"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Details
+            </Button>
       </div>
     </div>
   )
