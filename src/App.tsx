@@ -17,6 +17,7 @@ const queryClient = new QueryClient();
 const Auth = lazy(() => import("./pages/Auth"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Karyakars = lazy(() => import("./pages/Karyakars"));
+const KaryakarAdditionalDetailsPage = lazy(() => import("./pages/KaryakarAdditionalDetailsPage").then(module => ({ default: module.KaryakarAdditionalDetailsPage })));
 const Tasks = lazy(() => import("./pages/Tasks"));
 const Communication = lazy(() => import("./pages/Communication"));
 const Reports = lazy(() => import("./pages/Reports"));
@@ -44,6 +45,11 @@ function App() {
                   <Route path="karyakars" element={
                     <ProtectedRoute module="karyakars">
                       <Karyakars />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="karyakars/:id/additional-details" element={
+                    <ProtectedRoute module="karyakars" action="view">
+                      <KaryakarAdditionalDetailsPage />
                     </ProtectedRoute>
                   } />
                   <Route path="tasks" element={

@@ -5,6 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Edit, Trash2, Mail, Phone, FileText, Plus } from 'lucide-react';
 import { RoleDisplay } from '@/components/RoleDisplay';
+import { useNavigate } from 'react-router-dom';
+import { usePermissions } from '@/hooks/usePermissions';
 import type { Database } from '@/integrations/supabase/types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'] & {
@@ -24,6 +26,14 @@ interface KaryakarCardProps {
 }
 
 export const KaryakarCard = ({ karyakar, onEdit, onDelete, onViewAdditionalDetails }: KaryakarCardProps) => {
+  const navigate = useNavigate();
+  const { hasPermission } = usePermissions();
+  const canView = hasPermission('karyakars', 'view');
+  
+  const handleViewAdditionalDetails = () => {
+    navigate(`/karyakars/${karyakar.id}/additional-details`);
+  };
+
   return (
     <Card className="h-full">
       <CardContent className="p-6">
@@ -123,11 +133,11 @@ export const KaryakarCard = ({ karyakar, onEdit, onDelete, onViewAdditionalDetai
             Edit
           </Button>
           
-          {onViewAdditionalDetails && (
+          {canView && (
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => onViewAdditionalDetails(karyakar)}
+              onClick={handleViewAdditionalDetails}
               className="flex-1"
             >
               <Plus className="h-4 w-4 mr-1" />
