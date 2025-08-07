@@ -10,7 +10,7 @@ interface ProtectedRouteProps {
   action?: string;
 }
 
-const ProtectedRoute = ({ children, module, action = 'view' }: ProtectedRouteProps) => {
+export const ProtectedRoute = ({ children, module, action = 'view' }: ProtectedRouteProps) => {
   const { user } = useAuth();
   const { hasPermission, loading } = usePermissions();
 
@@ -56,5 +56,3 @@ const ProtectedRoute = ({ children, module, action = 'view' }: ProtectedRoutePro
 
   return <>{children}</>;
 };
-
-export default ProtectedRoute;

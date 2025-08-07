@@ -188,7 +188,6 @@ export const PermissionsManager = () => {
         ...userPermissionSet 
       });
       
-      // Check if permission already exists
       const { data: existing, error: checkError } = await supabase
         .from('user_permissions')
         .select('id')
@@ -197,12 +196,10 @@ export const PermissionsManager = () => {
         .maybeSingle();
 
       if (checkError && checkError.code !== 'PGRST116') {
-        console.error('Error checking existing permission:', checkError);
         throw checkError;
       }
 
       if (existing) {
-        // Update existing permission
         const { error } = await supabase
           .from('user_permissions')
           .update({
@@ -211,13 +208,9 @@ export const PermissionsManager = () => {
           })
           .eq('id', existing.id);
 
-        if (error) {
-          console.error('Error updating user permission:', error);
-          throw error;
-        }
+        if (error) throw error;
         console.log('User permission updated successfully');
       } else {
-        // Insert new permission
         const { error } = await supabase
           .from('user_permissions')
           .insert({
@@ -226,10 +219,7 @@ export const PermissionsManager = () => {
             ...userPermissionSet
           });
 
-        if (error) {
-          console.error('Error inserting user permission:', error);
-          throw error;
-        }
+        if (error) throw error;
         console.log('User permission created successfully');
       }
 
@@ -280,7 +270,6 @@ export const PermissionsManager = () => {
         ...rolePermissionSet 
       });
       
-      // Check if permission already exists
       const { data: existing, error: checkError } = await supabase
         .from('role_permissions')
         .select('id')
@@ -289,12 +278,10 @@ export const PermissionsManager = () => {
         .maybeSingle();
 
       if (checkError && checkError.code !== 'PGRST116') {
-        console.error('Error checking existing role permission:', checkError);
         throw checkError;
       }
 
       if (existing) {
-        // Update existing permission
         const { error } = await supabase
           .from('role_permissions')
           .update({
@@ -303,13 +290,9 @@ export const PermissionsManager = () => {
           })
           .eq('id', existing.id);
 
-        if (error) {
-          console.error('Error updating role permission:', error);
-          throw error;
-        }
+        if (error) throw error;
         console.log('Role permission updated successfully');
       } else {
-        // Insert new permission
         const { error } = await supabase
           .from('role_permissions')
           .insert({
@@ -318,10 +301,7 @@ export const PermissionsManager = () => {
             ...rolePermissionSet
           });
 
-        if (error) {
-          console.error('Error inserting role permission:', error);
-          throw error;
-        }
+        if (error) throw error;
         console.log('Role permission created successfully');
       }
 
