@@ -24,6 +24,27 @@ const Reports = lazy(() => import("./pages/Reports"));
 const Admin = lazy(() => import("./pages/Admin"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
+// Create a dedicated page component for Karyakar Additional Details management
+const KaryakarAdditionalDetailsManagement = lazy(() => import("./components/KaryakarAdditionalDetails").then(module => ({
+  default: () => (
+    <div className="space-y-6 p-4 sm:p-6">
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Karyakar Additional Details</h1>
+        <p className="text-gray-600 mt-1">Manage additional information for all karyakars</p>
+      </div>
+      <div className="bg-white rounded-lg shadow p-6">
+        <p className="text-gray-600 mb-4">
+          This section allows authorized users to manage additional details for karyakars.
+          Use the individual karyakar detail pages to add or edit specific information.
+        </p>
+        <p className="text-sm text-gray-500">
+          Navigate to the Karyakars section and click "Details" on any karyakar card to manage their additional information.
+        </p>
+      </div>
+    </div>
+  )
+})));
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -48,8 +69,13 @@ function App() {
                     </ProtectedRoute>
                   } />
                   <Route path="karyakars/:id/additional-details" element={
-                    <ProtectedRoute module="karyakars" action="view">
+                    <ProtectedRoute module="karyakar_additional_details" action="view">
                       <KaryakarAdditionalDetailsPage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="karyakar-additional-details" element={
+                    <ProtectedRoute module="karyakar_additional_details">
+                      <KaryakarAdditionalDetailsManagement />
                     </ProtectedRoute>
                   } />
                   <Route path="tasks" element={

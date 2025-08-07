@@ -66,7 +66,7 @@ export const usePermissions = () => {
       const permissionsMap: Record<string, Record<string, boolean>> = {};
 
       // Default modules
-      const modules = ['dashboard', 'karyakars', 'tasks', 'communication', 'reports', 'admin'];
+      const modules = ['dashboard', 'karyakars', 'karyakar_additional_details', 'tasks', 'communication', 'reports', 'admin'];
 
       // Initialize all modules with false permissions
       modules.forEach(module => {

@@ -73,6 +73,7 @@ export const PermissionsManager = () => {
   const modules = [
     { value: 'dashboard', label: 'Dashboard' },
     { value: 'karyakars', label: 'Karyakars' },
+    { value: 'karyakar_additional_details', label: 'Karyakar Additional Details' },
     { value: 'tasks', label: 'Tasks' },
     { value: 'communication', label: 'Communication' },
     { value: 'reports', label: 'Reports' },
