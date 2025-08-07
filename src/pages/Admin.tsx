@@ -1,10 +1,11 @@
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { PermissionsManager } from "@/components/PermissionsManager";
 import { RoleHierarchyManager } from "@/components/RoleHierarchyManager";
 import { UserLocationAssignment } from "@/components/UserLocationAssignment";
 import { MasterDataDialog } from "@/components/MasterDataDialog";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import UserManagement from "@/components/UserManagement";
 import AppSettings from "@/components/AppSettings";
 import RoleDebugger from "@/components/RoleDebugger";
