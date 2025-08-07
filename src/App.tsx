@@ -13,12 +13,12 @@ import Tasks from "./pages/Tasks";
 import Communication from "./pages/Communication";
 import Reports from "./pages/Reports";
 import Admin from "./pages/Admin";
-import Settings from "./pages/Settings";
-import Profile from "./pages/Profile";
+import { Settings } from "./pages/Settings";
+import { Profile } from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import { KaryakarAdditionalDetailsPage } from "./pages/KaryakarAdditionalDetailsPage";
 import { KaryakarAdditionalDetailsManagement } from "./pages/KaryakarAdditionalDetailsManagement";
-import ProtectedRoute from "./components/ProtectedRoute";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
