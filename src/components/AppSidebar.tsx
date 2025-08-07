@@ -35,12 +35,12 @@ const navigationItems = [
     icon: Users,
     module: "karyakars"
   },
-  {
+  /*{
     title: "Karyakar Additional Details",
     url: "/karyakar-additional-details",
     icon: UserCheck,
     module: "karyakar_additional_details"
-  },
+  },*/
   {
     title: "Tasks",
     url: "/tasks",
