@@ -27,11 +27,11 @@ const KaryakarAdditionalDetailsManagement = () => {
         </p>
         <Button
           variant="outline"
-          onClick={handleNavigateToKaryakars}
+          onClick={handleViewAdditionalDetails}
           className="flex items-center"
         >
           <Plus className="h-4 w-4 mr-2" />
-          Go to Karyakars
+          Add Additional Details of Karyakars
         </Button>
       </div>
     </div>
