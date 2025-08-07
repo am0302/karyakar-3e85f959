@@ -1,6 +1,8 @@
 
 import UserSettings from '@/components/UserSettings';
 
-export const Settings = () => {
+const Settings = () => {
   return <UserSettings />;
 };
+
+export default Settings;

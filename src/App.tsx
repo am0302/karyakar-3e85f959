@@ -13,12 +13,12 @@ import Tasks from "./pages/Tasks";
 import Communication from "./pages/Communication";
 import Reports from "./pages/Reports";
 import Admin from "./pages/Admin";
-import Settings from "./pages/Settings";
-import Profile from "./pages/Profile";
+import { Settings } from "./pages/Settings";
+import { Profile } from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import { KaryakarAdditionalDetailsPage } from "./pages/KaryakarAdditionalDetailsPage";
 import { KaryakarAdditionalDetailsManagement } from "./pages/KaryakarAdditionalDetailsManagement";
-import ProtectedRoute from "./components/ProtectedRoute";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -36,7 +36,7 @@ function App() {
               <Route 
                 path="/dashboard" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute module="dashboard">
                     <Dashboard />
                   </ProtectedRoute>
                 } 
@@ -44,7 +44,7 @@ function App() {
               <Route 
                 path="/karyakars" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute module="karyakars">
                     <Karyakars />
                   </ProtectedRoute>
                 } 
@@ -52,7 +52,7 @@ function App() {
               <Route 
                 path="/karyakars/:id/additional-details" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute module="karyakars">
                     <KaryakarAdditionalDetailsPage />
                   </ProtectedRoute>
                 } 
@@ -60,7 +60,7 @@ function App() {
               <Route 
                 path="/karyakar-additional-details" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute module="karyakar_additional_details">
                     <KaryakarAdditionalDetailsManagement />
                   </ProtectedRoute>
                 } 
@@ -68,7 +68,7 @@ function App() {
               <Route 
                 path="/tasks" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute module="tasks">
                     <Tasks />
                   </ProtectedRoute>
                 } 
@@ -76,7 +76,7 @@ function App() {
               <Route 
                 path="/communication" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute module="communication">
                     <Communication />
                   </ProtectedRoute>
                 } 
@@ -84,7 +84,7 @@ function App() {
               <Route 
                 path="/reports" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute module="reports">
                     <Reports />
                   </ProtectedRoute>
                 } 
@@ -92,7 +92,7 @@ function App() {
               <Route 
                 path="/admin" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute module="admin">
                     <Admin />
                   </ProtectedRoute>
                 } 
@@ -100,7 +100,7 @@ function App() {
               <Route 
                 path="/settings" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute module="admin">
                     <Settings />
                   </ProtectedRoute>
                 } 
@@ -108,7 +108,7 @@ function App() {
               <Route 
                 path="/profile" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute module="admin">
                     <Profile />
                   </ProtectedRoute>
                 } 
