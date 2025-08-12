@@ -15,6 +15,7 @@ const queryClient = new QueryClient();
 
 // Lazy load components
 const Auth = lazy(() => import("./pages/Auth"));
+const PasswordReset = lazy(() => import("./pages/PasswordReset"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Karyakars = lazy(() => import("./pages/Karyakars"));
 const KaryakarAdditionalDetailsPage = lazy(() => import("./pages/KaryakarAdditionalDetailsPage").then(module => ({ default: module.KaryakarAdditionalDetailsPage })));
@@ -39,6 +40,7 @@ function App() {
               <Routes>
                 <Route path="/" element={<Navigate to="/auth" replace />} />
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/auth/reset-password" element={<PasswordReset />} />
                 <Route path="/" element={<Layout />}>
                   <Route path="dashboard" element={
                     <ProtectedRoute module="dashboard">

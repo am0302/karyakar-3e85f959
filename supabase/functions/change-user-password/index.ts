@@ -50,14 +50,21 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Check if the user is a super admin
-    const { data: profile, error: profileError } = await supabase
+    // Initialize Supabase admin client to check user role
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
+    // Check if the user is a super admin using admin client
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .single();
 
     if (profileError || profile?.role !== "super_admin") {
+      console.error("Role check error:", profileError, "User role:", profile?.role);
       return new Response(
         JSON.stringify({ error: "Only Super Admin can change user passwords" }),
         {
@@ -82,11 +89,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Initialize Supabase client with service role key for admin operations
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    // Use the same admin client for password update
 
     // Update user password using admin API
     const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
