@@ -18,10 +18,15 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    console.log("Change password function called");
+    
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    console.log("Auth header present:", !!authHeader);
+    
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      console.log("Missing or invalid authorization header");
       return new Response(
-        JSON.stringify({ error: "Authorization header required" }),
+        JSON.stringify({ error: "Missing or invalid authorization header" }),
         {
           status: 401,
           headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -29,44 +34,43 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Initialize Supabase client for auth verification
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
-    );
+    const token = authHeader.replace("Bearer ", "");
+    console.log("Token extracted, length:", token.length);
 
-    // Verify the requesting user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace("Bearer ", "")
-    );
-
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Invalid authentication" }),
-        {
-          status: 401,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        }
-      );
-    }
-
-    // Initialize Supabase admin client to check user role
+    // Initialize admin Supabase client first
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // Check if the user is a super admin using admin client
+    // Verify the user using admin client
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+    console.log("User verification result:", { user: !!user, error: userError?.message });
+    
+    if (userError || !user) {
+      console.log("User verification failed:", userError?.message);
+      return new Response(
+        JSON.stringify({ error: "Invalid token or unauthorized" }),
+        {
+          status: 401,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+
+    // Check if the user has super_admin role
     const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .single();
 
-    if (profileError || profile?.role !== "super_admin") {
-      console.error("Role check error:", profileError, "User role:", profile?.role);
+    console.log("Profile check result:", { profile, error: profileError?.message });
+
+    if (profileError || !profile || profile.role !== "super_admin") {
+      console.log("Permission check failed:", { profile, error: profileError?.message });
       return new Response(
-        JSON.stringify({ error: "Only Super Admin can change user passwords" }),
+        JSON.stringify({ error: "Insufficient permissions. Only super_admin can change passwords." }),
         {
           status: 403,
           headers: { "Content-Type": "application/json", ...corsHeaders },

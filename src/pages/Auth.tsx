@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Mail, Lock, Chrome } from "lucide-react";
+import ForgotPasswordDialog from "@/components/ForgotPasswordDialog";
 
 const Auth = () => {
   const { user, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
@@ -187,6 +188,9 @@ const Auth = () => {
               >
                 Sign In
               </Button>
+              <div className="text-center">
+                <ForgotPasswordDialog />
+              </div>
             </TabsContent>
             
             <TabsContent value="signup" className="space-y-4">

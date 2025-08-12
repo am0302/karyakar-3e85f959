@@ -19,19 +19,32 @@ const PasswordReset = () => {
 
   useEffect(() => {
     const checkToken = async () => {
+      // Check for tokens in URL parameters (query params)
       const accessToken = searchParams.get('access_token');
       const refreshToken = searchParams.get('refresh_token');
       
-      if (accessToken && refreshToken) {
+      // Also check for tokens in URL hash (common for Supabase auth)
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const hashAccessToken = hashParams.get('access_token');
+      const hashRefreshToken = hashParams.get('refresh_token');
+      
+      const finalAccessToken = accessToken || hashAccessToken;
+      const finalRefreshToken = refreshToken || hashRefreshToken;
+      
+      console.log('Checking tokens:', { finalAccessToken: !!finalAccessToken, finalRefreshToken: !!finalRefreshToken });
+      
+      if (finalAccessToken && finalRefreshToken) {
         try {
           const { error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
+            access_token: finalAccessToken,
+            refresh_token: finalRefreshToken,
           });
           
           if (!error) {
             setValidToken(true);
+            console.log('Token validation successful');
           } else {
+            console.error('Token validation error:', error);
             toast({
               title: 'Invalid Reset Link',
               description: 'This password reset link is invalid or has expired.',
@@ -40,6 +53,7 @@ const PasswordReset = () => {
             navigate('/auth');
           }
         } catch (error) {
+          console.error('Session setup error:', error);
           toast({
             title: 'Error',
             description: 'Failed to validate reset link.',
@@ -48,6 +62,7 @@ const PasswordReset = () => {
           navigate('/auth');
         }
       } else {
+        console.log('No tokens found in URL');
         toast({
           title: 'Invalid Reset Link',
           description: 'This password reset link is invalid.',
