@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Edit, Mail, Key, Search, UserCheck } from 'lucide-react';
+import { Users, Edit, Mail, Key, Search, UserCheck, Lock } from 'lucide-react';
 import { RoleDisplay } from '@/components/RoleDisplay';
 import { useDynamicRoles } from '@/hooks/useDynamicRoles';
 
@@ -35,6 +35,9 @@ const UserManagement = () => {
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
+  const [changePasswordDialogOpen, setChangePasswordDialogOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [changePasswordLoading, setChangePasswordLoading] = useState(false);
   const [editFormData, setEditFormData] = useState({
     full_name: '',
     email: '',
@@ -157,23 +160,18 @@ const UserManagement = () => {
     try {
       setResetPasswordLoading(true);
       
-      // Generate a password reset token
-      const resetToken = crypto.randomUUID();
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+      const resetUrl = `${window.location.origin}/auth/reset-password`;
+      
+      const { error } = await supabase.functions.invoke('send-password-reset', {
+        body: {
+          userEmail,
+          userName,
+          resetUrl
+        }
+      });
 
-      // Update user with reset token
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({
-          password_reset_token: resetToken,
-          password_reset_expires_at: expiresAt.toISOString()
-        })
-        .eq('email', userEmail);
+      if (error) throw error;
 
-      if (updateError) throw updateError;
-
-      // Here you would typically send an email with the reset link
-      // For now, we'll just show a success message
       toast({
         title: 'Success',
         description: `Password reset link sent to ${userEmail}`,
@@ -189,6 +187,54 @@ const UserManagement = () => {
     } finally {
       setResetPasswordLoading(false);
     }
+  };
+
+  const handleChangePassword = async () => {
+    if (!selectedUser || !newPassword) return;
+
+    try {
+      setChangePasswordLoading(true);
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('No active session');
+
+      const { error } = await supabase.functions.invoke('change-user-password', {
+        body: {
+          userId: selectedUser.id,
+          newPassword
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Password changed successfully',
+      });
+
+      setChangePasswordDialogOpen(false);
+      setNewPassword('');
+      setSelectedUser(null);
+
+    } catch (error: any) {
+      console.error('Error changing password:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to change password',
+        variant: 'destructive',
+      });
+    } finally {
+      setChangePasswordLoading(false);
+    }
+  };
+
+  const openChangePasswordDialog = (user: UserProfile) => {
+    setSelectedUser(user);
+    setNewPassword('');
+    setChangePasswordDialogOpen(true);
   };
 
   const filteredUsers = users.filter(user =>
@@ -278,8 +324,16 @@ const UserManagement = () => {
                           onClick={() => handleSendPasswordReset(user.email, user.full_name)}
                           disabled={!user.email || resetPasswordLoading}
                         >
-                          <Key className="h-4 w-4 mr-1" />
-                          Reset Password
+                          <Mail className="h-4 w-4 mr-1" />
+                          Send Reset
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openChangePasswordDialog(user)}
+                        >
+                          <Lock className="h-4 w-4 mr-1" />
+                          Change Password
                         </Button>
                       </div>
                     </TableCell>
@@ -362,6 +416,52 @@ const UserManagement = () => {
           <DialogFooter>
             <Button type="submit" onClick={handleUpdateUser}>
               Save changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Password Dialog */}
+      <Dialog open={changePasswordDialogOpen} onOpenChange={setChangePasswordDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Change User Password</DialogTitle>
+            <DialogDescription>
+              Set a new password for {selectedUser?.full_name || selectedUser?.email}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="new_password" className="text-right">
+                New Password
+              </Label>
+              <Input
+                id="new_password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password"
+                className="col-span-3"
+                minLength={6}
+              />
+            </div>
+            <div className="text-sm text-muted-foreground px-4">
+              Password must be at least 6 characters long
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline"
+              onClick={() => setChangePasswordDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              onClick={handleChangePassword}
+              disabled={!newPassword || newPassword.length < 6 || changePasswordLoading}
+            >
+              {changePasswordLoading ? 'Changing...' : 'Change Password'}
             </Button>
           </DialogFooter>
         </DialogContent>
