@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Settings, Bell, Lock, Eye, Shield, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import ChangePasswordDialog from '@/components/ChangePasswordDialog';
 
 const UserSettings = () => {
   const { user, signOut } = useAuth();
@@ -259,10 +260,7 @@ const UserSettings = () => {
             />
           </div>
           <div className="pt-4 border-t">
-            <Button variant="outline" className="w-full md:w-auto">
-              <Lock className="h-4 w-4 mr-2" />
-              Change Password
-            </Button>
+            <ChangePasswordDialog />
           </div>
         </CardContent>
       </Card>

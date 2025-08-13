@@ -8,7 +8,8 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import UserManagement from "@/components/UserManagement";
 import AppSettings from "@/components/AppSettings";
 import RoleDebugger from "@/components/RoleDebugger";
-import { Shield, Network, MapPin, Users, Briefcase, Star, Search, Building, TreePine, Home, Settings, Bug } from "lucide-react";
+import SuperAdminPasswordManager from "@/components/SuperAdminPasswordManager";
+import { Shield, Network, MapPin, Users, Briefcase, Star, Search, Building, TreePine, Home, Settings, Bug, Key } from "lucide-react";
 import { useState } from "react";
 
 const Admin = () => {
@@ -104,6 +105,12 @@ const Admin = () => {
       <Home className="h-3 w-3 sm:h-4 sm:w-4" />
       <span className="hidden sm:inline">Villages & Mandals</span>
       <span className="sm:hidden">V&M</span>
+    </TabsTrigger>
+
+    <TabsTrigger value="password-management" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+      <Key className="h-3 w-3 sm:h-4 sm:w-4" />
+      <span className="hidden sm:inline">Password Management</span>
+      <span className="sm:hidden">Passwords</span>
     </TabsTrigger>
   </TabsList>
 
@@ -300,6 +307,10 @@ const Admin = () => {
                 </div>
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="password-management" className="space-y-6">
+            <SuperAdminPasswordManager />
           </TabsContent>
         </Tabs>
       </div>
