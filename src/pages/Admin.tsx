@@ -8,9 +8,11 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import UserManagement from "@/components/UserManagement";
 import AppSettings from "@/components/AppSettings";
 import RoleDebugger from "@/components/RoleDebugger";
-import SuperAdminPasswordManager from "@/components/SuperAdminPasswordManager";
 import { Shield, Network, MapPin, Users, Briefcase, Star, Search, Building, TreePine, Home, Settings, Bug, Key } from "lucide-react";
-import { useState } from "react";
+import { useState, Suspense, lazy } from "react";
+
+// Lazy load the password manager to avoid circular dependencies
+const SuperAdminPasswordManager = lazy(() => import("@/components/SuperAdminPasswordManager"));
 
 const Admin = () => {
   const [globalSearch, setGlobalSearch] = useState('');
@@ -310,7 +312,9 @@ const Admin = () => {
           </TabsContent>
 
           <TabsContent value="password-management" className="space-y-6">
-            <SuperAdminPasswordManager />
+            <Suspense fallback={<div className="text-center py-8">Loading password management...</div>}>
+              <SuperAdminPasswordManager />
+            </Suspense>
           </TabsContent>
         </Tabs>
       </div>
