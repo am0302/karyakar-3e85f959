@@ -389,30 +389,6 @@ const Dashboard = () => {
       {/* User Statistics */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-         {/* Mandal-wise Users */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserCheck className="h-5 w-5" />
-              Mandal-wise Users
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {mandalStats.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">No data available</p>
-              ) : (
-                mandalStats.map((mandal) => (
-                  <div key={mandal.mandal} className="flex items-center justify-between p-2 border rounded">
-                    <span className="font-medium">{village.display_name}</span>
-                    <span className="font-medium">{mandal.display_name}</span>
-                    <Badge variant="outline">{mandal.count}</Badge>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
         
         {/* Role-wise Users */}
         <Card>
